@@ -68,6 +68,8 @@ jobs:
           Il problema App Groups richiede ancora verifica sull'IPA firmato.
           NOTES
           printf '\nCommit: `%s`\nRun: https://github.com/%s/actions/runs/%s\n' "$GITHUB_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> build/release-notes.md
-          gh release create "build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" build/Bloom.ipa \
+          RELEASE_TAG="build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          gh release create "$RELEASE_TAG" build/Bloom.ipa \
             --target "$GITHUB_SHA" --title "Bloom build ${GITHUB_RUN_NUMBER}" \
-            --notes-file build/release-notes.md --latest
+            --notes-file build/release-notes.md --draft
+          gh release edit "$RELEASE_TAG" --draft=false --latest
