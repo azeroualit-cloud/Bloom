@@ -17,7 +17,7 @@ struct SaveLinkIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let container = try LocalLibrary.open()
         let inserted = try LinkStore.capture(url, into: container.mainContext)
-        let message: IntentDialog = inserted ? "Link salvato in Bloom" : "Link già presente in Bloom"
+        let message: IntentDialog = inserted ? "Link salvato in Bloom" : "Link già presente in Bloom, anche nell’archivio"
         return .result(dialog: message)
     }
 }

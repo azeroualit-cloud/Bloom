@@ -82,3 +82,22 @@ La vecchia Share Extension e il vecchio archivio App Group sono stati ritirati
 per decisione dell'utente. Nessuna cancellazione o migrazione automatica dal
 vecchio container inaccessibile. La diagnostica resta disponibile per eventuali
 errori dell'archivio privato, con report copiabile privo di contenuti personali.
+
+## Library — build 4
+
+Ricerca su titolo, URL, note e raccolta. Menu cartella per filtrare e gestire
+raccolte; selettore Libreria/Archivio per i contenuti attivi o archiviati.
+Aprire un contenuto → Modifica per titolo, note e raccolta. Archiviare dalla riga
+o dal dettaglio; ripristinare dall'Archivio. Eliminare una raccolta conserva i
+contenuti. I duplicati esatti includono anche i link archiviati.
+
+Aggiornare senza disinstallare. La migrazione aggiunge proprietà opzionali e uno
+stato archivio con valore predefinito, senza ricreare il database. La prova di
+migrazione e le altre verifiche sono in Tests/LibraryTests.swift. Nessun reset
+automatico è consentito in caso di errore. Verificare anche su dispositivo che
+i link già salvati siano presenti dopo l'aggiornamento.
+
+Percorsi confermati dall'utente: Instagram, TikTok e Pinterest tramite comando
+Condividi con estrazione URL; YouTube con copia/incolla nell'app. Non sono previsti
+ulteriori tentativi di condivisione YouTube in questo incremento. Importazione
+di testi/immagini/file e Unified Viewer restano da implementare.

@@ -65,7 +65,7 @@ private struct StorageRootView: View {
         do {
             let inserted = try LinkStore.capture(url, into: container.mainContext)
             pendingURL = nil
-            notice = inserted ? "Link salvato in Bloom" : "Link già presente in Bloom"
+            notice = inserted ? "Link salvato in Bloom" : "Link già presente. Controlla anche Archivio."
         } catch { captureError = error.localizedDescription }
     }
 }
