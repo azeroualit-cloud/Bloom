@@ -135,3 +135,24 @@ Apri contenuto legge direttamente Markdown e altri file di testo UTF-8/UTF-16
 con BOM fino a 512 KB, preservando il testo originale (sorgente, senza rendering
 Markdown). File maggiori o altri formati passano all'anteprima di sistema e, quando
 preparati, a Condividi file. Restano necessari test sul provider File dell'iPhone.
+
+## Viewer web interno — build 7
+
+Un link nella Library si apre nel browser interno di Bloom, con indirizzo corrente,
+indietro/avanti, ricarica/stop, condivisione, fallback esterno e Dettagli per le
+funzioni di organizzazione. Il browser usa WebKit con dati persistenti separati
+da Safari. L'accesso ai siti va effettuato nel browser di Bloom; un sito può
+richiedere nuovamente il login secondo le proprie regole. La riproduzione richiede
+un gesto dell'utente e dipende dalle funzionalità offerte dalla piattaforma web.
+Nessun bypass di login, TLS o restrizioni dei social.
+
+I tentativi del sito di aprire automaticamente app esterne sono intercettati.
+Apri all'esterno rimane un'azione esplicita; i popup web HTTP(S) usano la stessa
+vista. Il browser non concede accesso a fotocamera/microfono alle pagine. Il menu
+Cancella dati di navigazione richiede conferma e non elimina la libreria SwiftData.
+
+Test WebKit con HTML locale, policy URL e configurazione persistente in CI.
+La compatibilità di Instagram/TikTok/Pinterest/YouTube e la persistenza dei login
+restano da provare sul dispositivo firmato. Nessuna modifica alla cattura:
+YouTube continua a usare copia/incolla; gli altri social il comando verificato.
+Testi e allegati conservano i viewer locali. Vedi docs/viewer.md per flussi e gate.

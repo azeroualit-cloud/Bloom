@@ -49,7 +49,7 @@ struct LibraryView: View {
                         description: Text(emptyDescription))
                 }
                 ForEach(visibleLinks) { link in
-                    NavigationLink { LinkDetailView(link: link) } label: { LibraryRow(link: link) }
+                    NavigationLink { ContentViewer(item: link) } label: { LibraryRow(link: link) }
                         .swipeActions(allowsFullSwipe: false) {
                             Button(archived ? "Ripristina" : "Archivia", systemImage: "archivebox") {
                                 do {
