@@ -4,7 +4,7 @@ cd "$(dirname "$0")/.."
 xcodegen generate
 xcodebuild -project Bloom.xcodeproj -scheme Bloom -configuration Release \
   -destination 'generic/platform=iOS' -archivePath build/Bloom.xcarchive \
-  CODE_SIGNING_ALLOWED=NO archive
+  BLOOM_BUILD_COMMIT="${GITHUB_SHA:-local}" CODE_SIGNING_ALLOWED=NO archive
 mkdir -p build/ipa/Payload
 # Replace only this script's generated packaging directory.
 rm -rf build/ipa/Payload/Bloom.app

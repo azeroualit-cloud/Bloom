@@ -47,3 +47,19 @@ sia quello installato e acquisire la diagnosi runtime del container su dispositi
 
 Lo script non è stato eseguito su un IPA firmato reale: quel file non è disponibile
 nell'ambiente. Non sono stati contattati terzi né forniti certificati o credenziali.
+
+## Diagnostica dall'app installata — build 2
+
+Quando l'archivio non si apre, Bloom mostra la fase raggiunta e offre
+Riprova apertura, Copia report e Condividi report. Il report riporta versione,
+commit, bundle ID e App Group dichiarati da app ed estensione incorporata,
+esito della risoluzione del container e dominio/codice dell'errore.
+Non stampa userInfo, descrizioni tecniche dell'errore, percorsi locali,
+contenuti della raccolta, UDID o provisioning profile. Non legge entitlement
+tramite API private e non dichiara che il gruppo sia autorizzato solo perché
+è presente nell'Info.plist. Non modifica, sposta o elimina il database.
+La build CI incorpora il proprio commit nel report; una build locale mostra local.
+
+Su iPhone, installare la nuova build firmata, aprire Bloom e premere Copia report.
+Incollare il testo nel caso di assistenza. Non è necessario recuperare l'IPA firmato
+per raccogliere questa prima diagnosi runtime.

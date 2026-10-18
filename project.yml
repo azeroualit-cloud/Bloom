@@ -6,6 +6,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
+    BLOOM_BUILD_COMMIT: local
     TARGETED_DEVICE_FAMILY: "1,2"
     APP_GROUP_IDENTIFIER: group.app.bloom.shared
     CODE_SIGN_STYLE: Automatic
