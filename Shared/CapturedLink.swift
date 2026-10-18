@@ -16,13 +16,10 @@ final class CapturedLink {
 
 enum CaptureError: LocalizedError {
     case invalidURL
-    case appGroupUnavailable
 
     var errorDescription: String? {
         switch self {
         case .invalidURL: return "Condividi un indirizzo web HTTP o HTTPS valido."
-        case .appGroupUnavailable:
-            return "Archivio condiviso non disponibile. Verifica la firma e gli App Groups di Bloom e dell’estensione."
         }
     }
 }

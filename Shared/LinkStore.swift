@@ -1,11 +1,10 @@
 import Foundation
 import SwiftData
 
-/// Only Bloom writes the SwiftData database. The extension writes atomic inbox files.
-/// This avoids concurrent SwiftData writers and keeps capture independent of app startup.
 @MainActor
 enum LinkStore {
     static func container(at directory: URL) throws -> ModelContainer {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let schema = Schema([CapturedLink.self])
         let configuration = ModelConfiguration(
             schema: schema, url: directory.appendingPathComponent("Bloom.store"),
@@ -14,19 +13,31 @@ enum LinkStore {
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 
-    static func importInbox(_ inbox: CaptureInbox, into context: ModelContext) throws {
-        for file in try inbox.pendingFiles() {
-            let capture = try inbox.read(file)
-            let id = capture.id
-            let request = FetchDescriptor<CapturedLink>(predicate: #Predicate { $0.id == id })
-            if try context.fetch(request).isEmpty {
-                context.insert(CapturedLink(url: try LinkValidation.validate(capture.url),
-                                            id: id, capturedAt: capture.capturedAt))
-                do { try context.save() }
-                catch { context.rollback(); throw error }
-            }
-            // Delete only after a successful save. A retry recognizes the same capture UUID.
-            try inbox.remove(file)
-        }
+    /// Returns false for an exact URL already present. All entry points use this path.
+    @discardableResult
+    static func capture(_ url: URL, into context: ModelContext) throws -> Bool {
+        let valid = try LinkValidation.validate(url)
+        let value = valid.absoluteString
+        let request = FetchDescriptor<CapturedLink>(predicate: #Predicate { $0.urlString == value })
+        guard try context.fetch(request).isEmpty else { return false }
+        context.insert(CapturedLink(url: valid))
+        do { try context.save() }
+        catch { context.rollback(); throw error }
+        return true
+    }
+}
+
+@MainActor
+enum LocalLibrary {
+    private static var cached: ModelContainer?
+
+    static func open() throws -> ModelContainer {
+        if let cached { return cached }
+        let root = try FileManager.default.url(for: .applicationSupportDirectory,
+                                              in: .userDomainMask, appropriateFor: nil, create: true)
+            .appendingPathComponent("Bloom", isDirectory: true)
+        let container = try LinkStore.container(at: root)
+        cached = container
+        return container
     }
 }

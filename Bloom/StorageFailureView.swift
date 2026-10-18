@@ -38,15 +38,6 @@ struct StorageFailureView: View {
     }
 
     private var explanation: String {
-        switch diagnostics.stage {
-        case .configuration:
-            return "L’identificatore dell’archivio condiviso è assente o non risolto nella configurazione installata. Copia il report per verificare la build."
-        case .container:
-            return "iOS non ha restituito il container dell’App Group richiesto. La firma e il profilo devono autorizzare lo stesso gruppo per Bloom e l’estensione. Copia il report per continuare la verifica."
-        case .database:
-            return "iOS ha restituito il container, ma SwiftData non ha aperto il database. Copia il report prima di modificare o reinstallare l’app."
-        case .ready:
-            return "L’archivio risulta aperto. Riprova per aggiornare lo stato."
-        }
+        "Bloom non ha potuto aprire il proprio archivio locale. Copia il report prima di modificare o reinstallare l’app. Gli App Groups non sono più necessari."
     }
 }

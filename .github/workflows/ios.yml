@@ -22,7 +22,7 @@ jobs:
       - name: Generate Xcode project
         run: |
           xcodegen generate
-          git diff --exit-code -- Bloom/Info.plist Bloom/Bloom.entitlements ShareExtension/Info.plist ShareExtension/BloomShare.entitlements
+          git diff --exit-code -- Bloom/Info.plist
       - name: Test persistence and recovery
         shell: bash
         run: |
@@ -65,7 +65,7 @@ jobs:
           cat > build/release-notes.md <<'NOTES'
           Build automatica dopo il completamento dei test e dell'archivio iOS.
           Bloom.ipa non è firmato: importarlo nel servizio di firma prima dell'installazione.
-          Il problema App Groups richiede ancora verifica sull'IPA firmato.
+          Archivio privato, cattura manuale e azione Comandi Rapidi: nessun App Group richiesto.
           NOTES
           printf '\nCommit: `%s`\nRun: https://github.com/%s/actions/runs/%s\n' "$GITHUB_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> build/release-notes.md
           RELEASE_TAG="build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"

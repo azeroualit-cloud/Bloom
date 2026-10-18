@@ -3,22 +3,21 @@ import SwiftData
 
 struct LibraryView: View {
     @Environment(\.modelContext) private var context
-    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \CapturedLink.capturedAt, order: .reverse) private var links: [CapturedLink]
-    @State private var importError: String?
+    @State private var showingAdd = false
+    @State private var showingGuide = false
+    @State private var notice: String?
 
     var body: some View {
         NavigationStack {
             List {
-                if let importError {
-                    Section {
-                        Text(importError).foregroundStyle(.red)
-                        Button("Riprova importazione", action: importCaptures)
-                    }
+                Section {
+                    Button("Condividi da Safari", systemImage: "square.and.arrow.up") { showingGuide = true }
+                    if let notice { Text(notice).foregroundStyle(.secondary) }
                 }
                 if links.isEmpty {
                     ContentUnavailableView("La tua raccolta inizia qui", systemImage: "tray",
-                        description: Text("Da Safari, condividi un link e scegli Salva in Bloom."))
+                        description: Text("Aggiungi un link con + oppure configura il comando per condividere da Safari."))
                 }
                 ForEach(links) { link in
                     NavigationLink {
@@ -34,22 +33,21 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("Bloom")
-            .refreshable { importCaptures() }
-            .task { importCaptures() }
-            .onChange(of: scenePhase) { _, phase in
-                if phase == .active { importCaptures() }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Aggiungi link", systemImage: "plus") { showingAdd = true }
+                }
             }
+            .sheet(isPresented: $showingAdd) {
+                AddLinkView { inserted in
+                    notice = inserted ? "Link salvato" : "Link già presente nella raccolta"
+                }
+            }
+            .sheet(isPresented: $showingGuide) { CaptureGuideView() }
         }
     }
-
-    private func importCaptures() {
-        do {
-            let inbox = try CaptureInbox(root: CaptureInbox.sharedRoot())
-            try LinkStore.importInbox(inbox, into: context)
-            importError = nil
-        } catch { importError = error.localizedDescription }
-    }
 }
+
 
 private struct LinkDetailView: View {
     let link: CapturedLink

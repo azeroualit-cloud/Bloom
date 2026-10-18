@@ -8,7 +8,6 @@ settings:
     SWIFT_VERSION: "5.0"
     BLOOM_BUILD_COMMIT: local
     TARGETED_DEVICE_FAMILY: "1,2"
-    APP_GROUP_IDENTIFIER: group.app.bloom.shared
     CODE_SIGN_STYLE: Automatic
 targets:
   Bloom:
@@ -19,21 +18,6 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.bloom.ios
         INFOPLIST_FILE: Bloom/Info.plist
-        CODE_SIGN_ENTITLEMENTS: Bloom/Bloom.entitlements
-    dependencies:
-      - target: BloomShare
-        embed: true
-  BloomShare:
-    type: app-extension
-    platform: iOS
-    sources: [ShareExtension, Shared]
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: app.bloom.ios.share
-        INFOPLIST_FILE: ShareExtension/Info.plist
-        CODE_SIGN_ENTITLEMENTS: ShareExtension/BloomShare.entitlements
-        APPLICATION_EXTENSION_API_ONLY: YES
-        SKIP_INSTALL: YES
   BloomTests:
     type: bundle.unit-test
     platform: iOS
