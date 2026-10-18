@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test-and-package:
     runs-on: macos-15
@@ -39,3 +42,32 @@ jobs:
           name: Test-results
           path: build/Tests.xcresult
           if-no-files-found: ignore
+  publish-ipa:
+    needs: test-and-package
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Bloom-unsigned
+          path: build
+      - name: Publish downloadable IPA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp build/Bloom-unsigned.ipa build/Bloom.ipa
+          cat > build/release-notes.md <<'NOTES'
+          Build automatica dopo il completamento dei test e dell'archivio iOS.
+          Bloom.ipa non è firmato: importarlo nel servizio di firma prima dell'installazione.
+          Il problema App Groups richiede ancora verifica sull'IPA firmato.
+          NOTES
+          printf '\nCommit: `%s`\nRun: https://github.com/%s/actions/runs/%s\n' "$GITHUB_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> build/release-notes.md
+          gh release create "build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" build/Bloom.ipa \
+            --target "$GITHUB_SHA" --title "Bloom build ${GITHUB_RUN_NUMBER}" \
+            --notes-file build/release-notes.md --latest

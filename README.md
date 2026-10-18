@@ -62,3 +62,20 @@ Signulous e non è stato prodotto un IPA in questa macchina.
 
 I test coprono persistenza/reopen, replay senza duplicazione, rifiuto URL non web
 e conservazione di catture corrotte. Non sostituiscono Safari e la firma reale.
+
+## URL diretto della build più recente
+
+Dopo una pipeline riuscita su `main`, il job `publish-ipa` crea una release
+con il commit della build e l'asset `Bloom.ipa`. I pull request non pubblicano.
+L'URL stabile punta all'ultima release pubblicata con successo:
+
+https://github.com/azeroualit-cloud/Bloom/releases/latest/download/Bloom.ipa
+
+Il file è l'IPA non firmato, da passare al servizio di firma. Non è un link
+per installare direttamente su iPhone. Se Signulous offre importazione da URL,
+incollare questo indirizzo nella relativa funzione; il supporto di tale funzione
+non è ancora verificato. Per un repository privato il servizio deve avere accesso
+al download: non inserire token nel link. Non viene pubblicata alcuna credenziale.
+Una build fallita lascia disponibile la precedente release riuscita.
+La pubblicazione è registrata nella run GitHub Actions; il link non è disponibile
+prima della prima esecuzione riuscita del job di pubblicazione.
