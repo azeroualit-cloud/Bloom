@@ -59,6 +59,18 @@ enum ContentFingerprint {
 enum AttachmentLoader {
     static let maximumBytes = 25 * 1024 * 1024
 
+    static func readCoordinated(_ url: URL) throws -> AttachmentPayload {
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+        var coordinationError: NSError?
+        var result: Result<AttachmentPayload, Error>?
+        coordinator.coordinate(readingItemAt: url, options: .withoutChanges, error: &coordinationError) { readableURL in
+            result = Result { try read(readableURL) }
+        }
+        if let result { return try result.get() }
+        if let coordinationError { throw coordinationError }
+        throw ImportError.invalidFile
+    }
+
     static func read(_ url: URL) throws -> AttachmentPayload {
         let values = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey, .contentTypeKey])
         guard values.isRegularFile == true else { throw ImportError.invalidFile }

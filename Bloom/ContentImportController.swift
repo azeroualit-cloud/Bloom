@@ -18,6 +18,7 @@ struct ImportedPhoto: Transferable, Sendable {
 @Observable
 final class ContentImportController {
     var isImporting = false
+    var importingName: String?
     var message: String?
     var completionID = UUID()
     var error: String?
@@ -27,17 +28,17 @@ final class ContentImportController {
     private var requestID = UUID()
 
     func importFile(_ url: URL, into context: ModelContext) {
-        load(into: context) {
+        load(name: url.lastPathComponent, into: context) {
             try await Task.detached(priority: .userInitiated) {
                 let access = url.startAccessingSecurityScopedResource()
                 defer { if access { url.stopAccessingSecurityScopedResource() } }
-                return try AttachmentLoader.read(url)
+                return try AttachmentLoader.readCoordinated(url)
             }.value
         }
     }
 
     func importPhoto(_ item: PhotosPickerItem, into context: ModelContext) {
-        load(into: context) {
+        load(name: "Foto", into: context) {
             guard let photo = try await item.loadTransferable(type: ImportedPhoto.self) else {
                 throw ImportError.missingData
             }
@@ -64,13 +65,14 @@ final class ContentImportController {
         } catch { self.error = error.localizedDescription }
     }
 
-    private func load(into context: ModelContext,
+    private func load(name: String, into context: ModelContext,
                       operation: @escaping @Sendable () async throws -> AttachmentPayload) {
         cancel()
         let id = requestID
         error = nil
         message = nil
         isImporting = true
+        importingName = name
         task = Task {
             defer {
                 if requestID == id { isImporting = false; task = nil }

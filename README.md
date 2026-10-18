@@ -122,3 +122,16 @@ Aggiornare senza disinstallare. Gate dispositivo: vecchi link/raccolte presenti,
 importazione testo/foto/PDF, annulla, riapertura offline, lettura e organizzazione.
 I test verificano migrazioni build 3 e 4, payload dopo rimozione dell'originale,
 deduplica e limiti. La prova dei selettori e dei viewer sul dispositivo è separata.
+
+## File e Markdown — build 6
+
+Il selettore documenti usa UIDocumentPicker in modalità copia, con tipi generici
+UTType.item. La lettura coordinata gestisce il passaggio dai provider documenti;
+cartelle e file oltre 25 MB sono rifiutati. Nome e stato di importazione sono
+visibili, e gli errori di importazione restano nella Library anche durante la
+chiusura del selettore, con riprova quando i byte sono già disponibili.
+
+Apri contenuto legge direttamente Markdown e altri file di testo UTF-8/UTF-16
+con BOM fino a 512 KB, preservando il testo originale (sorgente, senza rendering
+Markdown). File maggiori o altri formati passano all'anteprima di sistema e, quando
+preparati, a Condividi file. Restano necessari test sul provider File dell'iPhone.

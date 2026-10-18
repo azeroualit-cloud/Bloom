@@ -38,6 +38,11 @@ struct LibraryView: View {
                         LabeledContent("Raccolta", value: selectedCollectionName)
                     }
                     if let notice { Text(notice).foregroundStyle(.secondary) }
+                    if let importError = importer.error {
+                        Label(importError, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+                        if importer.canRetry { Button("Riprova importazione") { importer.retry(into: context) } }
+                        Button("Chiudi errore") { importer.error = nil; importer.cancel() }
+                    }
                 }
                 if visibleLinks.isEmpty {
                     ContentUnavailableView(emptyTitle, systemImage: "tray",
@@ -92,10 +97,15 @@ struct LibraryView: View {
                     notice = inserted ? "Testo salvato" : "Testo già presente. Controlla anche Archivio."
                 }
             }
-            .fileImporter(isPresented: $showingFiles, allowedContentTypes: [.data], allowsMultipleSelection: false) { result in
-                do {
-                    if let url = try result.get().first { importer.importFile(url, into: context) }
-                } catch { self.error = error.localizedDescription }
+            .sheet(isPresented: $showingFiles) {
+                DocumentImportPicker { result in
+                    showingFiles = false
+                    switch result {
+                    case .success(let url):
+                        if let url { importer.importFile(url, into: context) }
+                    case .failure(let failure): importer.error = failure.localizedDescription
+                    }
+                }
             }
             .photosPicker(isPresented: $showingPhotos, selection: $selectedPhoto, matching: .images)
             .onChange(of: selectedPhoto) { _, item in
@@ -107,7 +117,7 @@ struct LibraryView: View {
             .safeAreaInset(edge: .bottom) {
                 if importer.isImporting {
                     HStack {
-                        ProgressView("Importazione…")
+                        ProgressView("Importazione: \(importer.importingName ?? "contenuto")")
                         Spacer()
                         Button("Annulla") { importer.cancel() }
                     }.padding().background(.regularMaterial)
@@ -119,11 +129,9 @@ struct LibraryView: View {
                 if case .collection(let id) = collectionFilter, !ids.contains(id) { collectionFilter = .all }
             }
             .alert("Operazione non riuscita", isPresented: Binding(
-                get: { error != nil || importer.error != nil },
-                set: { if !$0 { error = nil; importer.error = nil } })) {
-                if importer.canRetry { Button("Riprova importazione") { importer.retry(into: context) } }
-                Button("Chiudi", role: .cancel) { importer.cancel() }
-            } message: { Text(error ?? importer.error ?? "") }
+                get: { error != nil }, set: { if !$0 { error = nil } })) {
+                Button("Chiudi", role: .cancel) { }
+            } message: { Text(error ?? "") }
         }
     }
 

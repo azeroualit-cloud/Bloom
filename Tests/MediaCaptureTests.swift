@@ -124,3 +124,28 @@ extension MediaCaptureTests {
         XCTAssertEqual(try current.mainContext.fetchCount(FetchDescriptor<CapturedLink>()), 2)
     }
 }
+
+extension MediaCaptureTests {
+    @MainActor
+    func testMarkdownCoordinatedImportPersistsAndReadsWithoutQuickLook() throws {
+        let directory = try root()
+        let source = directory.appendingPathComponent("nota.md")
+        let body = "# Titolo\n\nUn testo con accenti: caffè.\n- elemento"
+        try Data(body.utf8).write(to: source)
+        let payload = try AttachmentLoader.readCoordinated(source)
+        let container = try LinkStore.container(at: directory)
+        try LinkStore.captureAttachment(payload, into: container.mainContext)
+        try FileManager.default.removeItem(at: source)
+        let item = try XCTUnwrap(container.mainContext.fetch(FetchDescriptor<CapturedLink>()).first)
+        XCTAssertEqual(DocumentText.decode(try XCTUnwrap(item.attachmentData), name: item.fileName!, type: item.contentType), body)
+    }
+
+    func testTextDecoderPreservesBOMUnicodeAndRejectsBinaryAndOversizedData() {
+        let body = "# Caffè ☕"
+        XCTAssertEqual(DocumentText.decode(Data(("\u{FEFF}" + body).utf8), name: "nota.md", type: nil), body)
+        XCTAssertEqual(DocumentText.decode(body.data(using: .utf16)!, name: "nota.markdown", type: nil), body)
+        XCTAssertNil(DocumentText.decode(Data([0, 1, 2, 255]), name: "nota.md", type: nil))
+        XCTAssertNil(DocumentText.decode(Data("testo".utf8), name: "file.bin", type: "public.data"))
+        XCTAssertNil(DocumentText.decode(Data(repeating: 65, count: DocumentText.maximumPreviewBytes + 1), name: "nota.md", type: nil))
+    }
+}

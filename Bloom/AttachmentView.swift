@@ -6,6 +6,7 @@ import UIKit
 @MainActor
 struct AttachmentView: View {
     let item: CapturedLink
+    @State private var reader: TextDocument?
     @State private var thumbnail: UIImage?
     @State private var thumbnailFinished = false
     @State private var error: String?
@@ -31,10 +32,21 @@ struct AttachmentView: View {
             if let error { Text(error).foregroundStyle(.red) }
             if let exportURL { ShareLink("Condividi file", item: exportURL) }
             if loading { ProgressView("Preparazione anteprima…") }
-            Button("Apri anteprima", systemImage: "doc.viewfinder", action: preview)
+            Button("Apri contenuto", systemImage: "doc.viewfinder", action: preview)
                 .disabled(loading)
         }
         .task(id: item.id) { await loadThumbnail() }
+        .sheet(item: $reader) { document in
+            NavigationStack {
+                ScrollView {
+                    Text(document.text).textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding()
+                }
+                .navigationTitle(document.title)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fine") { reader = nil } } }
+            }
+        }
         .quickLookPreview($previewURL)
         .onChange(of: previewURL) { old, new in
             if old != nil && new == nil, let directory = previewDirectory {
@@ -66,6 +78,10 @@ struct AttachmentView: View {
     private func preview() {
         guard let data = item.attachmentData else { error = ImportError.missingData.localizedDescription; return }
         let name = item.fileName ?? "contenuto"
+        if let text = DocumentText.decode(data, name: name, type: item.contentType) {
+            reader = TextDocument(title: name, text: text)
+            return
+        }
         if let directory = previewDirectory {
             try? FileManager.default.removeItem(at: directory)
             previewDirectory = nil
@@ -96,4 +112,10 @@ struct AttachmentView: View {
             loading = false
         }
     }
+}
+
+private struct TextDocument: Identifiable {
+    let id = UUID()
+    let title: String
+    let text: String
 }
