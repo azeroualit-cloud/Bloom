@@ -7,6 +7,7 @@ import UIKit
 struct AttachmentView: View {
     let item: CapturedLink
     @State private var thumbnail: UIImage?
+    @State private var thumbnailFinished = false
     @State private var error: String?
     @State private var loading = false
     @State private var previewURL: URL?
@@ -19,7 +20,8 @@ struct AttachmentView: View {
                 if let thumbnail {
                     Image(uiImage: thumbnail).resizable().scaledToFit()
                         .accessibilityLabel(item.displayTitle)
-                } else if error == nil { ProgressView("Caricamento immagine…") }
+                } else if !thumbnailFinished { ProgressView("Caricamento immagine…") }
+                else { Label("Anteprima immagine non disponibile", systemImage: "photo.badge.exclamationmark") }
             }
             Text(item.fileName ?? item.kind.label).textSelection(.enabled)
             if let count = item.attachmentByteCount {
@@ -45,6 +47,7 @@ struct AttachmentView: View {
 
     private func loadThumbnail() async {
         guard item.kind == .image else { return }
+        defer { thumbnailFinished = true }
         guard let data = item.attachmentData else { error = ImportError.missingData.localizedDescription; return }
         let image = await Task.detached(priority: .userInitiated) {
             guard let source = CGImageSourceCreateWithData(data as CFData, nil),
