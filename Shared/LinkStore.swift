@@ -26,6 +26,45 @@ enum LinkStore {
         return true
     }
 
+    @discardableResult
+    static func captureText(_ text: String, title: String, into context: ModelContext) throws -> Bool {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ImportError.emptyText }
+        let data = Data(text.utf8)
+        guard data.count <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
+        let key = ContentFingerprint.make(data, kind: .text)
+        if try containsFingerprint(key, in: context) { return false }
+        let item = CapturedLink(kind: .text)
+        item.textContent = text
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        item.title = cleanTitle.isEmpty ? String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80)) : cleanTitle
+        item.contentFingerprint = key
+        context.insert(item)
+        try save(context)
+        return true
+    }
+
+    @discardableResult
+    static func captureAttachment(_ payload: AttachmentPayload, into context: ModelContext) throws -> Bool {
+        guard payload.data.count <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
+        guard payload.kind == .image || payload.kind == .file else { throw ImportError.invalidFile }
+        let key = payload.fingerprint
+        if try containsFingerprint(key, in: context) { return false }
+        let item = CapturedLink(kind: payload.kind)
+        item.fileName = payload.name
+        item.contentType = payload.type
+        item.attachmentData = payload.data
+        item.attachmentByteCount = payload.data.count
+        item.contentFingerprint = key
+        context.insert(item)
+        try save(context)
+        return true
+    }
+
+    private static func containsFingerprint(_ key: String, in context: ModelContext) throws -> Bool {
+        let request = FetchDescriptor<CapturedLink>(predicate: #Predicate { $0.contentFingerprint == key })
+        return try !context.fetch(request).isEmpty
+    }
+
     static func update(_ link: CapturedLink, title: String, notes: String,
                        collection: LinkCollection?, in context: ModelContext) throws {
         link.title = title.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty

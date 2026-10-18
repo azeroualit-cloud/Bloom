@@ -9,11 +9,15 @@ struct LinkDetailView: View {
 
     var body: some View {
         Form {
-            Section("Indirizzo salvato") {
-                Text(link.urlString).textSelection(.enabled)
-                Text(link.capturedAt, format: .dateTime).foregroundStyle(.secondary)
-                if let url = URL(string: link.urlString) { Link("Apri nel browser", destination: url) }
-            }
+            if link.kind == .link {
+                Section("Indirizzo salvato") {
+                    Text(link.urlString).textSelection(.enabled)
+                    if let url = URL(string: link.urlString) { Link("Apri nel browser", destination: url) }
+                }
+            } else if link.kind == .text {
+                Section("Testo") { Text(link.textContent ?? "Testo non disponibile").textSelection(.enabled) }
+            } else { AttachmentView(item: link) }
+            Section { Text(link.capturedAt, format: .dateTime).foregroundStyle(.secondary) }
             Section("Organizzazione") {
                 LabeledContent("Raccolta", value: link.collection?.name ?? "Senza raccolta")
                 LabeledContent("Stato", value: link.isArchived ? "Archiviato" : "Attivo")
@@ -26,7 +30,7 @@ struct LinkDetailView: View {
                 }
             }
         }
-        .navigationTitle(link.title ?? "Contenuto")
+        .navigationTitle(link.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { Button("Modifica") { editing = true } }
         .sheet(isPresented: $editing) { LinkEditor(link: link) }

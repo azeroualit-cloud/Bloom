@@ -101,3 +101,24 @@ Percorsi confermati dall'utente: Instagram, TikTok e Pinterest tramite comando
 Condividi con estrazione URL; YouTube con copia/incolla nell'app. Non sono previsti
 ulteriori tentativi di condivisione YouTube in questo incremento. Importazione
 di testi/immagini/file e Unified Viewer restano da implementare.
+
+## Capture multiformato — build 5
+
+Menu + → Link, Testo, Foto o File. Importazione singola fino a 25 MB; file e foto
+sono copiati nell'archivio privato SwiftData, indipendentemente dall'originale.
+Annullare durante la lettura impedisce il salvataggio. Se il save fallisce, è
+possibile riprovare; l'originale rimane intatto. Foto usa il selettore di sistema,
+senza richiedere accesso completo alla libreria. L'importazione non esegue file.
+
+Testi selezionabili, immagini con anteprima ridimensionata e file con Quick Look
+quando supportato. Per formati senza anteprima, usare Condividi file dopo aver
+preparato l'anteprima. Le copie preparate per le anteprime sono temporanee e non
+sono l'archivio permanente. File e testi usano ricerca/raccolte/archivio comuni.
+Deduplica esatta del testo o dei byte importati, distinta per tipo; una copia con
+nome diverso viene riconosciuta. Non sono ancora presenti modifica del corpo del
+testo, OCR, estrazione del testo dai PDF o download offline delle pagine web.
+
+Aggiornare senza disinstallare. Gate dispositivo: vecchi link/raccolte presenti,
+importazione testo/foto/PDF, annulla, riapertura offline, lettura e organizzazione.
+I test verificano migrazioni build 3 e 4, payload dopo rimozione dell'originale,
+deduplica e limiti. La prova dei selettori e dei viewer sul dispositivo è separata.

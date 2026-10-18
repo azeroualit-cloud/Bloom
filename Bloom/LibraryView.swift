@@ -1,6 +1,9 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
+import UniformTypeIdentifiers
 
+@MainActor
 struct LibraryView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \CapturedLink.capturedAt, order: .reverse) private var links: [CapturedLink]
@@ -9,6 +12,11 @@ struct LibraryView: View {
     @State private var archived = false
     @State private var collectionFilter: CollectionFilter = .all
     @State private var showingAdd = false
+    @State private var showingText = false
+    @State private var showingFiles = false
+    @State private var showingPhotos = false
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var importer = ContentImportController()
     @State private var showingGuide = false
     @State private var showingCollections = false
     @State private var notice: String?
@@ -48,7 +56,7 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("Bloom")
-            .searchable(text: $search, prompt: "Titolo, link, note o raccolta")
+            .searchable(text: $search, prompt: "Cerca nei contenuti")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
@@ -63,7 +71,13 @@ struct LibraryView: View {
                     } label: { Label("Raccolte e guida", systemImage: "folder") }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Aggiungi link", systemImage: "plus") { showingAdd = true }
+                    Menu {
+                        Button("Link", systemImage: "link") { showingAdd = true }
+                        Button("Testo", systemImage: "text.alignleft") { showingText = true }
+                        Button("Foto", systemImage: "photo") { showingPhotos = true }
+                        Button("File (max 25 MB)", systemImage: "doc") { showingFiles = true }
+                    } label: { Label("Aggiungi contenuto", systemImage: "plus") }
+                        .disabled(importer.isImporting)
                 }
             }
             .sheet(isPresented: $showingAdd) {
@@ -72,15 +86,44 @@ struct LibraryView: View {
                     notice = inserted ? "Link salvato" : "Link già presente. Controlla anche Archivio."
                 }
             }
+            .sheet(isPresented: $showingText) {
+                AddTextView { inserted in
+                    if inserted { archived = false; collectionFilter = .all; search = "" }
+                    notice = inserted ? "Testo salvato" : "Testo già presente. Controlla anche Archivio."
+                }
+            }
+            .fileImporter(isPresented: $showingFiles, allowedContentTypes: [.data], allowsMultipleSelection: false) { result in
+                do {
+                    if let url = try result.get().first { importer.importFile(url, into: context) }
+                } catch { self.error = error.localizedDescription }
+            }
+            .photosPicker(isPresented: $showingPhotos, selection: $selectedPhoto, matching: .images)
+            .onChange(of: selectedPhoto) { _, item in
+                if let item { importer.importPhoto(item, into: context); selectedPhoto = nil }
+            }
+            .onChange(of: importer.message) { _, message in
+                if let message { notice = message; archived = false; collectionFilter = .all; search = "" }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if importer.isImporting {
+                    HStack {
+                        ProgressView("Importazione…")
+                        Spacer()
+                        Button("Annulla") { importer.cancel() }
+                    }.padding().background(.regularMaterial)
+                }
+            }
             .sheet(isPresented: $showingGuide) { CaptureGuideView() }
             .sheet(isPresented: $showingCollections) { CollectionsView() }
             .onChange(of: collections.map(\.id)) { _, ids in
                 if case .collection(let id) = collectionFilter, !ids.contains(id) { collectionFilter = .all }
             }
             .alert("Operazione non riuscita", isPresented: Binding(
-                get: { error != nil }, set: { if !$0 { error = nil } })) {
-                Button("OK", role: .cancel) { }
-            } message: { Text(error ?? "") }
+                get: { error != nil || importer.error != nil },
+                set: { if !$0 { error = nil; importer.error = nil } })) {
+                if importer.canRetry { Button("Riprova importazione") { importer.retry(into: context) } }
+                Button("Chiudi", role: .cancel) { importer.cancel() }
+            } message: { Text(error ?? importer.error ?? "") }
         }
     }
 
@@ -93,12 +136,12 @@ struct LibraryView: View {
     }
     private var emptyTitle: String {
         if !search.isEmpty || collectionFilter != .all { return "Nessun risultato" }
-        return archived ? "Archivio vuoto" : "La tua libreria inizia qui"
+        return archived ? "Archivio vuoto" : "Nessun contenuto in libreria"
     }
     private var emptyDescription: String {
         if !search.isEmpty || collectionFilter != .all { return "Prova un’altra ricerca o cambia raccolta." }
         return archived ? "I contenuti archiviati restano qui e puoi ripristinarli."
-            : "Aggiungi un link con + oppure usa il comando Condividi dai social."
+            : "Aggiungi link, testi, foto o file con +."
     }
 }
 
@@ -106,8 +149,15 @@ private struct LibraryRow: View {
     let link: CapturedLink
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(link.title ?? URL(string: link.urlString)?.host ?? link.urlString).font(.headline)
-            Text(link.urlString).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+            Label(link.displayTitle, systemImage: link.kind.symbol).font(.headline).lineLimit(2)
+            if link.kind == .link {
+                Text(link.urlString).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+            } else if link.kind == .text {
+                Text(link.textContent ?? "").font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+            } else if let count = link.attachmentByteCount {
+                Text(ByteCountFormatter.string(fromByteCount: Int64(count), countStyle: .file))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if let notes = link.notes { Text(notes).font(.subheadline).lineLimit(2) }
             if let collection = link.collection { Label(collection.name, systemImage: "folder").font(.caption) }
             Text(link.capturedAt, style: .date).font(.caption).foregroundStyle(.secondary)

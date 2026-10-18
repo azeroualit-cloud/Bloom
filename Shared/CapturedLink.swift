@@ -10,6 +10,18 @@ final class CapturedLink {
     var notes: String?
     var isArchived: Bool = false
     var collection: LinkCollection?
+    var contentKind: String?
+    var textContent: String?
+    var fileName: String?
+    var contentType: String?
+    var attachmentByteCount: Int?
+    var contentFingerprint: String?
+    @Attribute(.externalStorage) var attachmentData: Data?
+
+    var kind: ContentKind { ContentKind(rawValue: contentKind ?? "") ?? .link }
+    var displayTitle: String {
+        title ?? (kind == .link ? URL(string: urlString)?.host : nil) ?? fileName ?? kind.label
+    }
 
     init(url: URL, id: UUID = UUID(), capturedAt: Date = .now) {
         self.id = id
@@ -19,6 +31,14 @@ final class CapturedLink {
         self.notes = nil
         self.collection = nil
     }
+
+    init(kind: ContentKind) {
+        id = UUID()
+        urlString = ""
+        capturedAt = .now
+        contentKind = kind.rawValue
+    }
+
 }
 
 enum CaptureError: LocalizedError {

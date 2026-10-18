@@ -47,7 +47,7 @@ enum LibraryFilter {
         }
         let term = search.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !term.isEmpty else { return true }
-        return [link.title, link.urlString, link.notes, link.collection?.name]
+        return [link.title, link.urlString, link.notes, link.collection?.name, link.textContent, link.fileName]
             .compactMap { $0 }.contains { $0.localizedStandardContains(term) }
     }
 }

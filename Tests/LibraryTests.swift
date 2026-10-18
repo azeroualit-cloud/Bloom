@@ -101,6 +101,8 @@ final class LibraryTests: XCTestCase {
         XCTAssertNil(link.notes)
         XCTAssertNil(link.collection)
         XCTAssertFalse(link.isArchived)
+        XCTAssertEqual(link.kind, .link)
+        XCTAssertNil(link.attachmentData)
         try LinkStore.update(link, title: "Vecchio link", notes: "", collection: nil, in: current.mainContext)
         XCTAssertEqual(link.title, "Vecchio link")
     }
