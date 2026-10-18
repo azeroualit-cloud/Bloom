@@ -40,6 +40,9 @@ jobs:
           if log.exists():
               lines = log.read_text(errors='replace').splitlines()
               selected = [line for line in lines if any(word in line for word in ['error:', 'failed', 'Testing failed', 'Executed '])]
+              for line in [line for line in selected if 'error:' in line][:20]:
+                  escaped = line[:2000].replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print('::error::' + escaped)
               with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
                   output.write('## Build and test diagnostics\n\n```text\n')
                   output.write('\n'.join(selected[-100:]) or 'No error lines reported.')
