@@ -18,6 +18,7 @@ struct ImportedPhoto: Transferable, Sendable {
 final class ContentImportController {
     var isImporting = false
     var message: String?
+    var completionID = UUID()
     var error: String?
     var canRetry: Bool { pending != nil }
     private var pending: AttachmentPayload?
@@ -58,6 +59,7 @@ final class ContentImportController {
             message = inserted ? "Contenuto importato" : "Contenuto già presente. Controlla anche Archivio."
             self.pending = nil
             error = nil
+            completionID = UUID()
         } catch { self.error = error.localizedDescription }
     }
 

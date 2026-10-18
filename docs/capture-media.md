@@ -15,7 +15,7 @@ Si aggiungono solo campi opzionali: contentKind (nil = link precedente), textCon
 fileName, contentType, attachmentByteCount, contentFingerprint e attachmentData
 con @Attribute(.externalStorage). SwiftData gestisce database e payload locale;
 nessuna dipendenza dai file originali dopo il save. Hash SHA-256 per duplicati esatti,
-con prefisso per distinguere tipo contenuto. Nessun download o upload remoto.
+con prefisso per distinguere tipo contenuto. Nessun server Bloom. Il selettore Foto può dover ottenere un originale iCloud prima dell’importazione.
 Le letture dei file avvengono fuori dal main actor, con accesso security-scoped e
 lettura limitata anche se la dimensione del file cambia. Il picker Foto usa
 FileRepresentation per evitare di caricare foto arbitrariamente grandi in memoria.

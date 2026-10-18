@@ -101,8 +101,8 @@ struct LibraryView: View {
             .onChange(of: selectedPhoto) { _, item in
                 if let item { importer.importPhoto(item, into: context); selectedPhoto = nil }
             }
-            .onChange(of: importer.message) { _, message in
-                if let message { notice = message; archived = false; collectionFilter = .all; search = "" }
+            .onChange(of: importer.completionID) { _, _ in
+                if let message = importer.message { notice = message; archived = false; collectionFilter = .all; search = "" }
             }
             .safeAreaInset(edge: .bottom) {
                 if importer.isImporting {
