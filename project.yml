@@ -14,13 +14,11 @@ targets:
     type: application
     platform: iOS
     sources: [Bloom, Shared]
-    info:
-      path: Bloom/Info.plist
-    entitlements:
-      path: Bloom/Bloom.entitlements
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.bloom.ios
+        INFOPLIST_FILE: Bloom/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Bloom/Bloom.entitlements
     dependencies:
       - target: BloomShare
         embed: true
@@ -28,13 +26,11 @@ targets:
     type: app-extension
     platform: iOS
     sources: [ShareExtension, Shared]
-    info:
-      path: ShareExtension/Info.plist
-    entitlements:
-      path: ShareExtension/BloomShare.entitlements
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.bloom.ios.share
+        INFOPLIST_FILE: ShareExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: ShareExtension/BloomShare.entitlements
         APPLICATION_EXTENSION_API_ONLY: YES
         SKIP_INSTALL: YES
   BloomTests:

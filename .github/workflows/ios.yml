@@ -17,7 +17,9 @@ jobs:
           brew install xcodegen
           xcodegen --version
       - name: Generate Xcode project
-        run: xcodegen generate
+        run: |
+          xcodegen generate
+          git diff --exit-code -- Bloom/Info.plist Bloom/Bloom.entitlements ShareExtension/Info.plist ShareExtension/BloomShare.entitlements
       - name: Test persistence and recovery
         shell: bash
         run: |
