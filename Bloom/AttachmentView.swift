@@ -1,14 +1,11 @@
 import SwiftUI
 import QuickLook
-import ImageIO
 import UIKit
 
 @MainActor
 struct AttachmentView: View {
     let item: CapturedLink
     @State private var reader: TextDocument?
-    @State private var thumbnail: UIImage?
-    @State private var thumbnailFinished = false
     @State private var error: String?
     @State private var loading = false
     @State private var previewURL: URL?
@@ -17,13 +14,7 @@ struct AttachmentView: View {
 
     var body: some View {
         Section(item.kind.label) {
-            if item.kind == .image {
-                if let thumbnail {
-                    Image(uiImage: thumbnail).resizable().scaledToFit()
-                        .accessibilityLabel(item.displayTitle)
-                } else if !thumbnailFinished { ProgressView("Caricamento immagine…") }
-                else { Label("Anteprima immagine non disponibile", systemImage: "photo.badge.exclamationmark") }
-            }
+            if item.kind == .image { AttachmentThumbnail(item: item) }
             Text(item.fileName ?? item.kind.label).textSelection(.enabled)
             if let count = item.attachmentByteCount {
                 Text(ByteCountFormatter.string(fromByteCount: Int64(count), countStyle: .file))
@@ -35,7 +26,6 @@ struct AttachmentView: View {
             Button("Apri contenuto", systemImage: "doc.viewfinder", action: preview)
                 .disabled(loading)
         }
-        .task(id: item.id) { await loadThumbnail() }
         .sheet(item: $reader) { document in
             NavigationStack {
                 ScrollView {
@@ -55,24 +45,6 @@ struct AttachmentView: View {
                 exportURL = nil
             }
         }
-    }
-
-    private func loadThumbnail() async {
-        guard item.kind == .image else { return }
-        defer { thumbnailFinished = true }
-        guard let data = item.attachmentData else { error = ImportError.missingData.localizedDescription; return }
-        let image = await Task.detached(priority: .userInitiated) {
-            guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-                  let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                    kCGImageSourceCreateThumbnailFromImageAlways: true,
-                    kCGImageSourceCreateThumbnailWithTransform: true,
-                    kCGImageSourceThumbnailMaxPixelSize: 2048
-                  ] as CFDictionary) else { return Optional<UIImage>.none }
-            return UIImage(cgImage: cgImage)
-        }.value
-        guard !Task.isCancelled else { return }
-        thumbnail = image
-        if image == nil { error = ImportError.unreadableImage.localizedDescription }
     }
 
     private func preview() {

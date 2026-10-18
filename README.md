@@ -156,3 +156,13 @@ La compatibilità di Instagram/TikTok/Pinterest/YouTube e la persistenza dei log
 restano da provare sul dispositivo firmato. Nessuna modifica alla cattura:
 YouTube continua a usare copia/incolla; gli altri social il comando verificato.
 Testi e allegati conservano i viewer locali. Vedi docs/viewer.md per flussi e gate.
+
+## Build 8 — Riscopri
+
+Due tab: Libreria e Riscopri. Il feed verticale propone fino a 30 contenuti
+personali attivi per giro, con ordine giornaliero locale e preferenza per varietà
+di formato, raccolta e sito. Nessuna scoperta esterna o personalizzazione AI.
+Nuovo giro (anche pull to refresh), apertura nel viewer e archiviazione con
+ripristino dalla Libreria → Archivio. Le foto riusano l’anteprima locale ridotta;
+nessun caricamento web prima di aprire il contenuto. Nessuna modifica allo schema
+o alle modalità di cattura. Flusso e verifiche: [Bloomscrolling](docs/bloomscrolling.md).

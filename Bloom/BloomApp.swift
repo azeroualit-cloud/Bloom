@@ -21,7 +21,7 @@ private struct StorageRootView: View {
             if let attempt {
                 switch attempt.result {
                 case .success(let container):
-                    LibraryView().modelContainer(container)
+                    BloomHomeView().modelContainer(container)
                 case .failure(let error):
                     StorageFailureView(diagnostics: StorageDiagnostics(
                         appInfo: Bundle.main.infoDictionary ?? [:], error: error)) {
