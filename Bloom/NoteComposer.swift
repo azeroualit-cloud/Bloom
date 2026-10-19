@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import UIKit
 
 struct TagSelection: View {
     @Query(sort: \LinkCollection.name) private var tags: [LinkCollection]
@@ -125,13 +126,8 @@ struct NoteComposer: View {
             TextField("Incolla un link per riga", text: $linksText, axis: .vertical)
                 .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                 .accessibilityIdentifier("note-links").focused($focused, equals: .links)
-            HStack {
-                Text("Incolla link")
-                Spacer()
-                NativePasteControl(label: "Incolla link", identifier: "capture-paste-links", onPaste: { text in
-                    linksText += (linksText.isEmpty ? "" : "\n") + text
-                }, onError: { error = $0 }).frame(width: 48, height: 44)
-            }
+            Button("Incolla link", systemImage: "document.on.clipboard") { pasteLink(saveImmediately: false) }
+                .accessibilityIdentifier("capture-paste-links")
         }
     }
     private var attachmentSection: some View {
@@ -197,14 +193,23 @@ struct NoteComposer: View {
     private var captureActions: some View {
         HStack {
             if item == nil && title.isEmpty && bodyText.isEmpty && files.isEmpty && linksText.isEmpty {
-                Text("Incolla e salva link").font(.subheadline)
-                NativePasteControl(label: "Incolla e salva link", identifier: "capture-paste-save", onPaste: { text in
-                    linksText = text; save()
-                }, onError: { error = $0 }).frame(width: 48, height: 44)
+                Button("Incolla e salva link", systemImage: "document.on.clipboard") { pasteLink(saveImmediately: true) }
+                    .frame(minHeight: 44).accessibilityIdentifier("capture-paste-save")
             }
             Spacer()
             if item == nil { Button("Salva e aggiungi") { save(addAnother: true) }.disabled(!loaded || loading || isEmpty).accessibilityIdentifier("capture-save-another") }
         }.padding(12).background(.regularMaterial).disabled(!loaded || loading)
+    }
+    private func pasteLink(saveImmediately: Bool) {
+        guard loaded && !loading else { return }
+        // Clipboard content is read only in response to this explicit user action.
+        guard let text = UIPasteboard.general.string ?? UIPasteboard.general.url?.absoluteString,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            error = "Copia prima un link, poi tocca Incolla."
+            return
+        }
+        linksText += (linksText.isEmpty ? "" : "\n") + text
+        if saveImmediately { save() }
     }
     private var snapshot: NoteDraft { NoteDraft(title: title, body: bodyText, links: linksText, tags: tags, files: files) }
     private var isDirty: Bool { snapshot != initialDraft }

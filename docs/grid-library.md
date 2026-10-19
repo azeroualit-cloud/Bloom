@@ -9,3 +9,5 @@ Rediscovery reuses the same square preview component, media opening and actions.
 Archive is accessible only through the Settings gear, not a home segmented control. The Tag back control returns from Archive to the tag catalog. The gear also retains tag management, sorting, backup and capture guidance.
 
 CI selects Xcode 26.3 and the newest available iPhone simulator runtime to compile and test the native appearance. Glass containers use native glassEffect on iOS 26+ when compiled with Swift 6.2+ and system material otherwise. No custom simulated refraction. The icon is bundled as a 1024px opaque universal iOS AppIcon asset. Existing notes, tags and backup formats are unchanged.
+
+The explicit Paste buttons read clipboard content only on tap. This avoids the non-delivering protected paste controls observed in SDK 26 simulator tests. iOS may request permission the first time clipboard content comes from another app; regular text-field paste remains available.
