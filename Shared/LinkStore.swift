@@ -62,6 +62,7 @@ enum LinkStore {
             else { item.notes = body.nilIfEmpty }
         }
         item.noteFilesData = filesData
+        item.noteFileCount = storedFiles.count
         item.noteVersion = 1
         item.tagIDs = tags
         if previousURL != item.allLinks.first {

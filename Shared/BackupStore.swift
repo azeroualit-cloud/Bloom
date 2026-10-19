@@ -86,6 +86,7 @@ enum BackupStore {
                 if let tags = record.tagIDs { item.tagIDs = Set(tags.compactMap { mapping[$0]?.id }) }
                 item.noteLinksJSON = record.noteLinks.flatMap { try? JSONEncoder().encode($0) }.flatMap { String(data: $0, encoding: .utf8) }
                 item.noteFilesData = record.noteFiles.flatMap { try? JSONEncoder().encode($0) }
+                item.noteFileCount = record.noteFiles?.count ?? 0
                 item.imageFramingData = record.imageFraming.flatMap { try? JSONEncoder().encode($0) }
                 item.noteVersion = record.noteVersion
                 context.insert(item)

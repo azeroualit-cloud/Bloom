@@ -14,8 +14,6 @@ struct NoteCard: View {
                 NoteLinkButton(item: item, url: url)
             } else if item.kind == .image {
                 Button(action: openNote) { AttachmentThumbnail(item: item, maximumPixelSize: 768).frame(maxWidth: .infinity, maxHeight: 240) }.buttonStyle(.plain)
-            } else if let file = item.noteFiles.first, UTType(file.type)?.conforms(to: .image) == true {
-                Button(action: openNote) { CachedPreviewImage(data: file.data, label: file.name, maxPixel: 768).frame(maxHeight: 240) }.buttonStyle(.plain)
             }
             Button(action: openNote) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -30,8 +28,9 @@ struct NoteCard: View {
                 Text(names.isEmpty ? "Da specificare" : names.joined(separator: " · "))
                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 Spacer()
-                if item.allLinks.count + item.noteFiles.count > 1 {
-                    Label("\(item.allLinks.count + item.noteFiles.count)", systemImage: "paperclip").font(.caption)
+                let count = item.allLinks.count + (item.noteFileCount ?? 0) + ((item.kind == .image || item.kind == .file) ? 1 : 0)
+                if count > 0 {
+                    Label("\(count)", systemImage: "paperclip").font(.caption)
                 }
             }
         }.padding(16).background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
@@ -95,7 +94,7 @@ struct NoteDetailView: View {
     @State private var details = false
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            LazyVStack(alignment: .leading, spacing: 20) {
                 if !item.noteBody.isEmpty { MarkdownDocumentView(text: item.noteBody) }
                 ForEach(item.allLinks, id: \.absoluteString) { url in NoteLinkButton(item: item, url: url) }
                 if item.kind == .image || item.kind == .file {

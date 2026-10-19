@@ -31,6 +31,7 @@ final class NoteArchiveTests: XCTestCase {
         XCTAssertEqual(note.tagIDs, selected)
         XCTAssertEqual(note.allLinks, urls)
         XCTAssertEqual(note.noteFiles.first?.data, file.data)
+        XCTAssertEqual(note.noteFileCount, 1)
         XCTAssertEqual(note.noteBody, "## Routine\n\nOgni mattina")
         XCTAssertEqual(try BackupStore.restore(backup, into: restored).added, 0)
         let reopened = try LinkStore.container(at: directory)

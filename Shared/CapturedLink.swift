@@ -22,6 +22,7 @@ final class CapturedLink {
     var tagIDsJSON: String?
     var noteLinksJSON: String?
     @Attribute(.externalStorage) var noteFilesData: Data?
+    var noteFileCount: Int?
     var previewAttemptedAt: Date?
     var imageFramingData: Data?
     var noteVersion: Int?
