@@ -70,7 +70,7 @@ struct CollectionNameEditor: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Nome raccolta", text: $name).accessibilityIdentifier("collection-name")
+                TextField("Nome raccolta", text: $name).autocorrectionDisabled().accessibilityIdentifier("collection-name")
                 if let error { Text(error).foregroundStyle(.red) }
             }
             .navigationTitle(collection == nil ? "Nuova raccolta" : "Rinomina raccolta")
