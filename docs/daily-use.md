@@ -39,8 +39,8 @@ Wireframe nativo:
 Controlli SwiftUI nativi, Dynamic Type, menu e azioni con etichette, thumbnail
 ridotte, controlli disposti verticalmente sui layout stretti. Test su filtri,
 azioni multiple/rollback preventivo, cattura organizzata/duplicati, metadati
-con provider simulato e round senza ripetizioni, più regressioni/IPA. Un test UI
-su store in memoria (solo DEBUG) attraversa cattura testo/raccolta, apertura,
-selezione, archivio/ripristino e Riscopri. Player,
+con provider simulato e round senza ripetizioni, più regressioni/IPA. Tre test UI indipendenti
+su store in memoria (solo DEBUG) attraversano cattura testo/raccolta e apertura,
+selezione con archivio/ripristino, ed esaurimento/riavvio di Riscopri. Player,
 richieste reali ai social e UI sul dispositivo firmato richiedono una sola prova
 integrata dell'utente dopo la release.

@@ -50,7 +50,7 @@ struct RediscoveryView: View {
                                 Text(eligible.isEmpty ? "Cambia filtri, aggiungi contenuti o ripristinali dall’Archivio."
                                     : "Hai esaurito i contenuti disponibili per questi filtri. Puoi ricominciare il giro.")
                             } actions: {
-                                if !eligible.isEmpty { Button("Ricomincia") { resetRounds() } }
+                                if !eligible.isEmpty { Button("Ricomincia") { resetRounds() }.accessibilityIdentifier("rediscovery-restart") }
                                 else { Button("Vai alla libreria", action: openLibrary) }
                             }
                         }
@@ -81,7 +81,7 @@ struct RediscoveryView: View {
                     Menu { ContentFilterOptions(collection: $collectionFilter, kind: $kindFilter) }
                         label: { Label("Filtri", systemImage: "line.3.horizontal.decrease.circle") }
                 }
-                ToolbarItem(placement: .primaryAction) { Button("Nuovo giro", systemImage: "shuffle", action: newRound).disabled(contents.isEmpty) }
+                ToolbarItem(placement: .primaryAction) { Button("Nuovo giro", systemImage: "shuffle", action: newRound).accessibilityIdentifier("rediscovery-next").disabled(contents.isEmpty) }
             }
             .refreshable { if feed.isEmpty { resetRounds() } else { newRound() } }
             .onChange(of: collectionFilter) { _, _ in resetRounds() }

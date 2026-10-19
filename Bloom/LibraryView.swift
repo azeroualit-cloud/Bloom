@@ -125,7 +125,7 @@ struct LibraryView: View {
                         LabeledContent("Raccolta", value: selectedCollectionName)
                     }
                     if let kindFilter { LabeledContent("Formato", value: kindFilter.label) }
-                    Text("\(visibleLinks.count) contenuti").font(.caption).foregroundStyle(.secondary)
+                    Text("\(visibleLinks.count) contenuti").accessibilityIdentifier("library-count").font(.caption).foregroundStyle(.secondary)
                     if let notice { Text(notice).foregroundStyle(.secondary) }
                     if let savedID { Button("Apri contenuto salvato") { open(savedID) } }
                     if let message = titles.message { Text(message).font(.subheadline).foregroundStyle(.secondary) }
@@ -215,7 +215,7 @@ struct LibraryView: View {
             HStack {
                 Text("\(selection.count) selezionati").font(.subheadline)
                 Spacer()
-                Button("Seleziona visibili") { selection = Set(visibleLinks.map(\.id)) }
+                Button("Seleziona visibili") { selection = Set(visibleLinks.map(\.id)) }.accessibilityIdentifier("bulk-select-all")
             }
             ViewThatFits(in: .horizontal) {
                 HStack { bulkCollectionMenu; archiveSelection; titleSelection }
@@ -232,7 +232,7 @@ struct LibraryView: View {
     }
     private var archiveSelection: some View {
         Button(archived ? "Ripristina" : "Archivia", systemImage: "archivebox") { bulk(.archived(!archived)) }
-            .disabled(selection.isEmpty)
+            .accessibilityIdentifier("bulk-archive-action").disabled(selection.isEmpty)
     }
     private var titleSelection: some View {
         Button("Titoli (max 10)", systemImage: "text.magnifyingglass") {

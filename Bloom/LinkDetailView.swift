@@ -26,6 +26,10 @@ struct LinkDetailView: View {
             Section { Text(link.capturedAt, format: .dateTime).foregroundStyle(.secondary) }
             Section("Organizzazione") {
                 LabeledContent("Raccolta", value: link.collection?.name ?? "Senza raccolta")
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Raccolta")
+                    .accessibilityValue(link.collection?.name ?? "Senza raccolta")
+                    .accessibilityIdentifier("detail-collection")
                 LabeledContent("Stato", value: link.isArchived ? "Archiviato" : "Attivo")
                 if let notes = link.notes { Text(notes).textSelection(.enabled) }
             }
