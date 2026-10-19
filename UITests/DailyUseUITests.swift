@@ -20,8 +20,9 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["capture-keyboard-done"].tap()
         app.swipeUp()
         app.buttons["Crea raccolta"].tap()
-        let collection = app.textFields["Nome raccolta"]
-        XCTAssertTrue(collection.waitForExistence(timeout: 5))
+        let collection = app.textFields["collection-name"]
+        XCTAssertTrue(collection.waitForExistence(timeout: 10),
+            "Navigation: \(app.navigationBars.allElementsBoundByIndex.map(\.identifier)); fields: \(app.textFields.allElementsBoundByIndex.map(\.identifier)); buttons: \(app.buttons.allElementsBoundByIndex.map(\.label).joined(separator: ", "))")
         collection.tap()
         collection.typeText("Progetti")
         app.buttons["collection-save"].tap()

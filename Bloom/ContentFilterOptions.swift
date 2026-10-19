@@ -35,8 +35,8 @@ struct CaptureCollectionSection: View {
                 ForEach(collections) { Text($0.name).tag(Optional($0.id)) }
             }
             Button("Crea raccolta", systemImage: "folder.badge.plus") { creating = true }
+                .sheet(isPresented: $creating) { CollectionNameEditor(collection: nil) { selection = $0.id } }
         }
-        .sheet(isPresented: $creating) { CollectionNameEditor(collection: nil) { selection = $0.id } }
     }
 }
 
