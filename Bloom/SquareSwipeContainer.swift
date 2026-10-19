@@ -35,6 +35,7 @@ final class SquareSwipeController: UIViewController, UIScrollViewDelegate {
         scroller.contentInsetAdjustmentBehavior = .never
         addChild(host); scroller.addSubview(host.view); host.didMove(toParent: self)
         host.view.backgroundColor = .clear
+        host.safeAreaRegions = []
     }
     func update(surface: AnyView, actions: AnyView, width: CGFloat, actionWidth: CGFloat,
                 revealed: Bool, enabled: Bool, onReveal: @escaping (Bool) -> Void, onDrag: @escaping () -> Void) {

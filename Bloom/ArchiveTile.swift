@@ -28,9 +28,29 @@ struct ArchiveTile: View {
                                  revealed: isRevealed, enabled: !selecting, onReveal: { open in revealed = open ? item.id : nil },
                                  onDrag: { suppressTapUntil = Date().addingTimeInterval(0.8) })
                 .frame(width: width, height: width).clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(alignment: .bottom) { if !isRevealed { footer } }
                 .overlay { if selected { RoundedRectangle(cornerRadius: 16).strokeBorder(Color.accentColor, lineWidth: 3) } }
         }.aspectRatio(1, contentMode: .fit)
         .task(id: item.allLinks.first) { LinkPreviewController.shared.prepare(for: item, in: context) }
+    }
+
+    private var footer: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+                Button { if selecting { select() } else { openNote() } } label: {
+                    Text(item.displayTitle).font(.subheadline.weight(.semibold)).lineLimit(2)
+                        .foregroundStyle(Color.primary)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                }.buttonStyle(.plain).accessibilityIdentifier("note-title-\(item.id)")
+                if !selecting {
+                    Menu {
+                        Button("Apri nota", action: openNote)
+                        Button("Modifica tag", action: editTags)
+                        Button(item.isArchived ? "Ripristina" : "Archivia", systemImage: "archivebox", action: archive)
+                        Button("Elimina", systemImage: "trash", role: .destructive, action: delete)
+                    } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(Color.primary) }
+                        .accessibilityLabel("Azioni nota").accessibilityIdentifier("note-actions-\(item.id)")
+                }
+            }.padding(.horizontal, 8).bloomGlass(cornerRadius: 12).padding(6)
     }
 
     private var actions: some View {
@@ -71,22 +91,6 @@ struct ArchiveTile: View {
             if hasImage {
                 LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom).allowsHitTesting(false)
             }
-            HStack(alignment: .bottom, spacing: 0) {
-                Button { if selecting { select() } else { openNote() } } label: {
-                    Text(item.displayTitle).font(.subheadline.weight(.semibold)).lineLimit(2)
-                        .foregroundStyle(Color.primary)
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                }.buttonStyle(.plain).accessibilityIdentifier("note-title-\(item.id)")
-                if !selecting {
-                    Menu {
-                        Button("Apri nota", action: openNote)
-                        Button("Modifica tag", action: editTags)
-                        Button(item.isArchived ? "Ripristina" : "Archivia", systemImage: "archivebox", action: archive)
-                        Button("Elimina", systemImage: "trash", role: .destructive, action: delete)
-                    } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(Color.primary) }
-                        .accessibilityLabel("Azioni nota").accessibilityIdentifier("note-actions-\(item.id)")
-                }
-            }.padding(.horizontal, 8).bloomGlass(cornerRadius: 12).padding(6)
             if item.allLinks.first.map(SocialLink.isVideo) == true {
                 Image(systemName: "play.circle.fill").font(.title).foregroundStyle(.white, .black.opacity(0.65))
                     .frame(maxWidth: .infinity, maxHeight: .infinity).allowsHitTesting(false)

@@ -46,6 +46,19 @@ final class InteractionTests: XCTestCase {
         XCTAssertEqual(closed?.title, "New")
     }
 
+    func testExplicitKeepCannotSilentlySucceedForClosedSession() async throws {
+        let store = NoteDraftStore(directory: try root())
+        let session = UUID()
+        let draft = NoteDraft(title: "Kept", body: "Body", links: "", tags: [], files: [])
+        try await store.saveAndClose(draft, key: nil, session: session, revision: 1)
+        do {
+            try await store.saveAndClose(draft, key: nil, session: session, revision: 2)
+            XCTFail("A closed session must not report another successful keep")
+        } catch is CancellationError { }
+        let saved = try await store.load(nil)
+        XCTAssertEqual(saved, draft)
+    }
+
     func testClosingPreviousCaptureCannotDeleteNextDraft() async throws {
         let store = NoteDraftStore(directory: try root())
         let first = UUID(), next = UUID()

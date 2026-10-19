@@ -18,12 +18,14 @@ final class LinkPreviewController {
         guard (force || link.previewImageData == nil), let url = link.allLinks.first,
               !queued.contains(link.id),
               force || (link.previewAttemptedAt.map({ Date().timeIntervalSince($0) >= 86_400 }) ?? true) else { return }
-        queued.insert(link.id)
+        let id = link.id
+        queued.insert(id)
         let previous = tail
         tail = Task {
             await previous?.value
+            guard link.modelContext != nil else { queued.remove(id); return }
             isLoading = true
-            defer { isLoading = false; queued.remove(link.id) }
+            defer { isLoading = false; queued.remove(id) }
             do {
                 link.previewAttemptedAt = .now
                 try context.save()
@@ -39,7 +41,7 @@ final class LinkPreviewController {
                     message = "L’anteprima del sito non è utilizzabile."
                     return
                 }
-                guard link.allLinks.first == url else { return }
+                guard link.modelContext != nil, link.allLinks.first == url else { return }
                 try LinkStore.storePreview(data, sourceURL: url, for: link, in: context)
             } catch is CancellationError { }
             catch { message = "Anteprima non disponibile. Puoi continuare nel browser." }

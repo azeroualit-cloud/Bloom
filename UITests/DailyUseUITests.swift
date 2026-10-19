@@ -73,7 +73,10 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["capture-add"].tap()
         let body = app.textViews["capture-body"]
         XCTAssertTrue(body.waitForExistence(timeout: 5))
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: app.buttons["capture-close"])
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed, diagnostics(app))
         body.tap(); body.typeText("111222333")
+        XCTAssertEqual(body.value as? String, "111222333", diagnostics(app))
         app.buttons["capture-close"].tap()
         app.buttons["Conserva bozza e chiudi"].tap()
         let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.navigationBars["Nuova nota"])
@@ -82,6 +85,8 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(app.buttons["capture-add"].waitForExistence(timeout: 15))
         app.buttons["capture-add"].tap()
         XCTAssertTrue(body.waitForExistence(timeout: 5))
+        let reloaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: app.buttons["capture-close"])
+        XCTAssertEqual(XCTWaiter.wait(for: [reloaded], timeout: 10), .completed, diagnostics(app))
         let restored = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '111222333'"), object: body)
         XCTAssertEqual(XCTWaiter.wait(for: [restored], timeout: 5), .completed, diagnostics(app))
         app.buttons["capture-close"].tap()
@@ -241,6 +246,6 @@ final class DailyUseUITests: XCTestCase {
 
     @MainActor
     private func diagnostics(_ app: XCUIApplication) -> String {
-        "Navigation: \(app.navigationBars.allElementsBoundByIndex.map(\.identifier)); texts: \(app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: ", ")); buttons: \(app.buttons.allElementsBoundByIndex.map(\.label).joined(separator: ", "))"
+        "Editors: \(app.textViews.allElementsBoundByIndex.map { ($0.identifier, $0.value as? String ?? "") }); Navigation: \(app.navigationBars.allElementsBoundByIndex.map(\.identifier)); texts: \(app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: ", ")); buttons: \(app.buttons.allElementsBoundByIndex.map(\.label).joined(separator: ", "))"
     }
 }

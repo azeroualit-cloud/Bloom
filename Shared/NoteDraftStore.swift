@@ -57,7 +57,9 @@ actor NoteDraftStore {
         owners[key?.uuidString ?? "new"] = session
     }
     func saveAndClose(_ draft: NoteDraft, key: UUID?, session: UUID, revision: Int) throws {
-        try save(draft, key: key, session: session, revision: revision)
+        try Task.checkCancellation()
+        guard !closedSessions.contains(session) else { throw CancellationError() }
+        try save(draft, key: key, session: session, revision: max(revision, latestRevision[session] ?? 0))
         closedSessions.insert(session)
     }
     func clear(_ key: UUID?, session: UUID) throws {
