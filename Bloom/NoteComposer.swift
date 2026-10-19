@@ -194,11 +194,19 @@ struct NoteComposer: View {
         HStack {
             if item == nil && title.isEmpty && bodyText.isEmpty && files.isEmpty && linksText.isEmpty {
                 Button("Incolla e salva link", systemImage: "document.on.clipboard") { pasteLink(saveImmediately: true) }
-                    .frame(minHeight: 44).accessibilityIdentifier("capture-paste-save")
+                    .frame(minHeight: 44).accessibilityIdentifier("capture-paste-save").accessibilityValue(clipboardTestStatus)
             }
             Spacer()
             if item == nil { Button("Salva e aggiungi") { save(addAnother: true) }.disabled(!loaded || loading || isEmpty).accessibilityIdentifier("capture-save-another") }
         }.padding(12).background(.regularMaterial).disabled(!loaded || loading)
+    }
+    private var clipboardTestStatus: String {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-clipboard") {
+            return UIPasteboard.general.hasStrings ? "clipboard-ready" : "clipboard-empty"
+        }
+        #endif
+        return ""
     }
     private func pasteLink(saveImmediately: Bool) {
         guard loaded && !loading else { return }
@@ -227,6 +235,12 @@ struct NoteComposer: View {
                 }
             } catch { self.error = "Non è stato possibile leggere la bozza: \(error.localizedDescription)" }
         }
+        #if DEBUG
+        // Seed only after the user has opened the composer, with the app in the foreground.
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-clipboard") {
+            UIPasteboard.general.string = "https://example.com/quick-capture"
+        }
+        #endif
         loaded = true
         if autoPickPhoto { showingPhoto = true }
         else { focused = startsWithLink ? .links : .body }

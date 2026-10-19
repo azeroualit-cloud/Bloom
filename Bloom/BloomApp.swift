@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import UIKit
 
 @main
 @MainActor
@@ -34,11 +33,6 @@ private struct StorageRootView: View {
         }
         .task {
             if attempt == nil {
-                #if DEBUG
-                if ProcessInfo.processInfo.arguments.contains("--ui-test-clipboard") {
-                    UIPasteboard.general.string = "https://example.com/quick-capture"
-                }
-                #endif
                 attempt = StorageAttempt.load()
             }
             savePendingURL()
