@@ -125,8 +125,12 @@ struct NoteComposer: View {
             TextField("Incolla un link per riga", text: $linksText, axis: .vertical)
                 .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                 .accessibilityIdentifier("note-links").focused($focused, equals: .links)
-            PasteButton(payloadType: String.self) { values in
-                if let first = values.first { linksText += (linksText.isEmpty ? "" : "\n") + first }
+            HStack {
+                Text("Incolla link")
+                Spacer()
+                NativePasteControl(label: "Incolla link", identifier: "capture-paste-links", onPaste: { text in
+                    linksText += (linksText.isEmpty ? "" : "\n") + text
+                }, onError: { error = $0 }).frame(width: 48, height: 44)
             }
         }
     }
@@ -194,9 +198,9 @@ struct NoteComposer: View {
         HStack {
             if item == nil && title.isEmpty && bodyText.isEmpty && files.isEmpty && linksText.isEmpty {
                 Text("Incolla e salva link").font(.subheadline)
-                PasteButton(payloadType: String.self) { values in
-                    if let first = values.first { linksText = first; save() }
-                }.accessibilityLabel("Incolla e salva link").accessibilityIdentifier("capture-paste-save")
+                NativePasteControl(label: "Incolla e salva link", identifier: "capture-paste-save", onPaste: { text in
+                    linksText = text; save()
+                }, onError: { error = $0 }).frame(width: 48, height: 44)
             }
             Spacer()
             if item == nil { Button("Salva e aggiungi") { save(addAnother: true) }.disabled(!loaded || loading || isEmpty).accessibilityIdentifier("capture-save-another") }
