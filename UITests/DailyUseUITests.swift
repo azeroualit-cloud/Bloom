@@ -13,10 +13,10 @@ final class DailyUseUITests: XCTestCase {
         let title = app.textFields["capture-title"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         title.tap()
-        title.typeText("Nota di prova")
+        title.typeText("Bloom test note")
         let body = app.textViews["capture-body"]
         body.tap()
-        body.typeText("Contenuto personale per la prova")
+        body.typeText("Saved note content")
         app.buttons["capture-keyboard-done"].tap()
         app.swipeUp()
         app.buttons["Crea raccolta"].tap()
@@ -24,12 +24,15 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(collection.waitForExistence(timeout: 10),
             "Navigation: \(app.navigationBars.allElementsBoundByIndex.map(\.identifier)); fields: \(app.textFields.allElementsBoundByIndex.map(\.identifier)); buttons: \(app.buttons.allElementsBoundByIndex.map(\.label).joined(separator: ", "))")
         collection.tap()
-        collection.typeText("Progetti")
+        collection.typeText("Projects")
         app.buttons["collection-save"].tap()
         XCTAssertTrue(app.buttons["capture-save"].waitForExistence(timeout: 5))
         app.buttons["capture-save"].tap()
-        XCTAssertTrue(app.staticTexts["Contenuto personale per la prova"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Progetti"].exists)
+        let detail = app.staticTexts["detail-content-text"]
+        XCTAssertTrue(detail.waitForExistence(timeout: 10),
+            "Navigation: \(app.navigationBars.allElementsBoundByIndex.map(\.identifier)); texts: \(app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: ", ")); buttons: \(app.buttons.allElementsBoundByIndex.map(\.label).joined(separator: ", "))")
+        XCTAssertEqual(detail.label, "Saved note content")
+        XCTAssertTrue(app.staticTexts["Projects"].exists)
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5))
         app.buttons["library-select"].tap()
@@ -39,13 +42,13 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["Seleziona visibili"].tap()
         app.buttons["Ripristina"].tap()
         app.segmentedControls.buttons["Libreria"].tap()
-        XCTAssertTrue(app.staticTexts["Nota di prova"].exists)
+        XCTAssertTrue(app.staticTexts["Bloom test note"].exists)
         app.buttons["library-select"].tap()
         app.tabBars.buttons["Riscopri"].tap()
-        XCTAssertTrue(app.staticTexts["Nota di prova"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Bloom test note"].waitForExistence(timeout: 5))
         app.navigationBars.buttons["Nuovo giro"].tap()
         XCTAssertTrue(app.staticTexts["Tutti i contenuti proposti"].waitForExistence(timeout: 5))
         app.buttons["Ricomincia"].tap()
-        XCTAssertTrue(app.staticTexts["Nota di prova"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Bloom test note"].waitForExistence(timeout: 5))
     }
 }

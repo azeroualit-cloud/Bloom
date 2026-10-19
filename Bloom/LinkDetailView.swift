@@ -21,7 +21,7 @@ struct LinkDetailView: View {
                     if let url = URL(string: link.urlString) { Link("Apri nel browser", destination: url) }
                 }
             } else if link.kind == .text {
-                Section("Testo") { Text(link.textContent ?? "Testo non disponibile").textSelection(.enabled) }
+                Section("Testo") { Text(link.textContent ?? "Testo non disponibile").textSelection(.enabled).accessibilityIdentifier("detail-content-text") }
             } else { AttachmentView(item: link) }
             Section { Text(link.capturedAt, format: .dateTime).foregroundStyle(.secondary) }
             Section("Organizzazione") {
