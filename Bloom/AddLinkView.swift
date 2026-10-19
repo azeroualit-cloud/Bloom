@@ -4,11 +4,11 @@ import SwiftData
 struct AddLinkView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
-    let onSaved: (CaptureReceipt, Bool) -> Void
+    let onSaved: (CaptureReceipt) -> Void
     @State private var value = ""
     @State private var title = ""
     @State private var collectionID: UUID?
-    @State private var openAfterSave = true
+    @State private var savedMessage: String?
     @State private var error: String?
 
     var body: some View {
@@ -26,7 +26,7 @@ struct AddLinkView: View {
                 }
                 Section("Titolo") { TextField("Titolo facoltativo", text: $title) }
                 CaptureCollectionSection(selection: $collectionID)
-                Toggle("Apri dopo il salvataggio", isOn: $openAfterSave)
+                if let savedMessage { Section { Label(savedMessage, systemImage: "checkmark.circle.fill").foregroundStyle(.green) } }
                 if let error {
                     Section { Text(error).foregroundStyle(.red) }
                 }
@@ -44,7 +44,8 @@ struct AddLinkView: View {
                         .disabled(value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            .onChange(of: value) { _, _ in error = nil }
+            .onAppear { if collectionID == nil { collectionID = BloomPreferences.lastCaptureCollectionID } }
+            .onChange(of: value) { _, _ in error = nil; savedMessage = nil }
         }
     }
 
@@ -54,8 +55,11 @@ struct AddLinkView: View {
                 throw CaptureError.invalidURL
             }
             let result = try LinkStore.captureLink(url, title: title, collectionID: collectionID, into: context)
-            onSaved(result, openAfterSave)
-            dismiss()
+            BloomPreferences.lastCaptureCollectionID = collectionID
+            onSaved(result)
+            savedMessage = result.inserted ? "Link salvato. Puoi aggiungerne un altro." : "Link già presente. Puoi aggiungerne un altro."
+            value = ""
+            title = ""
         } catch { self.error = error.localizedDescription }
     }
 }

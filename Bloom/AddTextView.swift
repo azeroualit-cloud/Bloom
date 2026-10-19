@@ -4,11 +4,11 @@ import SwiftData
 struct AddTextView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
-    let onSaved: (CaptureReceipt, Bool) -> Void
+    let onSaved: (CaptureReceipt) -> Void
     private enum Field { case title, text }
     @FocusState private var focusedField: Field?
     @State private var collectionID: UUID?
-    @State private var openAfterSave = true
+    @State private var savedMessage: String?
     @State private var title = ""
     @State private var text = ""
     @State private var error: String?
@@ -24,7 +24,7 @@ struct AddTextView: View {
                     }
                 }
                 CaptureCollectionSection(selection: $collectionID)
-                Toggle("Apri dopo il salvataggio", isOn: $openAfterSave)
+                if let savedMessage { Section { Label(savedMessage, systemImage: "checkmark.circle.fill").foregroundStyle(.green) } }
                 if let error { Section { Text(error).foregroundStyle(.red) } }
             }
             .navigationTitle("Aggiungi testo")
@@ -39,13 +39,17 @@ struct AddTextView: View {
                     Button("Salva") {
                         do {
                             let result = try LinkStore.captureTextItem(text, title: title, collectionID: collectionID, into: context)
-                            onSaved(result, openAfterSave)
-                            dismiss()
+                            BloomPreferences.lastCaptureCollectionID = collectionID
+                            onSaved(result)
+                            savedMessage = result.inserted ? "Testo salvato. Puoi aggiungerne un altro." : "Testo già presente. Puoi aggiungerne un altro."
+                            title = ""
+                            text = ""
                         } catch { self.error = error.localizedDescription }
                     }.accessibilityIdentifier("capture-save").disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            .onChange(of: text) { _, _ in error = nil }
+            .onAppear { if collectionID == nil { collectionID = BloomPreferences.lastCaptureCollectionID } }
+            .onChange(of: text) { _, _ in error = nil; savedMessage = nil }
         }
     }
 }

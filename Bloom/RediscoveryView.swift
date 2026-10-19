@@ -13,6 +13,7 @@ struct RediscoveryView: View {
     @State private var round = 0
     @State private var day = Self.currentDay
     @State private var error: String?
+    @State private var loadedPreferences = false
     let openLibrary: () -> Void
 
     private static var currentDay: Int { Int(Date().timeIntervalSince1970 / 86_400) }
@@ -55,10 +56,13 @@ struct RediscoveryView: View {
                             }
                         }
                         ForEach(contents) { item in
-                            RediscoveryCard(item: item) {
+                            RediscoveryCard(item: item, collections: collections, archive: {
                                 do { try LinkStore.setArchived(true, for: item, in: context) }
                                 catch { self.error = error.localizedDescription }
-                            }
+                            }, move: { collection in
+                                do { try LinkStore.update(item, title: item.title ?? "", notes: item.notes ?? "", collection: collection, in: context) }
+                                catch { self.error = error.localizedDescription }
+                            })
                         }
                         if !contents.isEmpty {
                             VStack(spacing: 8) {
@@ -84,9 +88,16 @@ struct RediscoveryView: View {
                 ToolbarItem(placement: .primaryAction) { Button("Nuovo giro", systemImage: "shuffle", action: newRound).accessibilityIdentifier("rediscovery-next").disabled(contents.isEmpty) }
             }
             .refreshable { if feed.isEmpty { resetRounds() } else { newRound() } }
-            .onChange(of: collectionFilter) { _, _ in resetRounds() }
-            .onChange(of: kindFilter) { _, _ in resetRounds() }
-            .onChange(of: day) { _, _ in resetRounds() }
+            .onAppear(perform: loadPreferences)
+            .onChange(of: collectionFilter) { _, _ in
+                savePreferences()
+                restoreHistory()
+            }
+            .onChange(of: kindFilter) { _, _ in
+                savePreferences()
+                restoreHistory()
+            }
+            .onChange(of: day) { _, _ in restoreHistory() }
             .onChange(of: collections.map(\.id)) { _, ids in
                 if case .collection(let id) = collectionFilter, !ids.contains(id) { collectionFilter = .all }
             }
@@ -107,13 +118,49 @@ struct RediscoveryView: View {
         case .collection(let id): return collections.first { $0.id == id }?.name ?? "Raccolta"
         }
     }
-    private func resetRounds() { proposedIDs.removeAll(); round = 0 }
-    private func newRound() { proposedIDs.formUnion(feed.map(\.id)); round += 1; day = Self.currentDay }
+    private var historyKey: String {
+        "rediscovery.history.\(day).\(BloomPreferences.rawFilter(collectionFilter) ?? "all").\(kindFilter?.rawValue ?? "all")"
+    }
+    private func loadPreferences() {
+        guard !loadedPreferences else { return }
+        loadedPreferences = true
+        collectionFilter = BloomPreferences.collectionFilter(UserDefaults.standard.string(forKey: "rediscovery.collectionFilter"))
+        kindFilter = UserDefaults.standard.string(forKey: "rediscovery.kindFilter").flatMap(ContentKind.init(rawValue:))
+        restoreHistory()
+    }
+    private func savePreferences() {
+        guard loadedPreferences else { return }
+        UserDefaults.standard.set(BloomPreferences.rawFilter(collectionFilter), forKey: "rediscovery.collectionFilter")
+        UserDefaults.standard.set(kindFilter?.rawValue, forKey: "rediscovery.kindFilter")
+    }
+    private func restoreHistory() {
+        guard loadedPreferences else { return }
+        guard let data = UserDefaults.standard.data(forKey: historyKey),
+              let history = try? JSONDecoder().decode(RediscoveryHistory.self, from: data), history.day == day else {
+            proposedIDs.removeAll(); round = 0; return
+        }
+        proposedIDs = Set(history.proposedIDs)
+        round = proposedIDs.isEmpty ? 0 : 1
+    }
+    private func persistHistory() {
+        let history = RediscoveryHistory(day: day, proposedIDs: Array(proposedIDs))
+        UserDefaults.standard.set(try? JSONEncoder().encode(history), forKey: historyKey)
+    }
+    private func resetRounds() {
+        proposedIDs.removeAll(); round = 0
+        UserDefaults.standard.removeObject(forKey: historyKey)
+    }
+    private func newRound() {
+        proposedIDs.formUnion(feed.map(\.id)); round += 1; day = Self.currentDay
+        persistHistory()
+    }
 }
 
 private struct RediscoveryCard: View {
     let item: CapturedLink
+    let collections: [LinkCollection]
     let archive: () -> Void
+    let move: (LinkCollection?) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -138,8 +185,8 @@ private struct RediscoveryCard: View {
             if let notes = item.notes { Text(String(notes.prefix(300))).font(.subheadline).lineLimit(3) }
             Text(item.capturedAt, style: .date).font(.caption).foregroundStyle(.secondary)
             ViewThatFits(in: .horizontal) {
-                HStack { openButton; Spacer(); archiveButton }
-                VStack(alignment: .leading) { openButton; archiveButton }
+                HStack { openButton; Spacer(); organizeMenu; archiveButton }
+                VStack(alignment: .leading) { openButton; organizeMenu; archiveButton }
             }
         }
         .padding().frame(maxWidth: .infinity, alignment: .leading)
@@ -154,5 +201,15 @@ private struct RediscoveryCard: View {
     private var archiveButton: some View {
         Button("Archivia", systemImage: "archivebox", action: archive).buttonStyle(.bordered)
             .accessibilityHint("Sposta in Archivio. Puoi ripristinare dalla Libreria.")
+    }
+    private var organizeMenu: some View {
+        Menu {
+            Button("Senza raccolta") { move(nil) }
+            ForEach(collections) { collection in
+                Button(collection.name) { move(collection) }
+            }
+        } label: {
+            Label("Raccolta", systemImage: "folder")
+        }.buttonStyle(.bordered)
     }
 }

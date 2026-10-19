@@ -71,6 +71,10 @@ final class DailyUseUITests: XCTestCase {
         }
         XCTAssertTrue(app.buttons["capture-save"].waitForExistence(timeout: 5))
         app.buttons["capture-save"].tap()
+        XCTAssertTrue(app.staticTexts["Testo salvato. Puoi aggiungerne un altro."].waitForExistence(timeout: 5), diagnostics(app))
+        app.buttons["Annulla"].tap()
+        XCTAssertTrue(app.buttons["library-open-saved"].waitForExistence(timeout: 5), diagnostics(app))
+        app.buttons["library-open-saved"].tap()
         let detail = app.staticTexts["detail-content-text"]
         XCTAssertTrue(detail.waitForExistence(timeout: 10), diagnostics(app))
         XCTAssertEqual(detail.label, enteredBody)

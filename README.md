@@ -185,3 +185,23 @@ ripristinare. Titoli web recuperabili su richiesta (senza sovrascrivere quelli
 personali), anche in gruppo fino a 10 link. Riscopri esclude i contenuti già
 proposti nei giri della sessione, con Ricomincia a esaurimento.
 Schema e backup invariati. [Flusso completo e verifiche](docs/daily-use.md).
+
+## Build 11 — beta locale stabile
+
+La cattura non apre più automaticamente il contenuto: dopo un salvataggio resta
+nel modulo, svuota gli input e conserva l’ultima raccolta, così si possono
+aggiungere contenuti consecutivi senza rientrare ogni volta. Il link/testo appena
+salvato è comunque disponibile dalla Libreria con l’azione esplicita “Apri
+contenuto salvato”. Anche foto e file propongono l’ultima raccolta usata.
+
+Libreria ricorda filtro raccolta/formato e ordinamento (recenti, meno recenti o
+titolo) tra le aperture; include Deseleziona per le operazioni di gruppo. Nel
+viewer si può copiare l’indirizzo del link, sia dal dettaglio sia dal browser
+interno. Riscopri ricorda, per il giorno e i filtri scelti, i contenuti già
+proposti anche dopo la chiusura dell’app; “Ricomincia” cancella esplicitamente
+solo quel giro. Le schede permettono anche di cambiare raccolta senza lasciare
+il feed.
+
+Non cambia lo schema SwiftData, il percorso di backup o la firma: aggiornare
+senza disinstallare. La beta resta locale e non include AI, lezioni di lingua,
+importazione massiva PKMS o scoperte esterne.

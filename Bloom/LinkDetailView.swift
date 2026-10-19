@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct LinkDetailView: View {
     @Environment(\.modelContext) private var context
@@ -13,6 +14,7 @@ struct LinkDetailView: View {
             if link.kind == .link {
                 Section("Indirizzo salvato") {
                     Text(link.urlString).textSelection(.enabled)
+                    Button("Copia link", systemImage: "doc.on.doc") { UIPasteboard.general.string = link.urlString }
                     if link.title == nil {
                         Button("Recupera titolo dal sito") { titles.start([link], in: context) }.disabled(titles.isLoading)
                     }

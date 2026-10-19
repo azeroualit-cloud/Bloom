@@ -54,10 +54,11 @@ struct ImportOptionsView: View {
             }
             .navigationTitle(kind == .image ? "Importa foto" : "Importa file")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear { if collectionID == nil { collectionID = BloomPreferences.lastCaptureCollectionID } }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Scegli") { onContinue(collectionID); dismiss() }
+                    Button("Scegli") { BloomPreferences.lastCaptureCollectionID = collectionID; onContinue(collectionID); dismiss() }
                 }
             }
         }

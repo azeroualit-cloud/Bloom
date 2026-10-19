@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import UIKit
 
 struct ContentViewer: View {
     let item: CapturedLink
@@ -79,6 +80,7 @@ private struct BrowserScreen: View {
                 }.disabled(browser.clearingData)
                 Spacer()
                 ShareLink(item: browser.currentURL) { Label("Condividi pagina", systemImage: "square.and.arrow.up") }
+                Button("Copia link", systemImage: "doc.on.doc") { UIPasteboard.general.string = browser.currentURL.absoluteString }
                 Button("Apri all’esterno", systemImage: "safari", action: openExternal)
             }
         }

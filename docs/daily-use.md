@@ -1,4 +1,4 @@
-# Release 10 — uso quotidiano
+# Release 11 — beta locale stabile
 
 Un solo incremento: cattura → riconoscimento → organizzazione → riscoperta.
 Schema invariato, archivio privato e backup v1 compatibili.
@@ -16,23 +16,28 @@ nascosti. Raccolte eliminate e selezioni mancanti danno un errore prima di mutar
 Nessuna cancellazione permanente introdotta.
 
 Cattura link/testo: raccolta e creazione raccolta nello stesso foglio, titolo link,
-Apri dopo il salvataggio. Duplicati: apri l'esistente senza cambiarne metadati.
+nessuna apertura automatica. Dopo il salvataggio il modulo resta pronto per il
+contenuto successivo, svuota titolo e corpo/URL e conserva l’ultima raccolta.
+Chiudendo il modulo, “Apri contenuto salvato” nella Libreria è l’azione esplicita
+per consultare l’ultimo elemento. Duplicati non ne modificano i metadati.
 Foto/file: scegli raccolta → selettore nativo → import con raccolta atomica →
 conferma con Apri contenuto. Un retry conserva destinazione e payload; se la
 raccolta scompare, annulla e scegli nuovamente. Nessuna modifica alla cattura
 YouTube via copia/incolla o ai Comandi Rapidi già verificati.
 
 Riscopri: filtri per formato e raccolta. Nuovo giro esclude i contenuti proposti
-nei giri precedenti della sessione, fino a esaurimento; poi offre Ricomincia.
-La cronologia si azzera al cambio filtri/giorno o al riavvio dell'app. Nessuna
-promessa di letture misurate, AI o scoperte esterne.
+nei giri precedenti fino a esaurimento; poi offre Ricomincia. La cronologia del
+giorno e della combinazione di filtri viene conservata dopo il riavvio e si
+azzera esplicitamente con Ricomincia oppure naturalmente il giorno successivo.
+Ogni scheda consente anche di cambiare raccolta. Nessuna promessa di letture
+misurate, AI o scoperte esterne.
 
 Wireframe nativo:
     Bloom        [Filtri/strumenti] [Seleziona] [+]
     Libreria | Archivio       [Filtri attivi / conteggio]
     foto/icone · titolo · estratto · raccolta · data
     selezione → [visibili] [raccolta] [archivia/ripristina] [titoli]
-    + link/testo → input, titolo, raccolta, apri → salva → viewer
+    + link/testo → input, titolo, raccolta → salva → cattura successiva / apri esplicito
     + foto/file → raccolta → selettore → esito → apri
     Riscopri → [Filtri] [Nuovo giro] → feed → esaurito → Ricomincia
 
@@ -40,7 +45,7 @@ Controlli SwiftUI nativi, Dynamic Type, menu e azioni con etichette, thumbnail
 ridotte, controlli disposti verticalmente sui layout stretti. Test su filtri,
 azioni multiple/rollback preventivo, cattura organizzata/duplicati, metadati
 con provider simulato e round senza ripetizioni, più regressioni/IPA. Tre test UI indipendenti
-su store in memoria (solo DEBUG) attraversano cattura testo/raccolta e apertura,
+su store in memoria (solo DEBUG) attraversano cattura testo/raccolta e apertura esplicita,
 selezione con archivio/ripristino, ed esaurimento/riavvio di Riscopri. Player,
 richieste reali ai social e UI sul dispositivo firmato richiedono una sola prova
 integrata dell'utente dopo la release.

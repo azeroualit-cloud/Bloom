@@ -18,10 +18,11 @@ struct LibraryView: View {
     @State private var importCollectionID: UUID?
     @State private var continueImport = false
     @State private var savedID: UUID?
-    @State private var pendingOpenID: UUID?
     @State private var openedItem: CapturedLink?
     @State private var archived = false
     @State private var collectionFilter: CollectionFilter = .all
+    @State private var sort: LibrarySort = .newest
+    @State private var loadedPreferences = false
     @State private var showingAdd = false
     @State private var showingText = false
     @State private var showingFiles = false
@@ -35,7 +36,7 @@ struct LibraryView: View {
     @State private var error: String?
 
     private var visibleLinks: [CapturedLink] {
-        links.filter { LibraryFilter.matches($0, search: search, archived: archived, collection: collectionFilter, kind: kindFilter) }
+        sort.sort(links.filter { LibraryFilter.matches($0, search: search, archived: archived, collection: collectionFilter, kind: kindFilter) })
     }
 
     var body: some View {
@@ -53,11 +54,11 @@ struct LibraryView: View {
 
     private var presentedLibrary: some View {
         libraryContent
-            .sheet(isPresented: $showingAdd, onDismiss: openPending) {
-                AddLinkView { receipt, openAfterSave in captured(receipt, openAfterSave: openAfterSave) }
+            .sheet(isPresented: $showingAdd) {
+                AddLinkView { receipt in captured(receipt) }
             }
-            .sheet(isPresented: $showingText, onDismiss: openPending) {
-                AddTextView { receipt, openAfterSave in captured(receipt, openAfterSave: openAfterSave) }
+            .sheet(isPresented: $showingText) {
+                AddTextView { receipt in captured(receipt) }
             }
             .sheet(isPresented: $showingImportOptions, onDismiss: {
                 guard continueImport else { return }
@@ -108,6 +109,10 @@ struct LibraryView: View {
             .onChange(of: collections.map(\.id)) { _, ids in
                 if case .collection(let id) = collectionFilter, !ids.contains(id) { collectionFilter = .all }
             }
+            .onAppear(perform: loadPreferences)
+            .onChange(of: collectionFilter) { _, value in savePreferences(collection: value, kind: kindFilter) }
+            .onChange(of: kindFilter) { _, value in savePreferences(collection: collectionFilter, kind: value) }
+            .onChange(of: sort) { _, value in UserDefaults.standard.set(value.rawValue, forKey: "library.sort") }
             .alert("Operazione non riuscita", isPresented: Binding(
                 get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("Chiudi", role: .cancel) { }
@@ -127,7 +132,7 @@ struct LibraryView: View {
                     if let kindFilter { LabeledContent("Formato", value: kindFilter.label) }
                     Text("\(visibleLinks.count) contenuti").accessibilityIdentifier("library-count").font(.caption).foregroundStyle(.secondary)
                     if let notice { Text(notice).foregroundStyle(.secondary) }
-                    if let savedID { Button("Apri contenuto salvato") { open(savedID) } }
+                    if let savedID { Button("Apri contenuto salvato") { open(savedID) }.accessibilityIdentifier("library-open-saved") }
                     if let message = titles.message { Text(message).font(.subheadline).foregroundStyle(.secondary) }
                     if let importError = importer.error {
                         Label(importError, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
@@ -170,6 +175,12 @@ struct LibraryView: View {
                         Button("Gestisci raccolte", systemImage: "folder") { showingCollections = true }
                         Button("Backup locale", systemImage: "externaldrive") { showingBackup = true }
                         Button("Come salvare dai social", systemImage: "square.and.arrow.up") { showingGuide = true }
+                        Divider()
+                        Menu("Ordina per") {
+                            ForEach(LibrarySort.allCases) { option in
+                                Button(option.label) { sort = option }
+                            }
+                        }
                     } label: { Label("Raccolte e guida", systemImage: "folder") }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -190,15 +201,10 @@ struct LibraryView: View {
 
     private func resetFilters() { archived = false; collectionFilter = .all; kindFilter = nil; search = "" }
 
-    private func captured(_ receipt: CaptureReceipt, openAfterSave: Bool) {
+    private func captured(_ receipt: CaptureReceipt) {
         if receipt.inserted { resetFilters() }
         savedID = receipt.id
         notice = receipt.inserted ? "Contenuto salvato" : "Contenuto già presente: metadati conservati."
-        if openAfterSave { pendingOpenID = receipt.id }
-    }
-
-    private func openPending() {
-        if let id = pendingOpenID { pendingOpenID = nil; open(id) }
     }
 
     private func open(_ id: UUID) {
@@ -216,6 +222,7 @@ struct LibraryView: View {
                 Text("\(selection.count) selezionati").font(.subheadline)
                 Spacer()
                 Button("Seleziona visibili") { selection = Set(visibleLinks.map(\.id)) }.accessibilityIdentifier("bulk-select-all")
+                Button("Deseleziona") { selection.removeAll() }.disabled(selection.isEmpty)
             }
             ViewThatFits(in: .horizontal) {
                 HStack { bulkCollectionMenu; archiveSelection; titleSelection }
@@ -253,6 +260,18 @@ struct LibraryView: View {
         case .unfiled: return "Senza raccolta"
         case .collection(let id): return collections.first { $0.id == id }?.name ?? "Raccolta"
         }
+    }
+    private func loadPreferences() {
+        guard !loadedPreferences else { return }
+        loadedPreferences = true
+        collectionFilter = BloomPreferences.collectionFilter(UserDefaults.standard.string(forKey: "library.collectionFilter"))
+        kindFilter = UserDefaults.standard.string(forKey: "library.kindFilter").flatMap(ContentKind.init(rawValue:))
+        sort = UserDefaults.standard.string(forKey: "library.sort").flatMap(LibrarySort.init(rawValue:)) ?? .newest
+    }
+    private func savePreferences(collection: CollectionFilter, kind: ContentKind?) {
+        guard loadedPreferences else { return }
+        UserDefaults.standard.set(BloomPreferences.rawFilter(collection), forKey: "library.collectionFilter")
+        UserDefaults.standard.set(kind?.rawValue, forKey: "library.kindFilter")
     }
     private var emptyTitle: String {
         if !search.isEmpty || collectionFilter != .all || kindFilter != nil { return "Nessun risultato" }
