@@ -120,7 +120,7 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(paste.waitForExistence(timeout: 5), diagnostics(app))
         let pasteReady = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: paste)
         XCTAssertEqual(XCTWaiter.wait(for: [pasteReady], timeout: 10), .completed, diagnostics(app))
-        XCTAssertEqual(paste.value as? String, "clipboard-ready", diagnostics(app))
+        XCTAssertEqual(app.buttons["capture-close"].value as? String, "clipboard-ready", diagnostics(app))
         paste.tap()
         XCTAssertTrue(app.buttons["library-open-saved"].waitForExistence(timeout: 10), diagnostics(app))
         XCTAssertFalse(app.navigationBars["Nuova nota"].exists)

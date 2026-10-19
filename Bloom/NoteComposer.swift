@@ -90,11 +90,24 @@ struct NoteComposer: View {
             .disabled(!loaded)
             .navigationTitle(item == nil ? "Nuova nota" : "Modifica nota").navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { if isDirty { confirmingClose = true } else { dismiss() } }.disabled(!loaded || loading).accessibilityIdentifier("capture-close") }
+                ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { if isDirty { confirmingClose = true } else { dismiss() } }.disabled(!loaded || loading).accessibilityIdentifier("capture-close").accessibilityValue(clipboardTestStatus) }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if item == nil && title.isEmpty && bodyText.isEmpty && files.isEmpty && linksText.isEmpty {
+                        PasteButton(payloadType: String.self) { pasteValues($0, saveImmediately: true) }
+                            .labelStyle(.iconOnly).accessibilityLabel("Incolla e salva link")
+                            .accessibilityIdentifier("capture-paste-save").disabled(!loaded || loading)
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) { Button("Salva") { save() }.disabled(!loaded || loading || isEmpty).accessibilityIdentifier("capture-save") }
-                ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Fine") { focused = nil }.accessibilityIdentifier("capture-keyboard-done") }
+                ToolbarItemGroup(placement: .keyboard) {
+                    if item == nil && focused != nil {
+                        Button("Salva e aggiungi") { save(addAnother: true) }.disabled(!loaded || loading || isEmpty).accessibilityIdentifier("capture-save-another")
+                    }
+                    Spacer()
+                    Button("Fine") { focused = nil }.accessibilityIdentifier("capture-keyboard-done")
+                }
             }
-            .safeAreaInset(edge: .bottom) { captureActions }
+            .safeAreaInset(edge: .bottom) { if item == nil && focused == nil { captureActions } }
             .sheet(isPresented: $showingFile) {
                 DocumentImportPicker { result in
                     showingFile = false
@@ -126,8 +139,8 @@ struct NoteComposer: View {
             TextField("Incolla un link per riga", text: $linksText, axis: .vertical)
                 .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                 .accessibilityIdentifier("note-links").focused($focused, equals: .links)
-            Button("Incolla link", systemImage: "doc.on.clipboard") { pasteLink(saveImmediately: false) }
-                .accessibilityIdentifier("capture-paste-links")
+            PasteButton(payloadType: String.self) { pasteValues($0, saveImmediately: false) }
+                .accessibilityLabel("Incolla link").accessibilityIdentifier("capture-paste-links")
         }
     }
     private var attachmentSection: some View {
@@ -192,10 +205,6 @@ struct NoteComposer: View {
 
     private var captureActions: some View {
         HStack {
-            if item == nil && title.isEmpty && bodyText.isEmpty && files.isEmpty && linksText.isEmpty {
-                Button("Incolla e salva link", systemImage: "doc.on.clipboard") { pasteLink(saveImmediately: true) }
-                    .frame(minHeight: 44).accessibilityIdentifier("capture-paste-save").accessibilityValue(clipboardTestStatus)
-            }
             Spacer()
             if item == nil { Button("Salva e aggiungi") { save(addAnother: true) }.disabled(!loaded || loading || isEmpty).accessibilityIdentifier("capture-save-another") }
         }.padding(12).background(.regularMaterial).disabled(!loaded || loading)
@@ -208,14 +217,8 @@ struct NoteComposer: View {
         #endif
         return ""
     }
-    private func pasteLink(saveImmediately: Bool) {
-        guard loaded && !loading else { return }
-        // Clipboard content is read only in response to this explicit user action.
-        guard let text = UIPasteboard.general.string ?? UIPasteboard.general.url?.absoluteString,
-              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            error = "Copia prima un link, poi tocca Incolla."
-            return
-        }
+    private func pasteValues(_ values: [String], saveImmediately: Bool) {
+        guard loaded && !loading, let text = values.first, !text.isEmpty else { return }
         linksText += (linksText.isEmpty ? "" : "\n") + text
         if saveImmediately { save() }
     }
