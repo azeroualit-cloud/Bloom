@@ -334,6 +334,18 @@ enum LocalLibrary {
                 container.mainContext.insert(note)
                 try container.mainContext.save()
             }
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-grid") {
+                let tag = try container.mainContext.fetch(FetchDescriptor<LinkCollection>()).first { $0.name == "Casa" }
+                for index in 0..<4 {
+                    let note = CapturedLink(url: URL(string: "https://example.invalid/grid/\(index)")!)
+                    note.title = "Grid \(index)"; note.noteVersion = 1
+                    note.previewImageData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAAFCAIAAADg0arLAAAAFUlEQVR4nGPUK37NwMDAxMDAgIsCADMhAZaUqgUxAAAAAElFTkSuQmCC")
+                    note.previewSourceURL = note.urlString; note.previewAttemptedAt = .now
+                    if let tag { note.tagIDs = [tag.id] }
+                    container.mainContext.insert(note)
+                }
+                try container.mainContext.save()
+            }
             if ProcessInfo.processInfo.arguments.contains("--ui-test-tags") {
                 let note = CapturedLink(kind: .text)
                 note.title = "Tag fixture"; note.textContent = "Keep this note"; note.noteVersion = 1

@@ -84,27 +84,36 @@ struct NoteComposer: View {
                 TagSelection(selected: $tags)
                 attachmentSection
                 if restored { Text("Bozza ripristinata").font(.caption).foregroundStyle(.secondary) }
-                if saved { Label("Nota salvata. Puoi aggiungerne un’altra.", systemImage: "checkmark.circle").foregroundStyle(.green).accessibilityIdentifier("note-saved") }
+                if saved { Label("Nota salvata. Puoi aggiungerne un’altra.", systemImage: "checkmark.circle").foregroundStyle(Color.accentColor).accessibilityIdentifier("note-saved") }
                 if let error { Text(error).foregroundStyle(.red) }
             }
             .disabled(!loaded)
             .navigationTitle(item == nil ? "Nuova nota" : "Modifica nota").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { if isDirty { confirmingClose = true } else { dismiss() } }.disabled(!loaded || loading).accessibilityIdentifier("capture-close").accessibilityValue(clipboardTestStatus) }
-                ToolbarItem(placement: .topBarTrailing) {
-                    if item == nil && title.isEmpty && bodyText.isEmpty && files.isEmpty && linksText.isEmpty {
-                        PasteButton(payloadType: String.self) { pasteValues($0, saveImmediately: true) }
-                            .labelStyle(.iconOnly).accessibilityLabel("Incolla e salva link")
-                            .accessibilityIdentifier("capture-paste-save").disabled(!loaded || loading)
-                    }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Salva") { save() }.fontWeight(.semibold)
+                        .disabled(!loaded || loading || isEmpty).accessibilityIdentifier("capture-save")
                 }
-                ToolbarItem(placement: .confirmationAction) { Button("Salva") { save() }.disabled(!loaded || loading || isEmpty).accessibilityIdentifier("capture-save") }
                 ToolbarItemGroup(placement: .keyboard) {
                     if item == nil && focused != nil {
                         Button("Salva e aggiungi") { save(addAnother: true) }.disabled(!loaded || loading || isEmpty).accessibilityIdentifier("capture-save-another")
                     }
                     Spacer()
                     Button("Fine") { focused = nil }.accessibilityIdentifier("capture-keyboard-done")
+                }
+            }
+            .safeAreaInset(edge: .top) {
+                if item == nil && title.isEmpty && bodyText.isEmpty && files.isEmpty && linksText.isEmpty {
+                    HStack {
+                        PasteButton(payloadType: String.self) { pasteValues($0, saveImmediately: true) }
+                            .buttonBorderShape(.capsule).labelStyle(.titleAndIcon)
+                            .accessibilityLabel("Incolla e salva link")
+                            .accessibilityIdentifier("capture-paste-save").disabled(!loaded || loading)
+                        Text("e salva un link").font(.subheadline).foregroundStyle(.secondary)
+                        Spacer(minLength: 0)
+                    }.padding(.horizontal, 16).padding(.vertical, 8)
+                        .background(Color(uiColor: .systemGroupedBackground))
                 }
             }
             .safeAreaInset(edge: .bottom) { if item == nil && focused == nil { captureActions } }

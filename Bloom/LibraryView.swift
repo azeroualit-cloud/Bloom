@@ -42,29 +42,31 @@ struct LibraryView: View {
         })
     }
     private var showingTags: Bool { !allNotes && search.isEmpty && kind == nil && !selecting }
-    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+    private let categoryColumns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
+    private let contentColumns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 3)
 
     var body: some View { NavigationStack { presentedLibrary } }
     private var library: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                header
+                header.padding(.horizontal, 16)
                 if showingTags {
                     let homeItems = visible
-                    LazyVGrid(columns: columns, spacing: 12) {
+                    LazyVGrid(columns: categoryColumns, spacing: 20) {
                         category("Tutti", symbol: "square.grid.2x2", value: .all, members: homeItems)
                         category("Da specificare", symbol: "tag", value: .unfiled, members: homeItems.filter { $0.tagIDs.isEmpty })
                         ForEach(tags) { tag in
                             category(tag.name, symbol: "tag.fill", value: .collection(tag.id), members: homeItems.filter { $0.tagIDs.contains(tag.id) })
                         }
-                    }.accessibilityIdentifier("category-grid")
+                    }.padding(.horizontal, 16).frame(maxWidth: 760).frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("category-grid")
                 } else if visible.isEmpty {
                     ContentUnavailableView("Nessuna nota", systemImage: "note.text", description: Text("Aggiungi una nota o cambia i filtri."))
                 } else {
-                    LazyVGrid(columns: columns, spacing: 12) { ForEach(visible) { item in card(item) } }
+                    LazyVGrid(columns: contentColumns, spacing: 0) { ForEach(visible) { item in card(item) } }
                         .accessibilityIdentifier("content-grid")
                 }
-            }.padding(16).frame(maxWidth: 760).frame(maxWidth: .infinity)
+            }.padding(.vertical, 16).frame(maxWidth: .infinity)
         }
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle(archived ? "Archivio" : showingTags ? "Bloom" : categoryTitle)
@@ -87,15 +89,12 @@ struct LibraryView: View {
         return categoryButton(name, symbol: symbol, value: value, count: members.count, cover: cover)
     }
     private func categoryButton(_ name: String, symbol: String, value: CollectionFilter, count: Int, cover: CapturedLink?) -> some View {
-        GeometryReader { proxy in
-            Button { filter = value; allNotes = true; revealed = nil } label: {
-                CategoryCover(name: name, symbol: symbol, count: count, item: cover)
-                    .frame(width: proxy.size.width, height: proxy.size.width).clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 16)).contentShape(Rectangle())
-            }.buttonStyle(.plain).frame(width: proxy.size.width, height: proxy.size.width)
-                .accessibilityElement(children: .ignore).accessibilityLabel("\(name), \(count) note")
-                .accessibilityAddTraits(.isButton).accessibilityIdentifier("category-\(name)")
-        }.aspectRatio(1, contentMode: .fit)
+        Button { filter = value; allNotes = true; revealed = nil } label: {
+            CategoryCover(name: name, symbol: symbol, count: count, item: cover)
+                .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+        }.buttonStyle(.plain)
+            .accessibilityElement(children: .ignore).accessibilityLabel("\(name), \(count) note")
+            .accessibilityAddTraits(.isButton).accessibilityIdentifier("category-\(name)")
     }
     private var presentedLibrary: some View {
         library
@@ -160,7 +159,7 @@ struct LibraryView: View {
         }
     }
     private func card(_ item: CapturedLink) -> some View {
-        ArchiveTile(item: item, selected: selection.contains(item.id), selecting: selecting, revealed: $revealed,
+        ArchiveTile(item: item, compact: true, selected: selection.contains(item.id), selecting: selecting, revealed: $revealed,
                     openNote: { if !selecting { opened = item } }, openContent: { if !selecting { contentRoute = $0 } }, editTags: { tagNote = item }, select: {
                         if selecting { if selection.contains(item.id) { selection.remove(item.id) } else { selection.insert(item.id) } }
                         else { selecting = true; selection = [item.id]; revealed = nil }

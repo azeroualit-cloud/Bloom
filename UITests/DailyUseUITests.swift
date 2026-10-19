@@ -2,6 +2,37 @@ import XCTest
 
 final class DailyUseUITests: XCTestCase {
     @MainActor
+    func testCategoryCaptionsAndEdgeToEdgeThreeColumnGrid() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-grid"]
+        app.launch()
+        let all = app.buttons["category-Tutti"]
+        XCTAssertTrue(all.waitForExistence(timeout: 15))
+        XCTAssertTrue(all.label.contains("Tutti"))
+        XCTAssertGreaterThan(all.frame.height, all.frame.width + 35)
+        let home = XCTAttachment(screenshot: app.screenshot()); home.name = "Category covers with captions"; home.lifetime = .keepAlways; add(home)
+        all.tap()
+        let notes = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'"))
+        XCTAssertTrue(notes.element(boundBy: 3).waitForExistence(timeout: 5), diagnostics(app))
+        let frames = notes.allElementsBoundByIndex.map(\.frame).sorted {
+            if abs($0.minY - $1.minY) > 2 { return $0.minY < $1.minY }
+            return $0.minX < $1.minX
+        }
+        XCTAssertEqual(frames.count, 4)
+        XCTAssertEqual(frames[0].minX, app.frame.minX, accuracy: 2)
+        XCTAssertEqual(frames[0].width, app.frame.width / 3, accuracy: 2)
+        XCTAssertEqual(frames[0].width, frames[0].height, accuracy: 2)
+        XCTAssertEqual(frames[1].minX, frames[0].maxX, accuracy: 2)
+        XCTAssertEqual(frames[2].minX, frames[1].maxX, accuracy: 2)
+        XCTAssertEqual(frames[2].maxX, app.frame.maxX, accuracy: 2)
+        XCTAssertEqual(frames[2].minY, frames[0].minY, accuracy: 2)
+        XCTAssertEqual(frames[3].minY, frames[0].maxY, accuracy: 2)
+        let grid = XCTAttachment(screenshot: app.screenshot()); grid.name = "Three columns without gutters"; grid.lifetime = .keepAlways; add(grid)
+    }
+
+
+    @MainActor
     func testDeletingFromRediscoveryClosesRetainedLibraryNote() {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -9,9 +40,7 @@ final class DailyUseUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["category-Tutti"].waitForExistence(timeout: 15))
         app.buttons["category-Tutti"].tap()
-        let title = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-title-'")).firstMatch
-        XCTAssertTrue(title.waitForExistence(timeout: 5))
-        title.tap()
+        openGridNote(app)
         XCTAssertTrue(app.navigationBars["Browser fixture"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Riscopri"].tap()
         let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
@@ -48,10 +77,7 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["tags-done"].tap()
         XCTAssertFalse(app.buttons["category-Alimenti"].exists)
         app.buttons["category-Tutti"].tap()
-        let title = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-title-'")).firstMatch
-        XCTAssertTrue(title.waitForExistence(timeout: 5), diagnostics(app))
-        XCTAssertEqual(title.label, "Tag fixture")
-        title.tap()
+        openGridNote(app)
         XCTAssertTrue(app.navigationBars["Tag fixture"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Casa"].exists, diagnostics(app))
     }
@@ -82,7 +108,7 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(unspecified.exists)
         XCTAssertEqual(all.frame.minY, unspecified.frame.minY, accuracy: 2)
         XCTAssertGreaterThan(unspecified.frame.minX, all.frame.minX)
-        XCTAssertEqual(all.frame.width, all.frame.height, accuracy: 2)
+        XCTAssertGreaterThan(all.frame.height, all.frame.width + 35)
         XCTAssertFalse(app.segmentedControls.buttons["Archivio"].exists)
         unspecified.tap()
         let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
@@ -176,6 +202,10 @@ final class DailyUseUITests: XCTestCase {
         let pasteReady = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: paste)
         XCTAssertEqual(XCTWaiter.wait(for: [pasteReady], timeout: 10), .completed, diagnostics(app))
         XCTAssertEqual(app.buttons["capture-close"].value as? String, "clipboard-ready", diagnostics(app))
+        let save = app.buttons["capture-save"]
+        XCTAssertTrue(save.exists)
+        XCTAssertFalse(save.isEnabled)
+        XCTAssertGreaterThanOrEqual(paste.frame.minY, save.frame.maxY - 1, diagnostics(app))
         paste.tap()
         XCTAssertTrue(app.buttons["library-open-saved"].waitForExistence(timeout: 10), diagnostics(app))
         XCTAssertFalse(app.navigationBars["Nuova nota"].exists)
@@ -197,15 +227,17 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
         app.buttons["library-back-tags"].tap()
         app.buttons["category-Da specificare"].tap()
-        let actions = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-actions-'")).firstMatch
-        actions.tap()
-        app.buttons["Modifica tag"].tap()
+        note.press(forDuration: 1.1)
+        XCTAssertTrue(app.buttons["note-context-tags"].waitForExistence(timeout: 5), diagnostics(app))
+        app.buttons["note-context-tags"].tap()
         app.buttons["tag-Salute"].tap()
         app.buttons["quick-tags-save"].tap()
         XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5))
         app.buttons["library-back-tags"].tap()
         app.buttons["category-Salute"].tap()
-        note.press(forDuration: 0.7)
+        note.press(forDuration: 1.1)
+        XCTAssertTrue(app.buttons["note-context-select"].waitForExistence(timeout: 5), diagnostics(app))
+        app.buttons["note-context-select"].tap()
         XCTAssertTrue(app.staticTexts["1 selezionati"].waitForExistence(timeout: 5), diagnostics(app))
         XCTAssertFalse(app.navigationBars["Bloom test note"].exists, diagnostics(app))
     }
@@ -273,6 +305,15 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["rediscovery-restart"].tap()
         XCTAssertTrue(titleButton.waitForExistence(timeout: 5), diagnostics(app))
         XCTAssertEqual(titleButton.label, title)
+    }
+
+    @MainActor
+    private func openGridNote(_ app: XCUIApplication) {
+        let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
+        XCTAssertTrue(note.waitForExistence(timeout: 5), diagnostics(app))
+        note.press(forDuration: 1.1)
+        XCTAssertTrue(app.buttons["note-context-open"].waitForExistence(timeout: 5), diagnostics(app))
+        app.buttons["note-context-open"].tap()
     }
 
     @MainActor

@@ -6,10 +6,11 @@ import QuickLook
 
 struct MarkdownExcerpt: View {
     let text: String
+    var font: Font = .subheadline
     var body: some View {
         let excerpt = String(text.prefix(350))
         Text((try? AttributedString(markdown: excerpt, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(excerpt))
-            .font(.subheadline)
+            .font(font)
     }
 }
 
