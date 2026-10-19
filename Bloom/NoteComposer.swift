@@ -116,7 +116,7 @@ struct NoteComposer: View {
             HStack {
                 PhotosPicker(selection: $photo, matching: .images) { Label("Foto", systemImage: "photo") }
                 Spacer(); Button("File", systemImage: "doc") { showingFile = true }
-            }.disabled(loading)
+            }.buttonStyle(.borderless).disabled(loading)
             if loading { ProgressView("Importazione…") }
         }
     }

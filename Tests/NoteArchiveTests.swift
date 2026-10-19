@@ -116,4 +116,20 @@ final class NoteArchiveTests: XCTestCase {
         let target = try LinkStore.container(at: root())
         XCTAssertEqual(try BackupStore.restore(LibraryBackup.decode(data), into: target).added, 1)
     }
+
+    func testRestoreMapsTagsOntoAnAlreadyInitializedLibrary() throws {
+        let source = try LinkStore.container(at: root())
+        try LinkStore.initializeTags(in: source.mainContext)
+        let sourceTag = try XCTUnwrap(source.mainContext.fetch(FetchDescriptor<LinkCollection>()).first { $0.name == "Salute" })
+        _ = try LinkStore.saveNote(title: "Nota", body: "Testo", urls: [], files: [], tags: [sourceTag.id], in: source.mainContext)
+        let target = try LinkStore.container(at: root())
+        try LinkStore.initializeTags(in: target.mainContext)
+        let targetTag = try XCTUnwrap(target.mainContext.fetch(FetchDescriptor<LinkCollection>()).first { $0.name == "Salute" })
+        XCTAssertNotEqual(sourceTag.id, targetTag.id)
+        _ = try BackupStore.restore(BackupStore.snapshot(from: source), into: target)
+        let fresh = ModelContext(target)
+        let note = try XCTUnwrap(fresh.fetch(FetchDescriptor<CapturedLink>()).first)
+        XCTAssertEqual(note.tagIDs, [targetTag.id])
+        XCTAssertEqual(try fresh.fetchCount(FetchDescriptor<LinkCollection>()), NoteTags.initial.count)
+    }
 }
