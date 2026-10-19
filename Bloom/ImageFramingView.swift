@@ -86,13 +86,14 @@ struct ImageFramingEditor: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     let item: CapturedLink
+    var file: NoteFile? = nil
     @State private var framing: ImageFraming
     @State private var error: String?
-    init(item: CapturedLink) { self.item = item; _framing = State(initialValue: item.imageFraming) }
+    init(item: CapturedLink, file: NoteFile? = nil) { self.item = item; self.file = file; _framing = State(initialValue: file?.framing ?? (file == nil ? item.imageFraming : ImageFraming())) }
     var body: some View {
         NavigationStack {
             Form {
-                Section { FramedImage(data: item.attachmentData, framing: framing).frame(height: 260) }
+                Section { FramedImage(data: file?.data ?? item.attachmentData, framing: framing).frame(height: 260) }
                 Section("Nascondi i bordi dello screenshot") {
                     slider("Alto", value: $framing.top, maximum: 0.9 - framing.bottom)
                     slider("Basso", value: $framing.bottom, maximum: 0.9 - framing.top)
@@ -107,7 +108,11 @@ struct ImageFramingEditor: View {
                     ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Salva") {
-                            do { try LinkStore.setImageFraming(framing, for: item, in: context); dismiss() }
+                            do {
+                                if var file { file.framing = framing; try LinkStore.updateNoteFile(file, for: item, in: context) }
+                                else { try LinkStore.setImageFraming(framing, for: item, in: context) }
+                                dismiss()
+                            }
                             catch { self.error = error.localizedDescription }
                         }
                     }

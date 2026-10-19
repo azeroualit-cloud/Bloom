@@ -28,6 +28,7 @@ struct NoteFile: Codable, Identifiable, Equatable, Sendable {
     let name: String
     let type: String
     let data: Data
+    var framing: ImageFraming? = nil
 }
 
 struct ImageFraming: Codable, Equatable, Sendable {

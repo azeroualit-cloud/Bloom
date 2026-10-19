@@ -20,6 +20,7 @@ private struct BackupDocument: FileDocument {
 struct BackupView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @AppStorage("backup.lastExport") private var lastExport = 0.0
     @State private var document: BackupDocument?
     @State private var exporting = false
     @State private var importing = false
@@ -34,11 +35,14 @@ struct BackupView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Il backup include contenuti, allegati, note, raccolte e Archivio. I dati del browser sono esclusi.")
+                    Text("Il backup include note, link, allegati, tag e Archivio. Bozze, anteprime e dati del browser sono esclusi.")
                     Text("Il file non è cifrato. Scegli un luogo sicuro dove conservarlo.")
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
                 Section("Esportazione") {
+                    if lastExport > 0 {
+                        LabeledContent("Ultimo backup esportato", value: Date(timeIntervalSince1970: lastExport).formatted(date: .abbreviated, time: .shortened))
+                    } else { Text("Nessun backup esportato da questo dispositivo.").foregroundStyle(.secondary) }
                     Button("Esporta libreria", systemImage: "square.and.arrow.up", action: prepareExport)
                         .disabled(busy || preview != nil)
                 }
@@ -46,16 +50,16 @@ struct BackupView: View {
                     Button("Importa backup", systemImage: "square.and.arrow.down") {
                         error = nil; message = nil; importing = true
                     }.disabled(busy || preview != nil)
-                    Text("Aggiunge i contenuti mancanti. Quelli già presenti conservano titolo, note, raccolta e stato.")
+                    Text("Aggiunge i contenuti mancanti. Quelli già presenti conservano titolo, testo, tag e stato.")
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
                 if let preview {
                     Section("Anteprima del backup") {
                         LabeledContent("Creato", value: preview.createdAt.formatted(date: .abbreviated, time: .shortened))
                         LabeledContent("Contenuti", value: "\(preview.items.count)")
-                        LabeledContent("Raccolte", value: "\(preview.collections.count)")
+                        LabeledContent("Tag", value: "\(preview.collections.count)")
                         LabeledContent("Archiviati", value: "\(preview.items.filter(\.archived).count)")
-                        LabeledContent("Allegati", value: "\(preview.items.filter { $0.data != nil }.count)")
+                        LabeledContent("Allegati", value: "\(preview.items.reduce(0) { $0 + ($1.data == nil ? 0 : 1) + ($1.noteFiles?.count ?? 0) })")
                         Button("Aggiungi alla libreria", action: restore).disabled(busy)
                         Button("Annulla anteprima", role: .cancel) { self.preview = nil }.disabled(busy)
                     }
@@ -69,7 +73,7 @@ struct BackupView: View {
                 if let error { Section { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.red) } }
                 if let message { Section { Text(message).accessibilityAddTraits(.updatesFrequently) } }
                 Section {
-                    Text("Limiti: file 100 MB, contenuti 60 MB, 10.000 elementi e 2.000 raccolte. Nessuna esportazione parziale.")
+                    Text("Limiti: file 100 MB, contenuti 60 MB, 10.000 elementi e 2.000 tag. Nessuna esportazione parziale.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
@@ -89,7 +93,7 @@ struct BackupView: View {
                           defaultFilename: "Bloom-backup-\(Date().formatted(.iso8601.year().month().day().dateSeparator(.dash)))") { result in
                 document = nil
                 switch result {
-                case .success: message = "Backup esportato."
+                case .success: lastExport = Date().timeIntervalSince1970; message = "Backup esportato."
                 case .failure(let failure):
                     if (failure as NSError).code == NSUserCancelledError { message = "Esportazione annullata." }
                     else { error = failure.localizedDescription }
@@ -145,7 +149,7 @@ struct BackupView: View {
             try Task.checkCancellation()
             let result = try BackupStore.restore(backup, into: context.container)
             preview = nil
-            message = "Importati: \(result.added). Già presenti: \(result.skipped). Nuove raccolte: \(result.collectionsAdded)."
+            message = "Importati: \(result.added). Già presenti: \(result.skipped). Nuovi tag: \(result.collectionsAdded)."
         }
     }
 }

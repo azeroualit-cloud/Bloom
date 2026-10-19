@@ -75,18 +75,20 @@ struct LibraryBackup: Codable, Sendable {
                   (item.noteLinks?.count ?? 0) + (item.noteFiles?.count ?? 0) <= 10 else { throw BackupError.invalid }
             guard item.imageFraming?.isValid ?? true else { throw BackupError.invalid }
             guard item.noteVersion == nil || item.noteVersion == 1 else { throw BackupError.unsupportedVersion }
-            guard (item.data?.count ?? 0) + (item.text?.utf8.count ?? 0) + (item.noteFiles ?? []).reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw BackupError.tooLarge }
+            guard (item.data?.count ?? 0) + (item.text?.utf8.count ?? 0) + (item.notes?.utf8.count ?? 0) + (item.noteFiles ?? []).reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw BackupError.tooLarge }
             for raw in item.noteLinks ?? [] {
                 guard let url = URL(string: raw), (try? LinkValidation.validate(url)) != nil else { throw BackupError.invalid }
                 try count(raw.utf8.count)
             }
             for file in item.noteFiles ?? [] {
+                guard file.framing?.isValid != false else { throw BackupError.invalid }
                 guard !file.name.isEmpty, file.name.utf8.count <= 1_024, file.type.utf8.count <= 1_024,
                       file.data.count <= AttachmentLoader.maximumBytes else { throw BackupError.invalid }
                 try count(file.name.utf8.count + file.type.utf8.count)
                 try count(file.data.count)
             }
-            for value in [item.urlString, item.title, item.notes, item.fileName, item.contentType].compactMap({ $0 }) {
+            if let notes = item.notes { try count(notes.utf8.count) }
+            for value in [item.urlString, item.title, item.fileName, item.contentType].compactMap({ $0 }) {
                 guard value.utf8.count <= 1_024 * 1_024 else { throw BackupError.tooLarge }
                 try count(value.utf8.count)
             }

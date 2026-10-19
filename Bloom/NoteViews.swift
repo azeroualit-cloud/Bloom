@@ -69,11 +69,13 @@ struct NoteLinkButton: View {
     let url: URL
     @State private var fallback = false
     @State private var opening = false
+    @State private var secondaryPoster: Data?
+    private var poster: Data? { item.previewSourceURL == url.absoluteString ? item.previewImageData : secondaryPoster }
     private var isVideo: Bool { SocialLink.isVideo(url) }
     var body: some View {
         Button(action: open) {
             ZStack {
-                if let data = item.previewImageData, item.previewSourceURL == url.absoluteString {
+                if let data = poster {
                     CachedPreviewImage(data: data, label: item.displayTitle, maxPixel: 1000)
                         .frame(maxWidth: .infinity, maxHeight: Self.previewHeight)
                 } else {
@@ -90,6 +92,12 @@ struct NoteLinkButton: View {
         }.buttonStyle(.plain).disabled(opening)
             .accessibilityLabel(isVideo ? "Apri video in \(url.host ?? "app")" : "Apri \(url.host ?? "link")")
             .accessibilityIdentifier("note-link-open")
+            .task(id: url) {
+                guard item.allLinks.first != url else { return }
+                let data = await SecondaryPreviewCache.shared.image(for: url)
+                guard !Task.isCancelled else { return }
+                secondaryPoster = data
+            }
             .navigationDestination(isPresented: $fallback) { WebContentView(item: item, url: url) }
     }
     private func open() {
@@ -120,10 +128,10 @@ struct NoteDetailView: View {
                     }
                 }
                 ForEach(item.noteFiles) { file in
-                    NavigationLink { NoteFileView(file: file) } label: {
+                    NavigationLink { NoteAttachmentView(item: item, fileID: file.id) } label: {
                         VStack(alignment: .leading, spacing: 8) {
                             if UTType(file.type)?.conforms(to: .image) == true {
-                                CachedPreviewImage(data: file.data, label: file.name).frame(maxHeight: 360)
+                                FramedImage(data: file.data, framing: file.framing ?? ImageFraming()).frame(maxHeight: 360)
                             }
                             Label(file.name, systemImage: "paperclip").font(.subheadline)
                         }

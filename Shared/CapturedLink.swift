@@ -50,7 +50,8 @@ final class CapturedLink {
     }
     var allLinks: [URL] {
         let first = kind == .link ? URL(string: urlString).map { [$0] } ?? [] : []
-        return first + noteLinks
+        var seen = Set<String>()
+        return (first + noteLinks).filter { seen.insert($0.absoluteString).inserted }
     }
     var noteBody: String { kind == .text ? textContent ?? "" : notes ?? "" }
 

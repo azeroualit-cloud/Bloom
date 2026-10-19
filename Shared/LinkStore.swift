@@ -9,6 +9,16 @@ enum LinkStore {
         item.imageFramingData = try JSONEncoder().encode(value)
         try save(context)
     }
+    static func updateNoteFile(_ file: NoteFile, for item: CapturedLink, in context: ModelContext) throws {
+        var files = item.noteFiles
+        guard let index = files.firstIndex(where: { $0.id == file.id }), file.framing?.isValid != false else { throw ImportError.invalidFile }
+        files[index] = file
+        let primary = item.attachmentData?.count ?? 0
+        guard item.noteBody.utf8.count + primary + files.reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
+        item.noteFilesData = try JSONEncoder().encode(files)
+        item.noteFileCount = files.count
+        try save(context)
+    }
     static func initializeTags(in context: ModelContext) throws {
         let existing = try context.fetch(FetchDescriptor<LinkCollection>())
         for name in NoteTags.initial where !existing.contains(where: { $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }) {
@@ -23,10 +33,14 @@ enum LinkStore {
     static func saveNote(existing: CapturedLink? = nil, title: String, body: String, urls: [URL],
                          files: [NoteFile], tags: Set<UUID>, in context: ModelContext) throws -> CaptureReceipt {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard cleanTitle.utf8.count <= 1_024 * 1_024 else { throw ImportError.tooLarge }
         guard !cleanTitle.isEmpty || !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !urls.isEmpty || !files.isEmpty || existing?.kind == .image || existing?.kind == .file else { throw NoteError.empty }
-        guard urls.count + files.count <= 10 else { throw NoteError.tooManyAttachments }
-        guard body.utf8.count + files.reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
-        let validated = try urls.map { try LinkValidation.validate($0) }
+        let primaryBytes = (existing?.kind == .image || existing?.kind == .file) ? (existing?.attachmentData?.count ?? 0) : 0
+        let primaryCount = (existing?.kind == .image || existing?.kind == .file) ? 1 : 0
+        guard urls.count + files.count + primaryCount <= 10 else { throw NoteError.tooManyAttachments }
+        guard body.utf8.count + primaryBytes + files.reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
+        var seenURLs = Set<String>()
+        let validated = try urls.map { try LinkValidation.validate($0) }.filter { seenURLs.insert($0.absoluteString).inserted }
         for tag in tags { _ = try resolveCollection(tag, in: context) }
         let linksJSON = validated.isEmpty ? nil : String(data: try JSONEncoder().encode(validated.map(\.absoluteString)), encoding: .utf8)
         let promoteFile = existing == nil && validated.isEmpty && !files.isEmpty
@@ -128,7 +142,7 @@ enum LinkStore {
                                 into context: ModelContext) throws -> CaptureReceipt {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ImportError.emptyText }
         let data = Data(text.utf8)
-        guard data.count <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
+        guard data.count + link.noteFiles.reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
         let key = ContentFingerprint.make(data, kind: .text)
         if let existing = try fingerprintItem(key, in: context) { return CaptureReceipt(id: existing.id, inserted: false) }
         let collection = try resolveCollection(collectionID, in: context)
@@ -220,7 +234,7 @@ enum LinkStore {
         guard link.kind == .text else { throw ImportError.emptyText }
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ImportError.emptyText }
         let data = Data(text.utf8)
-        guard data.count <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
+        guard data.count + link.noteFiles.reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
         let key = ContentFingerprint.make(data, kind: .text)
         if let existing = try fingerprintItem(key, in: context), existing.id != link.id { throw LibraryError.duplicateContent }
         link.textContent = text
@@ -232,7 +246,7 @@ enum LinkStore {
         guard link.kind == .file else { throw ImportError.invalidFile }
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ImportError.emptyText }
         let data = Data(text.utf8)
-        guard data.count <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
+        guard data.count + link.noteBody.utf8.count + link.noteFiles.reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
         let key = ContentFingerprint.make(data, kind: .file)
         if let existing = try fingerprintItem(key, in: context), existing.id != link.id { throw LibraryError.duplicateContent }
         link.attachmentData = data

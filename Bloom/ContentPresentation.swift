@@ -55,7 +55,7 @@ final class LinkPreviewController {
         }
     }
 
-    private static func compressed(_ image: UIImage) -> Data? {
+    static func compressed(_ image: UIImage) -> Data? {
         let longest = max(image.size.width, image.size.height)
         let scale = min(1, 1600 / max(longest, 1))
         let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)

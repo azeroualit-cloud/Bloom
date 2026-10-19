@@ -127,7 +127,7 @@ struct LibraryView: View {
                 Button(allNotes ? "Per tag" : "Tutte le note") { allNotes.toggle() }.font(.subheadline)
             }
             if let notice { Text(notice).font(.subheadline).foregroundStyle(.secondary) }
-            if archiveUndo != nil { Button("Annulla ultima operazione", action: undoArchive).accessibilityIdentifier("archive-undo") }
+            if archiveUndo != nil { Button("Annulla spostamento", action: undoArchive).accessibilityIdentifier("archive-undo") }
             if let id = savedID { Button("Apri contenuto salvato") { opened = items.first { $0.id == id } }.accessibilityIdentifier("library-open-saved") }
         }
     }

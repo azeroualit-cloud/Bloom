@@ -236,3 +236,7 @@ image/document opening, quick card tag editing, Add/Remove/Replace batch tags,
 long-press selection and archive Undo. Stable preview heights and occurrence IDs
 reduce layout changes during swipes. No saved-data schema change.
 [Flows, tap counts and verification](docs/interaction-polish.md).
+
+### Build 15 — consultazione e affidabilità dell’archivio
+
+Zoom e inquadratura anche per immagini secondarie; modifica diretta di Markdown/testi allegati; anteprime dei link multipli con cache limitata; controlli coerenti sui payload e backup con data dell’ultima esportazione. Nessuna modifica distruttiva ai dati. Contratti e limiti in [archive-beta](docs/archive-beta.md).
