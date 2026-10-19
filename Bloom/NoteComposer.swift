@@ -126,7 +126,7 @@ struct NoteComposer: View {
             TextField("Incolla un link per riga", text: $linksText, axis: .vertical)
                 .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                 .accessibilityIdentifier("note-links").focused($focused, equals: .links)
-            Button("Incolla link", systemImage: "document.on.clipboard") { pasteLink(saveImmediately: false) }
+            Button("Incolla link", systemImage: "doc.on.clipboard") { pasteLink(saveImmediately: false) }
                 .accessibilityIdentifier("capture-paste-links")
         }
     }
@@ -193,7 +193,7 @@ struct NoteComposer: View {
     private var captureActions: some View {
         HStack {
             if item == nil && title.isEmpty && bodyText.isEmpty && files.isEmpty && linksText.isEmpty {
-                Button("Incolla e salva link", systemImage: "document.on.clipboard") { pasteLink(saveImmediately: true) }
+                Button("Incolla e salva link", systemImage: "doc.on.clipboard") { pasteLink(saveImmediately: true) }
                     .frame(minHeight: 44).accessibilityIdentifier("capture-paste-save").accessibilityValue(clipboardTestStatus)
             }
             Spacer()

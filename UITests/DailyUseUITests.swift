@@ -2,6 +2,22 @@ import XCTest
 
 final class DailyUseUITests: XCTestCase {
     @MainActor
+    func testLinkPreviewOpensBrowserDirectly() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-browser"]
+        app.launch()
+        XCTAssertTrue(app.buttons["category-Tutti"].waitForExistence(timeout: 15))
+        app.buttons["category-Tutti"].tap()
+        let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
+        XCTAssertTrue(note.waitForExistence(timeout: 5), diagnostics(app))
+        note.tap()
+        let address = app.staticTexts["browser-address"]
+        XCTAssertTrue(address.waitForExistence(timeout: 10), diagnostics(app))
+        XCTAssertEqual(address.label, "https://example.invalid/saved")
+    }
+
+    @MainActor
     func testTagGridSquareContentAndConfirmedDeletion() {
         let (app, _) = captureNote(withCollection: false)
         returnToLibrary(app)

@@ -53,6 +53,7 @@ private struct BrowserScreen: View {
     var body: some View {
         VStack(spacing: 0) {
             Text(browser.currentURL.absoluteString)
+                .accessibilityIdentifier("browser-address")
                 .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 .textSelection(.enabled).padding(.horizontal).padding(.vertical, 8)
             if browser.isLoading { ProgressView(value: browser.progress).accessibilityLabel("Caricamento pagina") }

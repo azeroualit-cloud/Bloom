@@ -327,6 +327,13 @@ enum LocalLibrary {
                 container.mainContext.insert(note)
                 try container.mainContext.save()
             }
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-browser") {
+                let note = CapturedLink(kind: .link)
+                note.urlString = "https://example.invalid/saved"; note.title = "Browser fixture"; note.noteVersion = 1
+                note.previewAttemptedAt = .now
+                container.mainContext.insert(note)
+                try container.mainContext.save()
+            }
             cached = container
             return container
         }

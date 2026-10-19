@@ -111,7 +111,8 @@ struct ArchiveTile: View {
             UIApplication.shared.open(url, options: [.universalLinksOnly: true]) { success in
                 Task { @MainActor in opening = false; if !success { openContent(ArchiveContentRoute(item: item, browser: true)) } }
             }
-        } else if item.kind == .image || item.kind == .file { openContent(ArchiveContentRoute(item: item, browser: false)) }
+        } else if item.allLinks.first != nil { openContent(ArchiveContentRoute(item: item, browser: true)) }
+        else if item.kind == .image || item.kind == .file { openContent(ArchiveContentRoute(item: item, browser: false)) }
         else { openNote() }
     }
 }
