@@ -76,4 +76,44 @@ final class NoteArchiveTests: XCTestCase {
         XCTAssertThrowsError(try NoteTags.validate("Due parole"))
         XCTAssertThrowsError(try NoteTags.validate("Da specificare"))
     }
+
+    func testDistinctNotesAboutSameVideoAreNotDroppedOnRestore() throws {
+        let source = try LinkStore.container(at: root())
+        let url = URL(string: "https://youtu.be/same-video")!
+        _ = try LinkStore.saveNote(title: "Prima", body: "Prima osservazione", urls: [url], files: [], tags: [], in: source.mainContext)
+        _ = try LinkStore.saveNote(title: "Seconda", body: "Seconda osservazione", urls: [url], files: [], tags: [], in: source.mainContext)
+        let target = try LinkStore.container(at: root())
+        let backup = try LibraryBackup.decode(BackupStore.snapshot(from: source).encoded())
+        XCTAssertEqual(try BackupStore.restore(backup, into: target).added, 2)
+        XCTAssertEqual(try BackupStore.restore(backup, into: target).added, 0)
+    }
+
+    func testImageFramingChangesPresentationAndPreservesOriginalInBackup() throws {
+        let source = try LinkStore.container(at: root())
+        let original = Data([1, 2, 3, 4])
+        let file = NoteFile(name: "screenshot.png", type: "public.png", data: original)
+        _ = try LinkStore.saveNote(title: "", body: "", urls: [], files: [file], tags: [], in: source.mainContext)
+        let item = try XCTUnwrap(source.mainContext.fetch(FetchDescriptor<CapturedLink>()).first)
+        XCTAssertEqual(item.kind, .image)
+        let framing = ImageFraming(top: 0.15, bottom: 0.2, left: 0, right: 0)
+        try LinkStore.setImageFraming(framing, for: item, in: source.mainContext)
+        XCTAssertEqual(item.attachmentData, original)
+        let target = try LinkStore.container(at: root())
+        _ = try BackupStore.restore(LibraryBackup.decode(BackupStore.snapshot(from: source).encoded()), into: target)
+        let restored = try XCTUnwrap(target.mainContext.fetch(FetchDescriptor<CapturedLink>()).first)
+        XCTAssertEqual(restored.imageFraming, framing)
+        XCTAssertEqual(restored.attachmentData, original)
+        XCTAssertThrowsError(try LinkStore.setImageFraming(ImageFraming(top: 0.7, bottom: 0.7), for: item, in: source.mainContext))
+        XCTAssertEqual(item.imageFraming, framing)
+    }
+
+    func testPreviousBackupWithoutNoteFieldsStillImports() throws {
+        var backup = LibraryBackup(collections: [], items: [
+            .init(id: UUID(), kind: "link", capturedAt: .now, urlString: "https://example.com/old", title: "Vecchio", notes: nil, archived: false, collectionID: nil, text: nil, fileName: nil, contentType: nil, data: nil)
+        ])
+        backup.version = 1
+        let data = try backup.encoded()
+        let target = try LinkStore.container(at: root())
+        XCTAssertEqual(try BackupStore.restore(LibraryBackup.decode(data), into: target).added, 1)
+    }
 }

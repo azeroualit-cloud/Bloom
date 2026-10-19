@@ -55,7 +55,12 @@ final class CapturedLink {
 
     var kind: ContentKind { ContentKind(rawValue: contentKind ?? "") ?? .link }
     var displayTitle: String {
-        title ?? (kind == .link ? URL(string: urlString)?.host : nil) ?? fileName ?? kind.label
+        if let title, !title.isEmpty { return title }
+        if let line = noteBody.split(whereSeparator: { $0.isNewline }).first {
+            let plain = line.trimmingCharacters(in: CharacterSet(charactersIn: "# *>-\t "))
+            if !plain.isEmpty { return String(plain.prefix(80)) }
+        }
+        return (kind == .link ? URL(string: urlString)?.host : nil) ?? fileName ?? kind.label
     }
 
     init(url: URL, id: UUID = UUID(), capturedAt: Date = .now) {

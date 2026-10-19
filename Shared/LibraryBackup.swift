@@ -81,7 +81,9 @@ struct LibraryBackup: Codable, Sendable {
                 try count(raw.utf8.count)
             }
             for file in item.noteFiles ?? [] {
-                guard !file.name.isEmpty, file.data.count <= AttachmentLoader.maximumBytes else { throw BackupError.invalid }
+                guard !file.name.isEmpty, file.name.utf8.count <= 1_024, file.type.utf8.count <= 1_024,
+                      file.data.count <= AttachmentLoader.maximumBytes else { throw BackupError.invalid }
+                try count(file.name.utf8.count + file.type.utf8.count)
                 try count(file.data.count)
             }
             for value in [item.urlString, item.title, item.notes, item.fileName, item.contentType].compactMap({ $0 }) {

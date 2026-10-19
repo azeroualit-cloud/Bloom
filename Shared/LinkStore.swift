@@ -176,6 +176,7 @@ enum LinkStore {
             switch change {
             case .archived(let value): item.isArchived = value
             case .collection: item.collection = collection
+                if item.tagIDsJSON != nil { item.tagIDs = Set(collection.map { [$0.id] } ?? []) }
             }
         }
         try save(context)
@@ -197,6 +198,7 @@ enum LinkStore {
         link.title = title.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         link.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         link.collection = collection
+        if link.tagIDsJSON != nil { link.tagIDs = Set(collection.map { [$0.id] } ?? []) }
         try save(context)
     }
 

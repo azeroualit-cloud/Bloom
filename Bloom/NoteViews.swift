@@ -25,7 +25,8 @@ struct NoteCard: View {
                 }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityIdentifier("note-open-\(item.id)")
             HStack {
-                let names = tags.filter { item.tagIDs.contains($0.id) }.map(\.name)
+                let assigned = item.tagIDs
+                let names = tags.filter { assigned.contains($0.id) }.map(\.name)
                 Text(names.isEmpty ? "Da specificare" : names.joined(separator: " · "))
                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 Spacer()

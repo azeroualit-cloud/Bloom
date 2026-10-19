@@ -1,11 +1,4 @@
 import SwiftUI
-import SwiftData
-
-struct AddLinkView: View {
-    let onSaved: (CaptureReceipt) -> Void
-    var body: some View { NoteComposer(startsWithLink: true, onSaved: onSaved) }
-}
-
 struct CaptureGuideView: View {
     @Environment(\.dismiss) private var dismiss
 

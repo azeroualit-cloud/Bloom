@@ -7,6 +7,7 @@ struct FramedImage: View {
     let framing: ImageFraming
     var zoomable = false
     @State private var image: UIImage?
+    @State private var original: UIImage?
     @State private var finished = false
     var body: some View {
         Group {
@@ -15,18 +16,22 @@ struct FramedImage: View {
                 else { Image(uiImage: image).resizable().scaledToFit() }
             } else if finished { Label("Immagine non leggibile", systemImage: "photo.badge.exclamationmark") }
             else { ProgressView("Preparazione immagine…") }
-        }.task(id: framing) {
+        }.task(id: data) {
             finished = false
             let decoded = await CachedPreviewImage.decode(data, maximumPixel: 4096)
             guard !Task.isCancelled else { return }
-            if let original = decoded?.cgImage {
-                let rect = CGRect(x: Double(original.width) * framing.left, y: Double(original.height) * framing.top,
-                                  width: Double(original.width) * (1 - framing.left - framing.right),
-                                  height: Double(original.height) * (1 - framing.top - framing.bottom))
-                image = UIImage(cgImage: original.cropping(to: rect) ?? original)
-            }
+            original = decoded
+            applyFraming()
             finished = true
         }
+        .onChange(of: framing) { _, _ in applyFraming() }
+    }
+    private func applyFraming() {
+        guard let original = original?.cgImage else { return }
+        let rect = CGRect(x: Double(original.width) * framing.left, y: Double(original.height) * framing.top,
+                          width: Double(original.width) * (1 - framing.left - framing.right),
+                          height: Double(original.height) * (1 - framing.top - framing.bottom))
+        image = UIImage(cgImage: original.cropping(to: rect) ?? original)
     }
 }
 

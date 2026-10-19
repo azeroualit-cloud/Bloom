@@ -131,7 +131,10 @@ struct LibraryView: View {
             .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
             .listRowBackground(Color.clear).listRowSeparator(.hidden)
             .contextMenu {
-                Button("Modifica nota", systemImage: "pencil") { opened = item }
+                Button("Apri nota", systemImage: "note.text") { opened = item }
+                if !item.allLinks.isEmpty {
+                    Button("Aggiorna anteprima", systemImage: "arrow.clockwise") { LinkPreviewController.shared.prepare(for: item, in: context, force: true) }
+                }
             }
             .swipeActions(allowsFullSwipe: false) {
                 Button(archived ? "Ripristina" : "Archivia", systemImage: "archivebox") {

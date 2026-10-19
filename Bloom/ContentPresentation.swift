@@ -14,10 +14,10 @@ final class LinkPreviewController {
     private var queued = Set<UUID>()
     private var tail: Task<Void, Never>?
 
-    func prepare(for link: CapturedLink, in context: ModelContext) {
-        guard link.previewImageData == nil, let url = link.allLinks.first,
+    func prepare(for link: CapturedLink, in context: ModelContext, force: Bool = false) {
+        guard (force || link.previewImageData == nil), let url = link.allLinks.first,
               !queued.contains(link.id),
-              link.previewAttemptedAt.map({ Date().timeIntervalSince($0) >= 86_400 }) ?? true else { return }
+              force || (link.previewAttemptedAt.map({ Date().timeIntervalSince($0) >= 86_400 }) ?? true) else { return }
         queued.insert(link.id)
         let previous = tail
         tail = Task {
@@ -220,34 +220,6 @@ struct TextContentView: View {
         case .capturedText: return item.textContent ?? ""
         case .attachment:
             return item.attachmentData.flatMap { DocumentText.decode($0, name: item.fileName ?? "contenuto", type: item.contentType) } ?? originalText
-        }
-    }
-}
-
-private struct MarkdownText: View {
-    let text: String
-    var body: some View {
-        if let rich = try? AttributedString(markdown: text) {
-            Text(rich).textSelection(.enabled).accessibilityIdentifier("detail-content-text")
-        } else {
-            Text(text).textSelection(.enabled).accessibilityIdentifier("detail-content-text")
-        }
-    }
-}
-
-struct SocialPreviewCard: View {
-    let item: CapturedLink
-    let isLoading: Bool
-    let message: String?
-    var body: some View {
-        if item.previewImageData != nil || isLoading || message != nil {
-            VStack(alignment: .leading, spacing: 8) {
-                if let data = item.previewImageData {
-                    CachedPreviewImage(data: data, label: item.displayTitle, maxPixel: 1200)
-                        .frame(maxHeight: 220).clipShape(RoundedRectangle(cornerRadius: 14))
-                } else if isLoading { ProgressView("Preparazione anteprima…") }
-                if let message { Text(message).font(.caption).foregroundStyle(.secondary) }
-            }.padding(12).background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18))
         }
     }
 }
