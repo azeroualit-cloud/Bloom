@@ -19,6 +19,7 @@ struct LibraryView: View {
     @State private var importer = ContentImportController()
     @State private var showingGuide = false
     @State private var showingCollections = false
+    @State private var showingBackup = false
     @State private var notice: String?
     @State private var error: String?
 
@@ -72,6 +73,7 @@ struct LibraryView: View {
                         }
                         Divider()
                         Button("Gestisci raccolte", systemImage: "folder") { showingCollections = true }
+                        Button("Backup locale", systemImage: "externaldrive") { showingBackup = true }
                         Button("Come salvare dai social", systemImage: "square.and.arrow.up") { showingGuide = true }
                     } label: { Label("Raccolte e guida", systemImage: "folder") }
                 }
@@ -125,6 +127,7 @@ struct LibraryView: View {
             }
             .sheet(isPresented: $showingGuide) { CaptureGuideView() }
             .sheet(isPresented: $showingCollections) { CollectionsView() }
+            .sheet(isPresented: $showingBackup) { BackupView() }
             .onChange(of: collections.map(\.id)) { _, ids in
                 if case .collection(let id) = collectionFilter, !ids.contains(id) { collectionFilter = .all }
             }

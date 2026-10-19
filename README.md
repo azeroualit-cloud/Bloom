@@ -166,3 +166,12 @@ Nuovo giro (anche pull to refresh), apertura nel viewer e archiviazione con
 ripristino dalla Libreria → Archivio. Le foto riusano l’anteprima locale ridotta;
 nessun caricamento web prima di aprire il contenuto. Nessuna modifica allo schema
 o alle modalità di cattura. Flusso e verifiche: [Bloomscrolling](docs/bloomscrolling.md).
+
+## Build 9 — Backup locale
+
+Libreria → menu raccolte → Backup locale. Esportazione JSON con allegati inclusi,
+anteprima prima dell’importazione e merge senza sovrascrivere contenuti esistenti.
+Reimportazione senza duplicati per ID, URL esatto o impronta dei contenuti.
+Include Archivio, raccolte, titoli e note; esclude cookie e dati del browser.
+File non cifrato, salvato nella destinazione scelta in File. Nessun backend.
+Limiti e comportamento: [Backup locale](docs/backup.md).
