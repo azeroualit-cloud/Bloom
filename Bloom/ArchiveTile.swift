@@ -23,7 +23,10 @@ struct ArchiveTile: View {
 
     var body: some View {
         Group {
-            if item.modelContext != nil && !item.isDeleted { tile }
+            if item.modelContext != nil && !item.isDeleted {
+                if compact { tile.contextMenu { compactActions } }
+                else { tile }
+            }
         }
     }
 
@@ -39,17 +42,16 @@ struct ArchiveTile: View {
                 .overlay(alignment: .bottom) { if !compact && !isRevealed { footer } }
                 .overlay { if selected { RoundedRectangle(cornerRadius: compact ? 0 : 16).strokeBorder(Color.accentColor, lineWidth: 3) } }
         }.aspectRatio(1, contentMode: .fit)
-        .contextMenu {
-            if compact {
-                Button("Apri nota", systemImage: "note.text", action: openNote)
-                    .disabled(selecting).accessibilityIdentifier("note-context-open")
-                Button("Modifica tag", systemImage: "tag", action: editTags).accessibilityIdentifier("note-context-tags")
-                Button(selected ? "Deseleziona" : "Seleziona", systemImage: "checkmark.circle", action: select).accessibilityIdentifier("note-context-select")
-                Button(item.isArchived ? "Ripristina" : "Archivia", systemImage: "archivebox", action: archive)
-                Button("Elimina", systemImage: "trash", role: .destructive, action: delete)
-            }
-        }
         .task(id: item.allLinks.first) { LinkPreviewController.shared.prepare(for: item, in: context) }
+    }
+
+    @ViewBuilder private var compactActions: some View {
+        Button("Apri nota", systemImage: "note.text", action: openNote)
+            .disabled(selecting).accessibilityIdentifier("note-context-open")
+        Button("Modifica tag", systemImage: "tag", action: editTags).accessibilityIdentifier("note-context-tags")
+        Button(selected ? "Deseleziona" : "Seleziona", systemImage: "checkmark.circle", action: select).accessibilityIdentifier("note-context-select")
+        Button(item.isArchived ? "Ripristina" : "Archivia", systemImage: "archivebox", action: archive)
+        Button("Elimina", systemImage: "trash", role: .destructive, action: delete)
     }
 
     private var footer: some View {
@@ -89,26 +91,15 @@ struct ArchiveTile: View {
         ZStack(alignment: .bottomLeading) {
             Button(action: open) {
                 GeometryReader { proxy in
-                    ZStack {
-                        Color(uiColor: .secondarySystemGroupedBackground)
-                        if let data = item.previewImageData, item.previewSourceURL == item.allLinks.first?.absoluteString {
-                            CachedPreviewImage(data: data, label: item.displayTitle, maxPixel: 768, contentMode: .fill)
-                        } else if item.kind == .image {
-                            AttachmentThumbnail(item: item, maximumPixelSize: 768, contentMode: .fill)
-                        } else {
-                            VStack(alignment: .leading, spacing: compact ? 6 : 12) {
-                                Image(systemName: item.kind.symbol).font(compact ? .caption : .title2).foregroundStyle(Color.accentColor)
-                                if compact, let title = item.title, !title.isEmpty {
-                                    Text(title).font(.caption.weight(.semibold)).lineLimit(2)
-                                }
-                                if !item.noteBody.isEmpty { MarkdownExcerpt(text: item.noteBody, font: compact ? .caption : .subheadline).lineLimit(3) }
-                                else { Text(item.allLinks.first?.host ?? item.fileName ?? item.displayTitle).font(compact ? .caption : .subheadline).lineLimit(3) }
-                                Spacer(minLength: compact ? 0 : 44)
-                            }.padding(compact ? 8 : 16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    Color(uiColor: .secondarySystemGroupedBackground)
+                        .overlay {
+                            preview.frame(width: proxy.size.width, height: proxy.size.height).clipped()
                         }
-                    }.frame(width: proxy.size.width, height: proxy.size.height).clipped()
-                }
-            }.buttonStyle(.plain).accessibilityIdentifier("note-open-\(item.id)").accessibilityLabel(item.displayTitle)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .contentShape(Rectangle())
+                }.contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityElement(children: .ignore)
+                .accessibilityIdentifier("note-open-\(item.id)").accessibilityLabel(item.displayTitle)
                 .disabled(opening)
                 .highPriorityGesture(LongPressGesture(minimumDuration: 0.45).onEnded { _ in suppressTapUntil = Date().addingTimeInterval(0.5); select() }, including: compact ? .subviews : .all)
             if hasImage && !compact {
@@ -125,6 +116,24 @@ struct ArchiveTile: View {
             }
         }
     }
+    @ViewBuilder private var preview: some View {
+        if let data = item.previewImageData, item.previewSourceURL == item.allLinks.first?.absoluteString {
+            CachedPreviewImage(data: data, label: item.displayTitle, maxPixel: compact ? 512 : 768, contentMode: .fill)
+        } else if item.kind == .image {
+            AttachmentThumbnail(item: item, maximumPixelSize: compact ? 512 : 768, contentMode: .fill)
+        } else {
+            VStack(alignment: .leading, spacing: compact ? 6 : 12) {
+                Image(systemName: item.kind.symbol).font(compact ? .caption : .title2).foregroundStyle(Color.accentColor)
+                if compact, let title = item.title, !title.isEmpty {
+                    Text(title).font(.caption.weight(.semibold)).lineLimit(2)
+                }
+                if !item.noteBody.isEmpty { MarkdownExcerpt(text: item.noteBody, font: compact ? .caption : .subheadline).lineLimit(3) }
+                else { Text(item.allLinks.first?.host ?? item.fileName ?? item.displayTitle).font(compact ? .caption : .subheadline).lineLimit(3) }
+                Spacer(minLength: compact ? 0 : 44)
+            }.padding(compact ? 8 : 16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+
     private var hasImage: Bool { item.kind == .image || (item.previewImageData != nil && item.previewSourceURL == item.allLinks.first?.absoluteString) }
     private func open() {
         guard item.modelContext != nil && !item.isDeleted else { return }
