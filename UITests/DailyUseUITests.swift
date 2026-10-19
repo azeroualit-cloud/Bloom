@@ -1,6 +1,88 @@
 import XCTest
+import UIKit
 
 final class DailyUseUITests: XCTestCase {
+    @MainActor
+    func testDraftRestoresAcrossAppRelaunch() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-drafts=\(UUID().uuidString)"]
+        app.launch()
+        XCTAssertTrue(app.buttons["capture-add"].waitForExistence(timeout: 15))
+        app.buttons["capture-add"].tap()
+        let body = app.textViews["capture-body"]
+        XCTAssertTrue(body.waitForExistence(timeout: 5))
+        body.tap(); body.typeText("111222333")
+        app.buttons["capture-close"].tap()
+        app.buttons["Conserva bozza e chiudi"].tap()
+        XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5))
+        app.terminate(); app.launch()
+        XCTAssertTrue(app.buttons["capture-add"].waitForExistence(timeout: 15))
+        app.buttons["capture-add"].tap()
+        XCTAssertTrue(body.waitForExistence(timeout: 5))
+        let restored = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '111222333'"), object: body)
+        XCTAssertEqual(XCTWaiter.wait(for: [restored], timeout: 5), .completed, diagnostics(app))
+        app.buttons["capture-close"].tap()
+        app.buttons["Scarta modifiche"].tap()
+    }
+    @MainActor
+    func testQuickPasteSavesWithoutOpeningContent() {
+        continueAfterFailure = false
+        UIPasteboard.general.string = "https://example.com/quick-capture"
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory"]
+        app.launch()
+        XCTAssertTrue(app.buttons["capture-add"].waitForExistence(timeout: 15))
+        app.buttons["capture-add"].tap()
+        let paste = app.buttons["capture-paste-save"]
+        XCTAssertTrue(paste.waitForExistence(timeout: 5), diagnostics(app))
+        paste.tap()
+        XCTAssertTrue(app.buttons["library-open-saved"].waitForExistence(timeout: 10), diagnostics(app))
+        XCTAssertFalse(app.navigationBars["Nuova nota"].exists)
+        XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
+    }
+
+    @MainActor
+    func testSwipeArchiveUndoAndQuickTagEditing() {
+        let (app, _) = captureNote(withCollection: false)
+        returnToLibrary(app)
+        app.buttons["Tutte le note"].tap()
+        let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
+        note.swipeLeft()
+        app.buttons["Archivia"].tap()
+        XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
+        app.buttons["archive-undo"].tap()
+        XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
+        let tags = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'quick-tags-'")).firstMatch
+        tags.tap()
+        app.buttons["tag-Salute"].tap()
+        app.buttons["quick-tags-save"].tap()
+        XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5))
+        note.press(forDuration: 0.7)
+        XCTAssertTrue(app.staticTexts["1 selezionati"].waitForExistence(timeout: 5), diagnostics(app))
+    }
+
+    @MainActor
+    func testSaveAnotherAndDiscardProtectExistingNote() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory"]
+        app.launch()
+        XCTAssertTrue(app.buttons["capture-add"].waitForExistence(timeout: 15))
+        app.buttons["capture-add"].tap()
+        let text = app.textViews["capture-body"]
+        XCTAssertTrue(text.waitForExistence(timeout: 5))
+        text.tap(); text.typeText("123456789")
+        app.buttons["capture-keyboard-done"].tap()
+        app.buttons["capture-save-another"].tap()
+        XCTAssertTrue(app.navigationBars["Nuova nota"].exists)
+        XCTAssertEqual(text.value as? String, "")
+        text.tap(); text.typeText("987654321")
+        app.buttons["capture-close"].tap()
+        app.buttons["Scarta modifiche"].tap()
+        XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
+    }
     @MainActor
     func testCaptureCollectionAndOpenPreserveInput() {
         let (app, _) = captureNote(withCollection: true)
@@ -48,7 +130,6 @@ final class DailyUseUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["capture-add"].waitForExistence(timeout: 15))
         app.buttons["capture-add"].tap()
-        app.buttons["capture-text"].tap()
         let title = app.textFields["capture-title"]
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         title.tap()
@@ -72,8 +153,7 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(app.buttons["capture-save"].waitForExistence(timeout: 5))
         app.buttons["capture-save"].tap()
         XCTAssertTrue(app.buttons["library-open-saved"].waitForExistence(timeout: 5), diagnostics(app))
-        app.navigationBars["Nuova nota"].buttons["Fine"].tap()
-        XCTAssertTrue(app.buttons["library-open-saved"].waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertFalse(app.navigationBars["Nuova nota"].exists, diagnostics(app))
         app.buttons["library-open-saved"].tap()
         XCTAssertTrue(app.navigationBars[enteredTitle].waitForExistence(timeout: 10), diagnostics(app))
         return (app, enteredTitle)

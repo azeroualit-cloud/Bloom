@@ -23,7 +23,7 @@ enum NoteError: LocalizedError {
     }
 }
 
-struct NoteFile: Codable, Identifiable, Sendable {
+struct NoteFile: Codable, Identifiable, Equatable, Sendable {
     var id = UUID()
     let name: String
     let type: String

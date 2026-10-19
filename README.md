@@ -227,3 +227,12 @@ conservate come tag. Poster in homepage, apertura video nell’app con fallback
 WebKit; schermata della nota separata dal link. Zoom e inquadratura non distruttiva
 per le immagini principali. Backup v2 con importazione dei backup precedenti.
 [Flussi, compatibilità e limiti](docs/notes-library.md).
+
+## Build 14 — fewer taps and interaction polish
+
+Direct + capture, explicit paste-and-save, Save returning to Library and separate
+Save & add another. Local recoverable drafts with discard protection. Direct
+image/document opening, quick card tag editing, Add/Remove/Replace batch tags,
+long-press selection and archive Undo. Stable preview heights and occurrence IDs
+reduce layout changes during swipes. No saved-data schema change.
+[Flows, tap counts and verification](docs/interaction-polish.md).

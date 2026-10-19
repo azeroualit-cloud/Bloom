@@ -31,24 +31,38 @@ struct TagSelection: View {
 struct NoteComposer: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
+    @Query private var availableTags: [LinkCollection]
     let item: CapturedLink?
     let startsWithLink: Bool
+    let autoPickPhoto: Bool
     let onSaved: (CaptureReceipt) -> Void
+    private let initialDraft: NoteDraft
     @State private var title: String
     @State private var bodyText: String
     @State private var linksText: String
     @State private var tags: Set<UUID>
     @State private var files: [NoteFile]
     @State private var showingFile = false
+    @State private var showingPhoto = false
     @State private var photo: PhotosPickerItem?
     @State private var loading = false
     @State private var error: String?
     @State private var saved = false
     @State private var operation: Task<Void, Never>?
-    @FocusState private var focused: Bool
+    @State private var draftTask: Task<Void, Never>?
+    @State private var session = UUID()
+    @State private var draftRevision = 0
+    @State private var loaded = false
+    @State private var preserveDraft = true
+    @State private var confirmingClose = false
+    @State private var restored = false
+    private enum Field { case title, body, links }
+    @FocusState private var focused: Field?
 
-    init(item: CapturedLink? = nil, startsWithLink: Bool = false, onSaved: @escaping (CaptureReceipt) -> Void) {
-        self.item = item; self.startsWithLink = startsWithLink; self.onSaved = onSaved
+    init(item: CapturedLink? = nil, startsWithLink: Bool = false, autoPickPhoto: Bool = false, onSaved: @escaping (CaptureReceipt) -> Void) {
+        self.item = item; self.startsWithLink = startsWithLink; self.autoPickPhoto = autoPickPhoto; self.onSaved = onSaved
+        initialDraft = NoteDraft(title: item?.title ?? "", body: item?.noteBody ?? "", links: item?.allLinks.map(\.absoluteString).joined(separator: "\n") ?? "", tags: item?.tagIDs ?? [], files: item?.noteFiles ?? [])
         _title = State(initialValue: item?.title ?? "")
         _bodyText = State(initialValue: item?.noteBody ?? "")
         _linksText = State(initialValue: item?.allLinks.map(\.absoluteString).joined(separator: "\n") ?? "")
@@ -59,24 +73,26 @@ struct NoteComposer: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Titolo") { TextField("Titolo facoltativo", text: $title).accessibilityIdentifier("capture-title").focused($focused) }
+                Section("Titolo") { TextField("Titolo facoltativo", text: $title).accessibilityIdentifier("capture-title").focused($focused, equals: .title) }
                 if startsWithLink { linkSection }
                 Section("Testo · Markdown") {
-                    TextEditor(text: $bodyText).frame(minHeight: 150).focused($focused)
+                    TextEditor(text: $bodyText).frame(minHeight: 130).focused($focused, equals: .body)
                         .accessibilityLabel("Testo della nota").accessibilityIdentifier("capture-body")
                 }
                 if !startsWithLink { linkSection }
-                attachmentSection
                 TagSelection(selected: $tags)
+                attachmentSection
+                if restored { Text("Bozza ripristinata").font(.caption).foregroundStyle(.secondary) }
                 if saved { Label("Nota salvata. Puoi aggiungerne un’altra.", systemImage: "checkmark.circle").foregroundStyle(.green).accessibilityIdentifier("note-saved") }
                 if let error { Text(error).foregroundStyle(.red) }
             }
             .navigationTitle(item == nil ? "Nuova nota" : "Modifica nota").navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(item == nil ? "Fine" : "Annulla") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Salva", action: save).disabled(loading || isEmpty).accessibilityIdentifier("capture-save") }
-                ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Fine") { focused = false }.accessibilityIdentifier("capture-keyboard-done") }
+                ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { if isDirty { confirmingClose = true } else { dismiss() } }.disabled(loading).accessibilityIdentifier("capture-close") }
+                ToolbarItem(placement: .confirmationAction) { Button("Salva") { save() }.disabled(!loaded || loading || isEmpty).accessibilityIdentifier("capture-save") }
+                ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Fine") { focused = nil }.accessibilityIdentifier("capture-keyboard-done") }
             }
+            .safeAreaInset(edge: .bottom) { captureActions }
             .sheet(isPresented: $showingFile) {
                 DocumentImportPicker { result in
                     showingFile = false
@@ -86,11 +102,20 @@ struct NoteComposer: View {
                     }
                 }
             }
+            .photosPicker(isPresented: $showingPhoto, selection: $photo, matching: .images)
             .onChange(of: photo) { _, value in if let value { loadPhoto(value); photo = nil } }
             .onChange(of: bodyText) { _, _ in if !bodyText.isEmpty { saved = false } }
             .onChange(of: linksText) { _, _ in if !linksText.isEmpty { saved = false } }
-            .onDisappear { operation?.cancel() }
-            .interactiveDismissDisabled(loading)
+            .task { await restoreDraft() }
+            .onChange(of: snapshot) { _, value in draftRevision += 1; scheduleDraft(value) }
+            .onChange(of: scenePhase) { _, phase in if phase != .active { persistDraft() } }
+            .onDisappear { operation?.cancel(); persistDraft() }
+            .interactiveDismissDisabled(loading || isDirty)
+            .confirmationDialog("Modifiche non salvate", isPresented: $confirmingClose) {
+                Button("Conserva bozza e chiudi") { closeKeepingDraft() }
+                Button("Scarta modifiche", role: .destructive) { discard() }
+                Button("Continua a scrivere", role: .cancel) { }
+            } message: { Text("Puoi conservare la bozza e riprenderla alla prossima apertura.") }
         }
     }
     private var isEmpty: Bool { title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && linksText.isEmpty && files.isEmpty && item == nil }
@@ -98,7 +123,7 @@ struct NoteComposer: View {
         Section("Link e video") {
             TextField("Incolla un link per riga", text: $linksText, axis: .vertical)
                 .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                .accessibilityIdentifier("note-links").focused($focused)
+                .accessibilityIdentifier("note-links").focused($focused, equals: .links)
             PasteButton(payloadType: String.self) { values in
                 if let first = values.first { linksText += (linksText.isEmpty ? "" : "\n") + first }
             }
@@ -114,7 +139,7 @@ struct NoteComposer: View {
                 }
             }
             HStack {
-                PhotosPicker(selection: $photo, matching: .images) { Label("Foto", systemImage: "photo") }
+                Button("Foto", systemImage: "photo") { focused = nil; showingPhoto = true }
                 Spacer(); Button("File", systemImage: "doc") { showingFile = true }
             }.buttonStyle(.borderless).disabled(loading)
             if loading { ProgressView("Importazione…") }
@@ -149,16 +174,85 @@ struct NoteComposer: View {
             } catch is CancellationError { } catch { self.error = error.localizedDescription }
         }
     }
-    private func save() {
+    private func save(addAnother: Bool = false) {
         do {
             let urls = try linksText.split(whereSeparator: { $0.isNewline }).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.map { line -> URL in
                 guard let url = URL(string: line.trimmingCharacters(in: .whitespacesAndNewlines)) else { throw CaptureError.invalidURL }
                 return try LinkValidation.validate(url)
             }
             let receipt = try LinkStore.saveNote(existing: item, title: title, body: bodyText, urls: urls, files: files, tags: tags, in: context)
+            clearDraft()
             onSaved(receipt)
-            if item != nil { dismiss(); return }
-            title = ""; bodyText = ""; linksText = ""; files = []; tags = []; saved = true; error = nil; focused = false
+            if item != nil || !addAnother { dismiss(); return }
+            title = ""; bodyText = ""; linksText = ""; files = []; tags = []; saved = true; error = nil
+            session = UUID(); preserveDraft = true; focused = .body
         } catch { self.error = error.localizedDescription }
     }
+
+    private var captureActions: some View {
+        HStack {
+            if item == nil && title.isEmpty && bodyText.isEmpty && files.isEmpty && linksText.isEmpty {
+                Text("Incolla e salva link").font(.subheadline)
+                PasteButton(payloadType: String.self) { values in
+                    if let first = values.first { linksText = first; save() }
+                }.accessibilityLabel("Incolla e salva link").accessibilityIdentifier("capture-paste-save")
+            }
+            Spacer()
+            if item == nil { Button("Salva e aggiungi") { save(addAnother: true) }.disabled(!loaded || loading || isEmpty).accessibilityIdentifier("capture-save-another") }
+        }.padding(12).background(.regularMaterial)
+    }
+    private var snapshot: NoteDraft { NoteDraft(title: title, body: bodyText, links: linksText, tags: tags, files: files) }
+    private var isDirty: Bool { snapshot != initialDraft }
+    private var draftsEnabled: Bool {
+        let arguments = ProcessInfo.processInfo.arguments
+        return !arguments.contains("--ui-test-in-memory") || arguments.contains(where: { $0.hasPrefix("--ui-test-drafts=") })
+    }
+    private func restoreDraft() async {
+        guard !loaded else { return }
+        if draftsEnabled {
+            do {
+                if let draft = try await NoteDraftStore.shared.load(item?.id, session: session), draft != initialDraft {
+                    title = draft.title; bodyText = draft.body; linksText = draft.links
+                    tags = draft.tags.intersection(availableTags.map(\.id)); files = draft.files; restored = true
+                }
+            } catch { self.error = "Non è stato possibile leggere la bozza: \(error.localizedDescription)" }
+        }
+        loaded = true
+        if autoPickPhoto { showingPhoto = true }
+        else { focused = startsWithLink ? .links : .body }
+    }
+    private func scheduleDraft(_ value: NoteDraft) {
+        guard loaded && preserveDraft && draftsEnabled else { return }
+        draftTask?.cancel()
+        let key = item?.id, token = session, revision = draftRevision
+        draftTask = Task {
+            do {
+                try await Task.sleep(for: .milliseconds(600))
+                try Task.checkCancellation()
+                try await NoteDraftStore.shared.save(value, key: key, session: token, revision: revision)
+            } catch is CancellationError { } catch { self.error = "Bozza non salvata: \(error.localizedDescription)" }
+        }
+    }
+    private func persistDraft() {
+        guard loaded && preserveDraft && isDirty && draftsEnabled else { return }
+        draftTask?.cancel()
+        let value = snapshot, key = item?.id, token = session, revision = draftRevision
+        Task { try? await NoteDraftStore.shared.save(value, key: key, session: token, revision: revision) }
+    }
+    private func clearDraft() {
+        preserveDraft = false; draftTask?.cancel()
+        let key = item?.id, token = session
+        if draftsEnabled { Task { try? await NoteDraftStore.shared.clear(key, session: token) } }
+    }
+    private func closeKeepingDraft() {
+        let value = snapshot, key = item?.id, token = session, revision = draftRevision
+        draftTask?.cancel()
+        Task {
+            do {
+                if draftsEnabled { try await NoteDraftStore.shared.saveAndClose(value, key: key, session: token, revision: revision) }
+                preserveDraft = false; dismiss()
+            } catch { self.error = "Bozza non salvata: \(error.localizedDescription)" }
+        }
+    }
+    private func discard() { clearDraft(); dismiss() }
 }

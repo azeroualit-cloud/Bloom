@@ -72,9 +72,22 @@ enum LinkStore {
         return CaptureReceipt(id: item.id, inserted: existing == nil)
     }
 
-    static func setTags(_ tags: Set<UUID>, for items: [CapturedLink], in context: ModelContext) throws {
+    enum TagChange: String, CaseIterable, Identifiable {
+        case add, remove, replace
+        var id: String { rawValue }
+        var label: String {
+            switch self { case .add: return "Aggiungi"; case .remove: return "Rimuovi"; case .replace: return "Sostituisci" }
+        }
+    }
+    static func setTags(_ tags: Set<UUID>, for items: [CapturedLink], mode: TagChange = .replace, in context: ModelContext) throws {
         for id in tags { _ = try resolveCollection(id, in: context) }
-        for item in items { item.tagIDs = tags }
+        for item in items {
+            switch mode {
+            case .add: item.tagIDs = item.tagIDs.union(tags)
+            case .remove: item.tagIDs = item.tagIDs.subtracting(tags)
+            case .replace: item.tagIDs = tags
+            }
+        }
         try save(context)
     }
     static func container(at directory: URL) throws -> ModelContainer {

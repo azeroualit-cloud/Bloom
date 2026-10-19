@@ -19,6 +19,8 @@ struct PrimaryContentView: View {
         } else if let data = item.attachmentData,
                   let text = DocumentText.decode(data, name: item.fileName ?? "contenuto", type: item.contentType) {
             TextContentView(item: item, source: .attachment, originalText: text)
+        } else if let data = item.attachmentData {
+            NoteFileView(file: NoteFile(name: item.fileName ?? "Documento", type: item.contentType ?? "public.data", data: data), autoPreview: true)
         } else { LinkDetailView(link: item) }
     }
 }

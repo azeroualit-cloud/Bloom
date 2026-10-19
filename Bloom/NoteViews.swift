@@ -8,33 +8,48 @@ struct NoteCard: View {
     let item: CapturedLink
     let tags: [LinkCollection]
     let openNote: () -> Void
+    @State private var editingTags = false
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let url = item.allLinks.first {
                 NoteLinkButton(item: item, url: url)
             } else if item.kind == .image {
-                Button(action: openNote) { AttachmentThumbnail(item: item, maximumPixelSize: 768).frame(maxWidth: .infinity, maxHeight: 240) }.buttonStyle(.plain)
+                NavigationLink { PrimaryContentView(item: item) } label: {
+                    AttachmentThumbnail(item: item, maximumPixelSize: 768).frame(maxWidth: .infinity).frame(height: 220)
+                }.buttonStyle(.plain).accessibilityIdentifier("note-primary-open")
+            } else if item.kind == .file {
+                NavigationLink { PrimaryContentView(item: item) } label: {
+                    Label(item.fileName ?? "Documento", systemImage: "doc.text").frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+                }.buttonStyle(.plain).accessibilityIdentifier("note-primary-open")
             }
             Button(action: openNote) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(item.displayTitle).font(.headline).foregroundStyle(.primary).lineLimit(2)
                     if !item.noteBody.isEmpty { MarkdownExcerpt(text: item.noteBody).lineLimit(4).foregroundStyle(.secondary) }
-                    if item.kind == .file { Label(item.fileName ?? "Documento", systemImage: "doc").font(.subheadline) }
                 }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityIdentifier("note-open-\(item.id)")
             HStack {
                 let assigned = item.tagIDs
                 let names = tags.filter { assigned.contains($0.id) }.map(\.name)
-                Text(names.isEmpty ? "Da specificare" : names.joined(separator: " · "))
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                Button { editingTags = true } label: {
+                    Text(names.isEmpty ? "Da specificare" : names.joined(separator: " · "))
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(2).frame(minHeight: 44)
+                }.buttonStyle(.plain).accessibilityLabel("Modifica tag").accessibilityIdentifier("quick-tags-\(item.id)")
                 Spacer()
                 let count = item.allLinks.count + (item.noteFileCount ?? 0) + ((item.kind == .image || item.kind == .file) ? 1 : 0)
                 if count > 0 {
                     Label("\(count)", systemImage: "paperclip").font(.caption)
                 }
+                Menu {
+                    Button("Apri nota", action: openNote)
+                    if !item.allLinks.isEmpty {
+                        Button("Aggiorna anteprima", systemImage: "arrow.clockwise") { LinkPreviewController.shared.prepare(for: item, in: previewContext, force: true) }
+                    }
+                } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }.accessibilityLabel("Azioni nota")
             }
         }.padding(16).background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
             .task(id: item.allLinks.first) { LinkPreviewController.shared.prepare(for: item, in: previewContext) }
+            .sheet(isPresented: $editingTags) { NoteTagEditor(item: item) }
     }
     @Environment(\.modelContext) private var previewContext
 }
@@ -50,6 +65,7 @@ struct MarkdownExcerpt: View {
 
 @MainActor
 struct NoteLinkButton: View {
+    private static let previewHeight: CGFloat = 200
     let item: CapturedLink
     let url: URL
     @State private var fallback = false
@@ -60,9 +76,9 @@ struct NoteLinkButton: View {
             ZStack {
                 if let data = item.previewImageData, item.previewSourceURL == url.absoluteString {
                     CachedPreviewImage(data: data, label: item.displayTitle, maxPixel: 1000)
-                        .frame(maxWidth: .infinity, maxHeight: 230)
+                        .frame(maxWidth: .infinity, maxHeight: Self.previewHeight)
                 } else {
-                    RoundedRectangle(cornerRadius: 14).fill(Color.accentColor.opacity(0.08)).frame(height: 116)
+                    RoundedRectangle(cornerRadius: 14).fill(Color.accentColor.opacity(0.08)).frame(height: Self.previewHeight)
                     VStack(spacing: 8) {
                         Image(systemName: isVideo ? "video" : "link").font(.title2)
                         Text(url.host ?? "Link").font(.subheadline).lineLimit(1)
@@ -70,7 +86,8 @@ struct NoteLinkButton: View {
                 }
                 if isVideo { Image(systemName: "play.circle.fill").font(.largeTitle).symbolRenderingMode(.palette).foregroundStyle(.white, .black.opacity(0.6)) }
                 if opening { ProgressView().padding().background(.regularMaterial, in: Capsule()) }
-            }.clipShape(RoundedRectangle(cornerRadius: 14))
+            }.frame(maxWidth: .infinity).frame(height: Self.previewHeight)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
         }.buttonStyle(.plain).disabled(opening)
             .accessibilityLabel(isVideo ? "Apri video in \(url.host ?? "app")" : "Apri \(url.host ?? "link")")
             .accessibilityIdentifier("note-link-open")
@@ -135,6 +152,7 @@ struct NoteDetailView: View {
 
 struct NoteFileView: View {
     let file: NoteFile
+    var autoPreview = false
     @State private var staged: URL?
     @State private var directory: URL?
     @State private var error: String?
@@ -156,6 +174,7 @@ struct NoteFileView: View {
         }.navigationTitle(file.name).navigationBarTitleDisplayMode(.inline)
             .quickLookPreview($preview)
             .task {
+                guard staged == nil else { return }
                 do {
                     let file = file
                     let result = try await Task.detached {
@@ -167,10 +186,17 @@ struct NoteFileView: View {
                         return (directory, url)
                     }.value
                     if Task.isCancelled { try? FileManager.default.removeItem(at: result.0) }
-                    else { directory = result.0; staged = result.1 }
+                    else {
+                        directory = result.0; staged = result.1
+                        if autoPreview && QLPreviewController.canPreview(result.1 as NSURL) { preview = result.1 }
+                    }
                 } catch { self.error = error.localizedDescription }
             }
-            .onDisappear { if let directory { try? FileManager.default.removeItem(at: directory) }; directory = nil; staged = nil }
+            .onDisappear {
+                guard preview == nil else { return }
+                if let directory { try? FileManager.default.removeItem(at: directory) }
+                directory = nil; staged = nil
+            }
     }
 }
 
