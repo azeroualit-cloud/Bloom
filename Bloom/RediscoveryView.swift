@@ -13,6 +13,7 @@ struct RediscoveryView: View {
     @State private var round = 0
     @State private var day = Self.currentDay
     @State private var error: String?
+    @State private var contentRoute: ArchiveContentRoute?
     @State private var opened: CapturedLink?
     @State private var tagNote: CapturedLink?
     @State private var deleting: CapturedLink?
@@ -61,7 +62,7 @@ struct RediscoveryView: View {
                         }
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                             ForEach(contents) { item in
-                                ArchiveTile(item: item, revealed: $revealed, openNote: { opened = item }, editTags: { tagNote = item }, select: { opened = item }, archive: {
+                                ArchiveTile(item: item, revealed: $revealed, openNote: { opened = item }, openContent: { contentRoute = $0 }, editTags: { tagNote = item }, select: { opened = item }, archive: {
                                     do { try LinkStore.setArchived(true, for: item, in: context) }
                                     catch { self.error = error.localizedDescription }
                                 }, delete: { deleting = item })
@@ -84,6 +85,7 @@ struct RediscoveryView: View {
             }
             .navigationTitle("Riscopri")
             .navigationDestination(item: $opened) { ContentViewer(item: $0) }
+        .navigationDestination(item: $contentRoute) { ArchiveContentDestination(route: $0) }
             .sheet(item: $tagNote) { NoteTagEditor(item: $0) }
             .confirmationDialog("Eliminare definitivamente la nota?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
                 Button("Elimina definitivamente", role: .destructive) {

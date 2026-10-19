@@ -21,6 +21,7 @@ struct LibraryView: View {
     @State private var managingTags = false
     @State private var backup = false
     @State private var guide = false
+    @State private var contentRoute: ArchiveContentRoute?
     @State private var opened: CapturedLink?
     @State private var savedID: UUID?
     @State private var notice: String?
@@ -67,6 +68,7 @@ struct LibraryView: View {
         .navigationTitle(archived ? "Archivio" : showingTags ? "Bloom" : categoryTitle)
         .searchable(text: $search, prompt: "Cerca note, testi e tag")
         .navigationDestination(item: $opened) { ContentViewer(item: $0) }
+        .navigationDestination(item: $contentRoute) { ArchiveContentDestination(route: $0) }
         .toolbar { toolbar }
         .onChange(of: filter) { _, _ in revealed = nil }
         .onChange(of: archived) { _, _ in revealed = nil }
@@ -138,7 +140,7 @@ struct LibraryView: View {
     }
     private func card(_ item: CapturedLink) -> some View {
         ArchiveTile(item: item, selected: selection.contains(item.id), selecting: selecting, revealed: $revealed,
-                    openNote: { if !selecting { opened = item } }, editTags: { tagNote = item }, select: {
+                    openNote: { if !selecting { opened = item } }, openContent: { if !selecting { contentRoute = $0 } }, editTags: { tagNote = item }, select: {
                         if selecting { if selection.contains(item.id) { selection.remove(item.id) } else { selection.insert(item.id) } }
                         else { selecting = true; selection = [item.id]; revealed = nil }
                     }, archive: { archive(item) }, delete: { deleting = item })

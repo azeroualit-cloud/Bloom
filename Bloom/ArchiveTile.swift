@@ -11,13 +11,13 @@ struct ArchiveTile: View {
     var selecting = false
     @Binding var revealed: UUID?
     let openNote: () -> Void
+    let openContent: (ArchiveContentRoute) -> Void
     let editTags: () -> Void
     let select: () -> Void
     let archive: () -> Void
     let delete: () -> Void
     @GestureState private var drag: CGFloat = 0
-    @State private var browser = false
-    @State private var primary = false
+    @State private var suppressTapUntil = Date.distantPast
     @State private var opening = false
     private var isRevealed: Bool { revealed == item.id }
 
@@ -53,8 +53,6 @@ struct ArchiveTile: View {
                 })
         }.aspectRatio(1, contentMode: .fit)
         .task(id: item.allLinks.first) { LinkPreviewController.shared.prepare(for: item, in: context) }
-        .navigationDestination(isPresented: $browser) { if let url = item.allLinks.first { WebContentView(item: item, url: url) } }
-        .navigationDestination(isPresented: $primary) { PrimaryContentView(item: item) }
     }
 
     private var surface: some View {
@@ -79,7 +77,7 @@ struct ArchiveTile: View {
                 }
             }.buttonStyle(.plain).accessibilityIdentifier("note-open-\(item.id)").accessibilityLabel(item.displayTitle)
                 .disabled(opening)
-                .highPriorityGesture(LongPressGesture(minimumDuration: 0.45).onEnded { _ in select() })
+                .highPriorityGesture(LongPressGesture(minimumDuration: 0.45).onEnded { _ in suppressTapUntil = Date().addingTimeInterval(0.5); select() })
             if hasImage {
                 LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom).allowsHitTesting(false)
             }
@@ -111,14 +109,28 @@ struct ArchiveTile: View {
     }
     private var hasImage: Bool { item.kind == .image || (item.previewImageData != nil && item.previewSourceURL == item.allLinks.first?.absoluteString) }
     private func open() {
+        guard Date() > suppressTapUntil else { return }
         guard !selecting else { select(); return }
         guard !isRevealed else { revealed = nil; return }
         if let url = item.allLinks.first, SocialLink.isVideo(url) {
             opening = true
             UIApplication.shared.open(url, options: [.universalLinksOnly: true]) { success in
-                Task { @MainActor in opening = false; if !success { browser = true } }
+                Task { @MainActor in opening = false; if !success { openContent(ArchiveContentRoute(item: item, browser: true)) } }
             }
-        } else if item.kind == .image || item.kind == .file { primary = true }
+        } else if item.kind == .image || item.kind == .file { openContent(ArchiveContentRoute(item: item, browser: false)) }
         else { openNote() }
+    }
+}
+
+struct ArchiveContentRoute: Hashable {
+    let item: CapturedLink
+    let browser: Bool
+}
+
+struct ArchiveContentDestination: View {
+    let route: ArchiveContentRoute
+    var body: some View {
+        if route.browser, let url = route.item.allLinks.first { WebContentView(item: route.item, url: url) }
+        else { PrimaryContentView(item: route.item) }
     }
 }
