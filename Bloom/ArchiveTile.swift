@@ -41,7 +41,8 @@ struct ArchiveTile: View {
         }.aspectRatio(1, contentMode: .fit)
         .contextMenu {
             if compact {
-                Button("Apri nota", systemImage: "note.text", action: openNote).accessibilityIdentifier("note-context-open")
+                Button("Apri nota", systemImage: "note.text", action: openNote)
+                    .disabled(selecting).accessibilityIdentifier("note-context-open")
                 Button("Modifica tag", systemImage: "tag", action: editTags).accessibilityIdentifier("note-context-tags")
                 Button(selected ? "Deseleziona" : "Seleziona", systemImage: "checkmark.circle", action: select).accessibilityIdentifier("note-context-select")
                 Button(item.isArchived ? "Ripristina" : "Archivia", systemImage: "archivebox", action: archive)
@@ -109,7 +110,7 @@ struct ArchiveTile: View {
                 }
             }.buttonStyle(.plain).accessibilityIdentifier("note-open-\(item.id)").accessibilityLabel(item.displayTitle)
                 .disabled(opening)
-                .highPriorityGesture(LongPressGesture(minimumDuration: 0.45).onEnded { _ in suppressTapUntil = Date().addingTimeInterval(0.5); select() }, including: compact ? .none : .all)
+                .highPriorityGesture(LongPressGesture(minimumDuration: 0.45).onEnded { _ in suppressTapUntil = Date().addingTimeInterval(0.5); select() }, including: compact ? .subviews : .all)
             if hasImage && !compact {
                 LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom).allowsHitTesting(false)
             }
