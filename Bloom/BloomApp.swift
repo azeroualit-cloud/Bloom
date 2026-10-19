@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 @main
 @MainActor
@@ -32,7 +33,14 @@ private struct StorageRootView: View {
             } else { ProgressView("Apertura archivio…") }
         }
         .task {
-            if attempt == nil { attempt = StorageAttempt.load() }
+            if attempt == nil {
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--ui-test-clipboard") {
+                    UIPasteboard.general.string = "https://example.com/quick-capture"
+                }
+                #endif
+                attempt = StorageAttempt.load()
+            }
             savePendingURL()
         }
         .onOpenURL { route in

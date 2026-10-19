@@ -1,5 +1,4 @@
 import XCTest
-import UIKit
 
 final class DailyUseUITests: XCTestCase {
     @MainActor
@@ -40,6 +39,7 @@ final class DailyUseUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["category-Tutti"].waitForExistence(timeout: 15))
         app.buttons["category-Tutti"].tap()
+        XCTAssertTrue(app.navigationBars["Tutte le note"].waitForExistence(timeout: 5), diagnostics(app))
         let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
         XCTAssertTrue(note.waitForExistence(timeout: 15))
         note.tap()
@@ -95,14 +95,15 @@ final class DailyUseUITests: XCTestCase {
     @MainActor
     func testQuickPasteSavesWithoutOpeningContent() {
         continueAfterFailure = false
-        UIPasteboard.general.string = "https://example.com/quick-capture"
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-in-memory"]
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-clipboard"]
         app.launch()
         XCTAssertTrue(app.buttons["capture-add"].waitForExistence(timeout: 15))
         app.buttons["capture-add"].tap()
         let paste = app.buttons["capture-paste-save"]
         XCTAssertTrue(paste.waitForExistence(timeout: 5), diagnostics(app))
+        let pasteReady = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: paste)
+        XCTAssertEqual(XCTWaiter.wait(for: [pasteReady], timeout: 10), .completed, diagnostics(app))
         paste.tap()
         XCTAssertTrue(app.buttons["library-open-saved"].waitForExistence(timeout: 10), diagnostics(app))
         XCTAssertFalse(app.navigationBars["Nuova nota"].exists)
@@ -114,6 +115,7 @@ final class DailyUseUITests: XCTestCase {
         let (app, _) = captureNote(withCollection: false)
         returnToLibrary(app)
         app.buttons["category-Tutti"].tap()
+        XCTAssertTrue(app.navigationBars["Tutte le note"].waitForExistence(timeout: 5), diagnostics(app))
         let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
         note.swipeLeft()
         app.buttons["Archivia"].tap()

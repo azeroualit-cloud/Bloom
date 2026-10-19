@@ -82,15 +82,19 @@ struct LibraryView: View {
         }
     }
     private func category(_ name: String, symbol: String, value: CollectionFilter, count: Int) -> some View {
-        Button { filter = value; allNotes = true; revealed = nil } label: {
-            VStack(alignment: .leading, spacing: 12) {
-                Image(systemName: symbol).font(.title2).foregroundStyle(Color.accentColor)
-                Spacer(minLength: 0)
-                Text(name).font(.headline).foregroundStyle(.primary).lineLimit(2)
-                Text("\(count) note").font(.caption).foregroundStyle(.secondary)
-            }.padding(16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .aspectRatio(1, contentMode: .fit).bloomGlass(cornerRadius: 16)
-        }.buttonStyle(.plain).accessibilityIdentifier("category-\(name)")
+        GeometryReader { proxy in
+            Button { filter = value; allNotes = true; revealed = nil } label: {
+                VStack(alignment: .leading, spacing: 12) {
+                    Image(systemName: symbol).font(.title2).foregroundStyle(Color.accentColor)
+                    Spacer(minLength: 0)
+                    Text(name).font(.headline).foregroundStyle(.primary).lineLimit(2)
+                    Text("\(count) note").font(.caption).foregroundStyle(.secondary)
+                }.padding(16).frame(width: proxy.size.width, height: proxy.size.width, alignment: .leading)
+                    .bloomGlass(cornerRadius: 16).contentShape(Rectangle())
+            }.buttonStyle(.plain).frame(width: proxy.size.width, height: proxy.size.width)
+                .accessibilityElement(children: .ignore).accessibilityLabel("\(name), \(count) note")
+                .accessibilityAddTraits(.isButton).accessibilityIdentifier("category-\(name)")
+        }.aspectRatio(1, contentMode: .fit)
     }
     private var presentedLibrary: some View {
         library
@@ -186,8 +190,8 @@ struct LibraryView: View {
         VStack(spacing: 8) {
             HStack {
                 Text("\(selection.count) selezionati"); Spacer()
-                Button("Seleziona visibili") { selection = Set(visible.map(\.id)) }.accessibilityIdentifier("bulk-select-all")
-                Button("Deseleziona") { selection.removeAll() }.disabled(selection.isEmpty)
+                Button("Seleziona visibili") { selection = Set(visible.map(\.id)) }.frame(minHeight: 44).accessibilityIdentifier("bulk-select-all")
+                Button("Deseleziona") { selection.removeAll() }.frame(minHeight: 44).disabled(selection.isEmpty)
             }.font(.subheadline)
             HStack {
                 Button("Tag", systemImage: "tag") { bulkTags = []; bulkMode = .add; editingTags = true }.disabled(selection.isEmpty)
