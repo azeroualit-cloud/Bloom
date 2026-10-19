@@ -17,6 +17,7 @@ struct RediscoveryView: View {
     @State private var opened: CapturedLink?
     @State private var tagNote: CapturedLink?
     @State private var deleting: CapturedLink?
+    @State private var deletePrompt = false
     @State private var revealed: UUID?
     @State private var loadedPreferences = false
     let openLibrary: () -> Void
@@ -65,7 +66,7 @@ struct RediscoveryView: View {
                                 ArchiveTile(item: item, revealed: $revealed, openNote: { opened = item }, openContent: { contentRoute = $0 }, editTags: { tagNote = item }, select: { opened = item }, archive: {
                                     do { try LinkStore.setArchived(true, for: item, in: context) }
                                     catch { self.error = error.localizedDescription }
-                                }, delete: { deleting = item })
+                                }, delete: { deleting = item; deletePrompt = true })
                             }
                         }
                         if !contents.isEmpty {
@@ -87,7 +88,7 @@ struct RediscoveryView: View {
             .navigationDestination(item: $opened) { ContentViewer(item: $0) }
         .navigationDestination(item: $contentRoute) { ArchiveContentDestination(route: $0) }
             .sheet(item: $tagNote) { NoteTagEditor(item: $0) }
-            .confirmationDialog("Eliminare definitivamente la nota?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+            .alert("Eliminare definitivamente la nota?", isPresented: $deletePrompt) {
                 Button("Elimina definitivamente", role: .destructive) {
                     if let deleting { do { try LinkStore.deleteNote(deleting, in: context) } catch { self.error = error.localizedDescription } }
                     deleting = nil

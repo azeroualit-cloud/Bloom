@@ -4,55 +4,6 @@ import UIKit
 import UniformTypeIdentifiers
 import QuickLook
 
-struct NoteCard: View {
-    let item: CapturedLink
-    let tags: [LinkCollection]
-    let editTags: () -> Void
-    let openNote: () -> Void
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let url = item.allLinks.first {
-                NoteLinkButton(item: item, url: url)
-            } else if item.kind == .image {
-                NavigationLink { PrimaryContentView(item: item) } label: {
-                    AttachmentThumbnail(item: item, maximumPixelSize: 768).frame(maxWidth: .infinity).frame(height: 220)
-                }.buttonStyle(.plain).accessibilityIdentifier("note-primary-open")
-            } else if item.kind == .file {
-                NavigationLink { PrimaryContentView(item: item) } label: {
-                    Label(item.fileName ?? "Documento", systemImage: "doc.text").frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
-                }.buttonStyle(.plain).accessibilityIdentifier("note-primary-open")
-            }
-            Button(action: openNote) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(item.displayTitle).font(.headline).foregroundStyle(.primary).lineLimit(2)
-                    if !item.noteBody.isEmpty { MarkdownExcerpt(text: item.noteBody).lineLimit(4).foregroundStyle(.secondary) }
-                }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityIdentifier("note-open-\(item.id)")
-            HStack {
-                let assigned = item.tagIDs
-                let names = tags.filter { assigned.contains($0.id) }.map(\.name)
-                Button(action: editTags) {
-                    Text(names.isEmpty ? "Da specificare" : names.joined(separator: " · "))
-                        .font(.caption).foregroundStyle(.secondary).lineLimit(2).frame(minHeight: 44)
-                }.buttonStyle(.plain).accessibilityLabel("Modifica tag").accessibilityIdentifier("quick-tags-\(item.id)")
-                Spacer()
-                let count = item.allLinks.count + (item.noteFileCount ?? 0) + ((item.kind == .image || item.kind == .file) ? 1 : 0)
-                if count > 0 {
-                    Label("\(count)", systemImage: "paperclip").font(.caption)
-                }
-                Menu {
-                    Button("Apri nota", action: openNote)
-                    if !item.allLinks.isEmpty {
-                        Button("Aggiorna anteprima", systemImage: "arrow.clockwise") { LinkPreviewController.shared.prepare(for: item, in: previewContext, force: true) }
-                    }
-                } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44) }.accessibilityLabel("Azioni nota")
-            }
-        }.padding(16).background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
-            .task(id: item.allLinks.first) { LinkPreviewController.shared.prepare(for: item, in: previewContext) }
-    }
-    @Environment(\.modelContext) private var previewContext
-}
-
 struct MarkdownExcerpt: View {
     let text: String
     var body: some View {

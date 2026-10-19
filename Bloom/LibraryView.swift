@@ -16,6 +16,7 @@ struct LibraryView: View {
     @State private var allNotes = false
     @State private var revealed: UUID?
     @State private var deleting: CapturedLink?
+    @State private var deletePrompt = false
     @State private var adding = false
     @State private var addingPhoto = false
     @State private var managingTags = false
@@ -110,7 +111,7 @@ struct LibraryView: View {
             .onAppear {
                 sort = UserDefaults.standard.string(forKey: "library.sort").flatMap(LibrarySort.init(rawValue:)) ?? .newest
             }
-            .confirmationDialog("Eliminare definitivamente la nota e i suoi allegati?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+            .alert("Eliminare definitivamente la nota e i suoi allegati?", isPresented: $deletePrompt) {
                 Button("Elimina definitivamente", role: .destructive) {
                     if let deleting {
                         do { try LinkStore.deleteNote(deleting, in: context); notice = "Nota eliminata"; selection.remove(deleting.id) }
@@ -143,7 +144,7 @@ struct LibraryView: View {
                     openNote: { if !selecting { opened = item } }, openContent: { if !selecting { contentRoute = $0 } }, editTags: { tagNote = item }, select: {
                         if selecting { if selection.contains(item.id) { selection.remove(item.id) } else { selection.insert(item.id) } }
                         else { selecting = true; selection = [item.id]; revealed = nil }
-                    }, archive: { archive(item) }, delete: { deleting = item })
+                    }, archive: { archive(item) }, delete: { deleting = item; deletePrompt = true })
     }
     private func archive(_ item: CapturedLink) {
         do {

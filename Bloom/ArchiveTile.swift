@@ -16,7 +16,6 @@ struct ArchiveTile: View {
     let select: () -> Void
     let archive: () -> Void
     let delete: () -> Void
-    @GestureState private var drag: CGFloat = 0
     @State private var suppressTapUntil = Date.distantPast
     @State private var opening = false
     private var isRevealed: Bool { revealed == item.id }
@@ -25,34 +24,25 @@ struct ArchiveTile: View {
         GeometryReader { geometry in
             let width = geometry.size.width
             let actionWidth = min(112.0, width * 0.65)
-            ZStack(alignment: .trailing) {
-                VStack(spacing: 0) {
-                    Button(action: { revealed = nil; archive() }) {
-                        Label(item.isArchived ? "Ripristina" : "Archivia", systemImage: "archivebox")
-                            .font(.caption).frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }.tint(.orange)
-                    Button(role: .destructive, action: { revealed = nil; delete() }) {
-                        Label("Elimina", systemImage: "trash").font(.caption).frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                }.frame(width: actionWidth).background(Color(uiColor: .tertiarySystemGroupedBackground))
-                    .accessibilityHidden(!isRevealed)
-                surface
-                    .frame(width: width, height: width).clipped()
-                    .offset(x: selecting ? 0 : max(-actionWidth, min(0, (isRevealed ? -actionWidth : 0) + drag)))
-            }
-            .frame(width: width, height: width).clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay { if selected { RoundedRectangle(cornerRadius: 16).strokeBorder(Color.accentColor, lineWidth: 3) } }
-            .simultaneousGesture(DragGesture(minimumDistance: 22)
-                .updating($drag) { value, state, _ in
-                    guard !selecting, abs(value.translation.width) > abs(value.translation.height) * 1.5 else { return }
-                    state = value.translation.width
-                }
-                .onEnded { value in
-                    guard !selecting, abs(value.translation.width) > abs(value.translation.height) * 1.5 else { return }
-                    withAnimation(.easeOut(duration: 0.18)) { revealed = value.translation.width < -30 ? item.id : nil }
-                })
+            SquareSwipeContainer(surface: AnyView(surface), actions: AnyView(actions), width: width, actionWidth: actionWidth,
+                                 revealed: isRevealed, enabled: !selecting, onReveal: { open in revealed = open ? item.id : nil },
+                                 onDrag: { suppressTapUntil = Date().addingTimeInterval(0.8) })
+                .frame(width: width, height: width).clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay { if selected { RoundedRectangle(cornerRadius: 16).strokeBorder(Color.accentColor, lineWidth: 3) } }
         }.aspectRatio(1, contentMode: .fit)
         .task(id: item.allLinks.first) { LinkPreviewController.shared.prepare(for: item, in: context) }
+    }
+
+    private var actions: some View {
+        VStack(spacing: 0) {
+            Button(action: { revealed = nil; archive() }) {
+                Label(item.isArchived ? "Ripristina" : "Archivia", systemImage: "archivebox")
+                    .font(.caption).frame(maxWidth: .infinity, maxHeight: .infinity)
+            }.tint(.orange)
+            Button(role: .destructive, action: { revealed = nil; delete() }) {
+                Label("Elimina", systemImage: "trash").font(.caption).frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }.background(Color(uiColor: .tertiarySystemGroupedBackground)).accessibilityHidden(!isRevealed)
     }
 
     private var surface: some View {
@@ -68,7 +58,7 @@ struct ArchiveTile: View {
                         } else {
                             VStack(alignment: .leading, spacing: 12) {
                                 Image(systemName: item.kind.symbol).font(.title2).foregroundStyle(Color.accentColor)
-                                if !item.noteBody.isEmpty { MarkdownExcerpt(text: item.noteBody).lineLimit(5) }
+                                if !item.noteBody.isEmpty { MarkdownExcerpt(text: item.noteBody).lineLimit(3) }
                                 else { Text(item.allLinks.first?.host ?? item.fileName ?? item.displayTitle).font(.subheadline).lineLimit(3) }
                                 Spacer(minLength: 44)
                             }.padding(16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -84,7 +74,7 @@ struct ArchiveTile: View {
             HStack(alignment: .bottom, spacing: 0) {
                 Button { if selecting { select() } else { openNote() } } label: {
                     Text(item.displayTitle).font(.subheadline.weight(.semibold)).lineLimit(2)
-                        .foregroundStyle(hasImage ? Color.white : Color.primary)
+                        .foregroundStyle(Color.primary)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 }.buttonStyle(.plain).accessibilityIdentifier("note-title-\(item.id)")
                 if !selecting {
@@ -93,7 +83,7 @@ struct ArchiveTile: View {
                         Button("Modifica tag", action: editTags)
                         Button(item.isArchived ? "Ripristina" : "Archivia", systemImage: "archivebox", action: archive)
                         Button("Elimina", systemImage: "trash", role: .destructive, action: delete)
-                    } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(hasImage ? Color.white : Color.primary) }
+                    } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(Color.primary) }
                         .accessibilityLabel("Azioni nota").accessibilityIdentifier("note-actions-\(item.id)")
                 }
             }.padding(.horizontal, 8).bloomGlass(cornerRadius: 12).padding(6)

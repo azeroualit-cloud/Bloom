@@ -21,11 +21,13 @@ final class DailyUseUITests: XCTestCase {
         note.swipeLeft()
         XCTAssertTrue(app.buttons["Archivia"].waitForExistence(timeout: 5))
         app.buttons["Elimina"].tap()
-        app.buttons["Annulla"].tap()
+        XCTAssertTrue(app.alerts.buttons["Annulla"].waitForExistence(timeout: 5), diagnostics(app))
+        app.alerts.buttons["Annulla"].tap()
         XCTAssertTrue(note.exists)
         note.swipeLeft()
         app.buttons["Elimina"].tap()
-        app.buttons["Elimina definitivamente"].tap()
+        XCTAssertTrue(app.alerts.buttons["Elimina definitivamente"].waitForExistence(timeout: 5), diagnostics(app))
+        app.alerts.buttons["Elimina definitivamente"].tap()
         XCTAssertTrue(app.staticTexts["Nessuna nota"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
     }
@@ -110,6 +112,7 @@ final class DailyUseUITests: XCTestCase {
         let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
         note.swipeLeft()
         app.buttons["Archivia"].tap()
+        XCTAssertTrue(app.staticTexts["library-count"].waitForExistence(timeout: 5), diagnostics(app))
         XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
         app.buttons["archive-undo"].tap()
         XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
@@ -182,12 +185,15 @@ final class DailyUseUITests: XCTestCase {
         let (app, title) = captureNote(withCollection: false)
         returnToLibrary(app)
         app.tabBars.buttons["Riscopri"].tap()
-        XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5), diagnostics(app))
+        let titleButton = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-title-'")).firstMatch
+        XCTAssertTrue(titleButton.waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertEqual(titleButton.label, title)
         app.buttons["rediscovery-next"].tap()
         XCTAssertTrue(app.buttons["rediscovery-restart"].waitForExistence(timeout: 5), diagnostics(app))
-        XCTAssertFalse(app.staticTexts[title].exists)
+        XCTAssertFalse(titleButton.exists)
         app.buttons["rediscovery-restart"].tap()
-        XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertTrue(titleButton.waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertEqual(titleButton.label, title)
     }
 
     @MainActor
