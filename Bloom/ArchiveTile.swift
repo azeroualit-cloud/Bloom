@@ -112,13 +112,18 @@ struct ArchiveTile: View {
     }
     private var hasImage: Bool { item.kind == .image || (item.previewImageData != nil && item.previewSourceURL == item.allLinks.first?.absoluteString) }
     private func open() {
+        guard item.modelContext != nil && !item.isDeleted else { return }
         guard Date() > suppressTapUntil else { return }
         guard !selecting else { select(); return }
         guard !isRevealed else { revealed = nil; return }
         if let url = item.allLinks.first, SocialLink.isVideo(url) {
             opening = true
             UIApplication.shared.open(url, options: [.universalLinksOnly: true]) { success in
-                Task { @MainActor in opening = false; if !success { openContent(ArchiveContentRoute(item: item, browser: true)) } }
+                Task { @MainActor in
+                    opening = false
+                    guard item.modelContext != nil && !item.isDeleted else { return }
+                    if !success { openContent(ArchiveContentRoute(item: item, browser: true)) }
+                }
             }
         } else if item.allLinks.first != nil { openContent(ArchiveContentRoute(item: item, browser: true)) }
         else if item.kind == .image || item.kind == .file { openContent(ArchiveContentRoute(item: item, browser: false)) }
@@ -134,7 +139,9 @@ struct ArchiveContentRoute: Hashable {
 struct ArchiveContentDestination: View {
     let route: ArchiveContentRoute
     var body: some View {
-        if route.browser, let url = route.item.allLinks.first { WebContentView(item: route.item, url: url) }
-        else { PrimaryContentView(item: route.item) }
+        if route.item.modelContext != nil && !route.item.isDeleted {
+            if route.browser, let url = route.item.allLinks.first { WebContentView(item: route.item, url: url) }
+            else { PrimaryContentView(item: route.item) }
+        }
     }
 }

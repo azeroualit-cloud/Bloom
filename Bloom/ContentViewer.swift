@@ -1,10 +1,13 @@
 import SwiftUI
+import SwiftData
 import WebKit
 import UIKit
 
 struct ContentViewer: View {
     let item: CapturedLink
-    var body: some View { NoteDetailView(item: item) }
+    var body: some View {
+        if item.modelContext != nil && !item.isDeleted { NoteDetailView(item: item) }
+    }
 }
 
 struct PrimaryContentView: View {

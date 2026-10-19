@@ -2,6 +2,31 @@ import XCTest
 
 final class DailyUseUITests: XCTestCase {
     @MainActor
+    func testDeletingFromRediscoveryClosesRetainedLibraryNote() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-browser"]
+        app.launch()
+        XCTAssertTrue(app.buttons["category-Tutti"].waitForExistence(timeout: 15))
+        app.buttons["category-Tutti"].tap()
+        let title = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-title-'")).firstMatch
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.tap()
+        XCTAssertTrue(app.navigationBars["Browser fixture"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Riscopri"].tap()
+        let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
+        XCTAssertTrue(note.waitForExistence(timeout: 5), diagnostics(app))
+        note.swipeLeft()
+        XCTAssertTrue(app.buttons["Elimina"].waitForExistence(timeout: 5))
+        app.buttons["Elimina"].tap()
+        app.alerts.buttons["Elimina definitivamente"].tap()
+        app.tabBars.buttons["Libreria"].tap()
+        XCTAssertTrue(app.staticTexts["Nessuna nota"].waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertFalse(app.navigationBars["Browser fixture"].exists)
+        XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
+    }
+
+    @MainActor
     func testVisibleTagManagementRenamesAndDeletesWithoutDeletingNote() {
         continueAfterFailure = false
         let app = XCUIApplication()
