@@ -9,6 +9,20 @@ final class ArchiveReadinessTests: XCTestCase {
         addTeardownBlock { try FileManager.default.removeItem(at: url) }
         return try LinkStore.container(at: url)
     }
+    func testDeletingNotePreservesSharedTagsAndOtherNotesAfterReopen() throws {
+        let source = try container(), context = source.mainContext
+        let tag = try LinkStore.saveCollection(nil, name: "Studio", in: context)
+        _ = try LinkStore.saveNote(title: "First", body: "", urls: [], files: [], tags: [tag.id], in: context)
+        _ = try LinkStore.saveNote(title: "Second", body: "", urls: [], files: [], tags: [tag.id], in: context)
+        let first = try XCTUnwrap(context.fetch(FetchDescriptor<CapturedLink>()).first { $0.title == "First" })
+        try LinkStore.deleteNote(first, in: context)
+        let check = ModelContext(source)
+        let notes = try check.fetch(FetchDescriptor<CapturedLink>())
+        XCTAssertEqual(notes.count, 1)
+        XCTAssertEqual(notes.first?.title, "Second")
+        XCTAssertEqual(notes.first?.tagIDs, [tag.id])
+        XCTAssertEqual(try check.fetch(FetchDescriptor<LinkCollection>()).count, 1)
+    }
     func testSecondaryDocumentEditsAndImageFramingSurviveFullRestore() throws {
         let source = try container(), context = source.mainContext
         let text = NoteFile(name: "note.md", type: "public.text", data: Data("# Old".utf8))

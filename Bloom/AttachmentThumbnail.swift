@@ -7,19 +7,21 @@ import UIKit
 struct AttachmentThumbnail: View {
     let item: CapturedLink
     let maximumPixelSize: Int
+    var contentMode: ContentMode = .fit
     @State private var image: UIImage?
     @State private var finished = false
     @State private var error: String?
 
-    init(item: CapturedLink, maximumPixelSize: Int = 2048) {
+    init(item: CapturedLink, maximumPixelSize: Int = 2048, contentMode: ContentMode = .fit) {
         self.item = item
         self.maximumPixelSize = maximumPixelSize
+        self.contentMode = contentMode
     }
 
     var body: some View {
         Group {
             if let image {
-                Image(uiImage: image).resizable().scaledToFit()
+                Image(uiImage: image).resizable().aspectRatio(contentMode: contentMode)
                     .accessibilityLabel(item.displayTitle)
             } else if !finished { ProgressView("Caricamento immagine…") }
             else { Label(error ?? "Anteprima non disponibile", systemImage: "photo.badge.exclamationmark") }

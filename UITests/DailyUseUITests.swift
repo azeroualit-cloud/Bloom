@@ -3,11 +3,41 @@ import UIKit
 
 final class DailyUseUITests: XCTestCase {
     @MainActor
+    func testTagGridSquareContentAndConfirmedDeletion() {
+        let (app, _) = captureNote(withCollection: false)
+        returnToLibrary(app)
+        let all = app.buttons["category-Tutti"]
+        let unspecified = app.buttons["category-Da specificare"]
+        XCTAssertTrue(all.waitForExistence(timeout: 5))
+        XCTAssertTrue(unspecified.exists)
+        XCTAssertEqual(all.frame.minY, unspecified.frame.minY, accuracy: 2)
+        XCTAssertGreaterThan(unspecified.frame.minX, all.frame.minX)
+        XCTAssertEqual(all.frame.width, all.frame.height, accuracy: 2)
+        XCTAssertFalse(app.segmentedControls.buttons["Archivio"].exists)
+        unspecified.tap()
+        let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
+        XCTAssertTrue(note.waitForExistence(timeout: 5))
+        XCTAssertEqual(note.frame.width, note.frame.height, accuracy: 2)
+        note.swipeLeft()
+        XCTAssertTrue(app.buttons["Archivia"].waitForExistence(timeout: 5))
+        app.buttons["Elimina"].tap()
+        app.buttons["Annulla"].tap()
+        XCTAssertTrue(note.exists)
+        note.swipeLeft()
+        app.buttons["Elimina"].tap()
+        app.buttons["Elimina definitivamente"].tap()
+        XCTAssertTrue(app.staticTexts["Nessuna nota"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
+    }
+
+    @MainActor
     func testSecondaryMarkdownCanBeEditedAndReopened() {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-in-memory", "--ui-test-attachments"]
         app.launch()
+        XCTAssertTrue(app.buttons["category-Tutti"].waitForExistence(timeout: 15))
+        app.buttons["category-Tutti"].tap()
         let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
         XCTAssertTrue(note.waitForExistence(timeout: 15))
         note.tap()
@@ -76,20 +106,23 @@ final class DailyUseUITests: XCTestCase {
     func testSwipeArchiveUndoAndQuickTagEditing() {
         let (app, _) = captureNote(withCollection: false)
         returnToLibrary(app)
-        app.buttons["Tutte le note"].tap()
+        app.buttons["category-Tutti"].tap()
         let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
         note.swipeLeft()
         app.buttons["Archivia"].tap()
         XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
         app.buttons["archive-undo"].tap()
         XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
-        app.buttons["Per tag"].tap()
-        // Edit the Unspecified occurrence: assigning its first tag removes that row.
-        let tags = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'quick-tags-'")).element(boundBy: 1)
-        tags.tap()
+        app.buttons["library-back-tags"].tap()
+        app.buttons["category-Da specificare"].tap()
+        let actions = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-actions-'")).firstMatch
+        actions.tap()
+        app.buttons["Modifica tag"].tap()
         app.buttons["tag-Salute"].tap()
         app.buttons["quick-tags-save"].tap()
         XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5))
+        app.buttons["library-back-tags"].tap()
+        app.buttons["category-Salute"].tap()
         note.press(forDuration: 0.7)
         XCTAssertTrue(app.staticTexts["1 selezionati"].waitForExistence(timeout: 5), diagnostics(app))
         XCTAssertFalse(app.navigationBars["Bloom test note"].exists, diagnostics(app))
@@ -133,12 +166,14 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["bulk-select-all"].tap()
         app.buttons["bulk-archive-action"].tap()
         XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
-        app.segmentedControls.buttons["Archivio"].tap()
+        app.buttons["library-settings"].tap()
+        app.buttons["settings-archive"].tap()
         XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
         app.buttons["bulk-select-all"].tap()
         app.buttons["bulk-archive-action"].tap()
         XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
-        app.segmentedControls.buttons["Libreria"].tap()
+        app.buttons["library-settings"].tap()
+        app.buttons["settings-archive"].tap()
         XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
     }
 

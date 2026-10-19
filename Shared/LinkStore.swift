@@ -4,6 +4,10 @@ import UniformTypeIdentifiers
 
 @MainActor
 enum LinkStore {
+    static func deleteNote(_ item: CapturedLink, in context: ModelContext) throws {
+        context.delete(item)
+        try save(context)
+    }
     static func setImageFraming(_ value: ImageFraming, for item: CapturedLink, in context: ModelContext) throws {
         guard value.isValid else { throw ImportError.invalidFile }
         item.imageFramingData = try JSONEncoder().encode(value)

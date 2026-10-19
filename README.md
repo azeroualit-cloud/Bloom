@@ -240,3 +240,7 @@ reduce layout changes during swipes. No saved-data schema change.
 ### Build 15 — consultazione e affidabilità dell’archivio
 
 Zoom e inquadratura anche per immagini secondarie; modifica diretta di Markdown/testi allegati; anteprime dei link multipli con cache limitata; controlli coerenti sui payload e backup con data dell’ultima esportazione. Nessuna modifica distruttiva ai dati. Contratti e limiti in [archive-beta](docs/archive-beta.md).
+
+### Build 16 — archivio per tag e griglie quadrate
+
+Home a due colonne di tag, contenuti con anteprime ritagliate 1:1, Archivia/Elimina nello swipe, Archivio nelle Impostazioni. Riscopri usa le stesse anteprime e il sistema multi-tag. Contenitori Liquid Glass nativi ove supportati e nuova icona Bloom. [Dettagli e comportamento](docs/grid-library.md).

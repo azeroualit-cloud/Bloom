@@ -1,0 +1,11 @@
+# Tag-first library — build 16
+
+The initial Library presents the tag catalog, including empty tags, in two columns. All notes and Unspecified are explicit entry points. Opening a tag shows only its notes, also in two columns. Both category and content tiles have a 1:1 footprint. Search bypasses category browsing. Returning to tags clears the current filters; the app never restores an old category over the initial catalog.
+
+Image and social poster thumbnails fill and clip their square container; the full image viewer retains original aspect and non-destructive framing. Note title opens the note, while video/image surface opens the content directly. Actions menu offers tags, archive/restore and delete. A horizontal drag reveals archive/restore plus delete inside the same clipped square, avoiding the former List row insets and swipe background mismatch. Full swipe never deletes; deletion requires explicit confirmation. Vertical gestures are ignored by reveal logic. Selection remains available through long press and toolbar, with an outline and checkmark per selected tile.
+
+Rediscovery reuses the same square preview component, media opening and actions. Its organizer edits multiple manual tags instead of the obsolete single collection relation. Rediscovery history/exhaustion behavior remains intact.
+
+Archive is accessible only through the Settings gear, not a home segmented control. Returning from Archive brings back the tag catalog. The gear also retains tag management, sorting, backup and capture guidance.
+
+Glass containers use native glassEffect on iOS 26+ when compiled with Swift 6.2+ and system material otherwise. No custom simulated refraction. The icon is bundled as a 1024px opaque universal iOS AppIcon asset. Existing notes, tags and backup formats are unchanged.

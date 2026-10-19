@@ -68,18 +68,20 @@ struct CachedPreviewImage: View {
     let data: Data?
     let label: String
     let maxPixel: Int
+    var contentMode: ContentMode = .fit
     @State private var image: UIImage?
     @State private var decodingFinished = false
 
-    init(data: Data?, label: String, maxPixel: Int = 2048) {
+    init(data: Data?, label: String, maxPixel: Int = 2048, contentMode: ContentMode = .fit) {
         self.data = data
         self.label = label
         self.maxPixel = maxPixel
+        self.contentMode = contentMode
     }
 
     var body: some View {
         Group {
-            if let image { Image(uiImage: image).resizable().scaledToFit().accessibilityLabel(label) }
+            if let image { Image(uiImage: image).resizable().aspectRatio(contentMode: contentMode).accessibilityLabel(label) }
             else if data != nil && !decodingFinished { ProgressView("Preparazione immagine…") }
             else { ContentUnavailableView("Immagine non disponibile", systemImage: "photo") }
         }

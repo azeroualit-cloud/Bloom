@@ -13,6 +13,10 @@ struct RediscoveryView: View {
     @State private var round = 0
     @State private var day = Self.currentDay
     @State private var error: String?
+    @State private var opened: CapturedLink?
+    @State private var tagNote: CapturedLink?
+    @State private var deleting: CapturedLink?
+    @State private var revealed: UUID?
     @State private var loadedPreferences = false
     let openLibrary: () -> Void
 
@@ -24,7 +28,7 @@ struct RediscoveryView: View {
 
     private var feed: [CapturedLink] {
         let candidates = eligible.map {
-            RediscoveryCandidate(id: $0.id, kind: $0.kind, collectionID: $0.collection?.id,
+            RediscoveryCandidate(id: $0.id, kind: $0.kind, collectionID: $0.tagIDs.sorted { $0.uuidString < $1.uuidString }.first,
                 host: $0.kind == .link ? URL(string: $0.urlString)?.host?.lowercased() : nil,
                 isArchived: $0.isArchived)
         }
@@ -38,7 +42,7 @@ struct RediscoveryView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
-                        Text("Contenuti dalla tua libreria. Fino a 30 per giro, con varietà di formati e raccolte.")
+                        Text("Contenuti dalla tua libreria. Fino a 30 per giro, con anteprime e varietà di formati e tag.")
                             .font(.subheadline).foregroundStyle(.secondary).id("feed-start")
                         if collectionFilter != .all || kindFilter != nil {
                             Text("Filtri attivi: \(collectionName) · \(kindFilter?.label ?? "Tutti i formati")")
@@ -55,14 +59,13 @@ struct RediscoveryView: View {
                                 else { Button("Vai alla libreria", action: openLibrary) }
                             }
                         }
-                        ForEach(contents) { item in
-                            RediscoveryCard(item: item, collections: collections, archive: {
-                                do { try LinkStore.setArchived(true, for: item, in: context) }
-                                catch { self.error = error.localizedDescription }
-                            }, move: { collection in
-                                do { try LinkStore.update(item, title: item.title ?? "", notes: item.notes ?? "", collection: collection, in: context) }
-                                catch { self.error = error.localizedDescription }
-                            })
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                            ForEach(contents) { item in
+                                ArchiveTile(item: item, revealed: $revealed, openNote: { opened = item }, editTags: { tagNote = item }, select: { opened = item }, archive: {
+                                    do { try LinkStore.setArchived(true, for: item, in: context) }
+                                    catch { self.error = error.localizedDescription }
+                                }, delete: { deleting = item })
+                            }
                         }
                         if !contents.isEmpty {
                             VStack(spacing: 8) {
@@ -80,6 +83,15 @@ struct RediscoveryView: View {
                 .onChange(of: kindFilter) { _, _ in proxy.scrollTo("feed-start", anchor: .top) }
             }
             .navigationTitle("Riscopri")
+            .navigationDestination(item: $opened) { ContentViewer(item: $0) }
+            .sheet(item: $tagNote) { NoteTagEditor(item: $0) }
+            .confirmationDialog("Eliminare definitivamente la nota?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+                Button("Elimina definitivamente", role: .destructive) {
+                    if let deleting { do { try LinkStore.deleteNote(deleting, in: context) } catch { self.error = error.localizedDescription } }
+                    deleting = nil
+                }
+                Button("Annulla", role: .cancel) { deleting = nil }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu { ContentFilterOptions(collection: $collectionFilter, kind: $kindFilter) }
@@ -113,9 +125,9 @@ struct RediscoveryView: View {
 
     private var collectionName: String {
         switch collectionFilter {
-        case .all: return "Tutte le raccolte"
-        case .unfiled: return "Senza raccolta"
-        case .collection(let id): return collections.first { $0.id == id }?.name ?? "Raccolta"
+        case .all: return "Tutti i tag"
+        case .unfiled: return "Da specificare"
+        case .collection(let id): return collections.first { $0.id == id }?.name ?? "Tag"
         }
     }
     private var historyKey: String {
@@ -153,63 +165,5 @@ struct RediscoveryView: View {
     private func newRound() {
         proposedIDs.formUnion(feed.map(\.id)); round += 1; day = Self.currentDay
         persistHistory()
-    }
-}
-
-private struct RediscoveryCard: View {
-    let item: CapturedLink
-    let collections: [LinkCollection]
-    let archive: () -> Void
-    let move: (LinkCollection?) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label(item.kind.label, systemImage: item.kind.symbol).font(.subheadline).foregroundStyle(.secondary)
-            Text(item.displayTitle).font(.title3.bold()).lineLimit(3)
-            if let collection = item.collection {
-                Label(collection.name, systemImage: "folder").font(.caption)
-            }
-            if item.kind == .image {
-                AttachmentThumbnail(item: item, maximumPixelSize: 768).frame(maxHeight: 320)
-            } else if item.kind == .text {
-                Text(String((item.textContent ?? "").prefix(600))).lineLimit(8)
-            } else if item.kind == .link {
-                Text(item.urlString).font(.subheadline).foregroundStyle(.secondary).lineLimit(3)
-            } else {
-                Text(item.fileName ?? "File").font(.subheadline).lineLimit(2)
-                if let count = item.attachmentByteCount {
-                    Text(ByteCountFormatter.string(fromByteCount: Int64(count), countStyle: .file))
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            if let notes = item.notes { Text(String(notes.prefix(300))).font(.subheadline).lineLimit(3) }
-            Text(item.capturedAt, style: .date).font(.caption).foregroundStyle(.secondary)
-            ViewThatFits(in: .horizontal) {
-                HStack { openButton; Spacer(); organizeMenu; archiveButton }
-                VStack(alignment: .leading) { openButton; organizeMenu; archiveButton }
-            }
-        }
-        .padding().frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
-    }
-
-    private var openButton: some View {
-        NavigationLink { ContentViewer(item: item) } label: {
-            Label("Apri contenuto", systemImage: "arrow.up.right.square")
-        }.buttonStyle(.borderedProminent)
-    }
-    private var archiveButton: some View {
-        Button("Archivia", systemImage: "archivebox", action: archive).buttonStyle(.bordered)
-            .accessibilityHint("Sposta in Archivio. Puoi ripristinare dalla Libreria.")
-    }
-    private var organizeMenu: some View {
-        Menu {
-            Button("Senza raccolta") { move(nil) }
-            ForEach(collections) { collection in
-                Button(collection.name) { move(collection) }
-            }
-        } label: {
-            Label("Raccolta", systemImage: "folder")
-        }.buttonStyle(.bordered)
     }
 }

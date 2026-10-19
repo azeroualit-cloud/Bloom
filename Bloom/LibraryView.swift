@@ -14,6 +14,8 @@ struct LibraryView: View {
     @State private var selecting = false
     @State private var selection = Set<UUID>()
     @State private var allNotes = false
+    @State private var revealed: UUID?
+    @State private var deleting: CapturedLink?
     @State private var adding = false
     @State private var addingPhoto = false
     @State private var managingTags = false
@@ -37,53 +39,55 @@ struct LibraryView: View {
             return matchesBase && (LibraryFilter.matches(item, search: search, archived: archived, collection: filter, kind: kind) || !item.tagIDs.isDisjoint(with: matchingTagIDs))
         })
     }
-    private var grouped: Bool { !selecting && !allNotes && filter == .all && kind == nil && search.isEmpty && !archived }
+    private var showingTags: Bool { !allNotes && search.isEmpty && kind == nil && !selecting }
+    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
-    var body: some View {
-        NavigationStack { presentedLibrary }
-    }
+    var body: some View { NavigationStack { presentedLibrary } }
     private var library: some View {
-        List(selection: $selection) {
-            header
-            if visible.isEmpty {
-                ContentUnavailableView("Nessuna nota", systemImage: "note.text", description: Text("Aggiungi una nota o cambia i filtri."))
-            } else if grouped {
-                let tagGroups = memberships(visible)
-                Section {
-                    ForEach(Array(visible.prefix(4))) { item in card(item).id("recent:\(item.id)") }
-                } header: { sectionHeading("Recenti") { allNotes = true } }
-                let undefined = visible.filter { $0.tagIDs.isEmpty }
-                if !undefined.isEmpty {
-                    Section {
-                        ForEach(Array(undefined.prefix(3))) { item in card(item).id("unfiled:\(item.id)") }
-                    } header: { sectionHeading("Da specificare") { filter = .unfiled } }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                header
+                if showingTags {
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        category("Tutti", symbol: "square.grid.2x2", value: .all, count: visible.count)
+                        category("Da specificare", symbol: "tag", value: .unfiled, count: visible.filter { $0.tagIDs.isEmpty }.count)
+                        ForEach(tags) { tag in
+                            category(tag.name, symbol: "tag.fill", value: .collection(tag.id), count: visible.filter { $0.tagIDs.contains(tag.id) }.count)
+                        }
+                    }.accessibilityIdentifier("category-grid")
+                } else if visible.isEmpty {
+                    ContentUnavailableView("Nessuna nota", systemImage: "note.text", description: Text("Aggiungi una nota o cambia i filtri."))
+                } else {
+                    LazyVGrid(columns: columns, spacing: 12) { ForEach(visible) { item in card(item) } }
+                        .accessibilityIdentifier("content-grid")
                 }
-                ForEach(tags.filter { tagGroups[$0.id] != nil }) { tag in
-                    Section {
-                        ForEach(Array((tagGroups[tag.id] ?? []).prefix(3))) { item in card(item).id("tag:\(tag.id):\(item.id)") }
-                    } header: { sectionHeading(tag.name) { filter = .collection(tag.id) } }
-                }
-            } else {
-                ForEach(visible) { item in
-                    if selecting {
-                        Text(item.displayTitle).tag(item.id).padding(.vertical, 8)
-                    } else { card(item).id("all:\(item.id)") }
-                }
-            }
+            }.padding(16).frame(maxWidth: 760).frame(maxWidth: .infinity)
         }
-        .listStyle(.insetGrouped)
-        .environment(\.editMode, .constant(selecting ? .active : .inactive))
-        .navigationTitle("Bloom")
+        .background(Color(uiColor: .systemGroupedBackground))
+        .navigationTitle(archived ? "Archivio" : showingTags ? "Bloom" : categoryTitle)
         .searchable(text: $search, prompt: "Cerca note, testi e tag")
         .navigationDestination(item: $opened) { ContentViewer(item: $0) }
         .toolbar { toolbar }
+        .onChange(of: filter) { _, _ in revealed = nil }
+        .onChange(of: archived) { _, _ in revealed = nil }
     }
-    private func memberships(_ notes: [CapturedLink]) -> [UUID: [CapturedLink]] {
-        var groups: [UUID: [CapturedLink]] = [:]
-        for note in notes {
-            for id in note.tagIDs { groups[id, default: []].append(note) }
+    private var categoryTitle: String {
+        switch filter {
+        case .all: return "Tutte le note"
+        case .unfiled: return "Da specificare"
+        case .collection(let id): return tags.first { $0.id == id }?.name ?? "Note"
         }
-        return groups
+    }
+    private func category(_ name: String, symbol: String, value: CollectionFilter, count: Int) -> some View {
+        Button { filter = value; allNotes = true; revealed = nil } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                Image(systemName: symbol).font(.title2).foregroundStyle(Color.accentColor)
+                Spacer(minLength: 0)
+                Text(name).font(.headline).foregroundStyle(.primary).lineLimit(2)
+                Text("\(count) note").font(.caption).foregroundStyle(.secondary)
+            }.padding(16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .aspectRatio(1, contentMode: .fit).bloomGlass(cornerRadius: 16)
+        }.buttonStyle(.plain).accessibilityIdentifier("category-\(name)")
     }
     private var presentedLibrary: some View {
         library
@@ -99,12 +103,20 @@ struct LibraryView: View {
             .onChange(of: tags.map(\.id)) { _, ids in
                 if case .collection(let id) = filter, !ids.contains(id) { filter = .all }
             }
-            .onChange(of: filter) { _, value in UserDefaults.standard.set(BloomPreferences.rawFilter(value), forKey: "notes.library.filter") }
+
             .onChange(of: sort) { _, value in UserDefaults.standard.set(value.rawValue, forKey: "library.sort") }
             .onAppear {
-                filter = BloomPreferences.collectionFilter(UserDefaults.standard.string(forKey: "notes.library.filter"))
-                if case .collection(let id) = filter, !tags.contains(where: { $0.id == id }) { filter = .all }
                 sort = UserDefaults.standard.string(forKey: "library.sort").flatMap(LibrarySort.init(rawValue:)) ?? .newest
+            }
+            .confirmationDialog("Eliminare definitivamente la nota e i suoi allegati?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+                Button("Elimina definitivamente", role: .destructive) {
+                    if let deleting {
+                        do { try LinkStore.deleteNote(deleting, in: context); notice = "Nota eliminata"; selection.remove(deleting.id) }
+                        catch { self.error = error.localizedDescription }
+                    }
+                    deleting = nil
+                }
+                Button("Annulla", role: .cancel) { deleting = nil }
             }
             .alert("Operazione non riuscita", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("Chiudi", role: .cancel) { }
@@ -112,56 +124,37 @@ struct LibraryView: View {
     }
 
     private var header: some View {
-        Section {
-            Picker("Stato", selection: $archived) { Text("Libreria").tag(false); Text("Archivio").tag(true) }.pickerStyle(.segmented)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    filterButton("Tutti", value: .all)
-                    filterButton("Da specificare", value: .unfiled)
-                    ForEach(tags) { tag in filterButton(tag.name, value: .collection(tag.id)) }
-                }.padding(.vertical, 4)
+        VStack(alignment: .leading, spacing: 12) {
+            if !showingTags {
+                Button { allNotes = false; archived = false; filter = .all; kind = nil; search = ""; selecting = false; selection = [] } label: {
+                    Label("Tag", systemImage: "chevron.left").frame(minHeight: 44)
+                }.accessibilityIdentifier("library-back-tags")
             }
-            HStack {
-                Text("\(visible.count) contenuti").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("library-count")
-                Spacer()
-                Button(allNotes ? "Per tag" : "Tutte le note") { allNotes.toggle() }.font(.subheadline)
-            }
+            Text("\(visible.count) contenuti").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("library-count")
             if let notice { Text(notice).font(.subheadline).foregroundStyle(.secondary) }
             if archiveUndo != nil { Button("Annulla spostamento", action: undoArchive).accessibilityIdentifier("archive-undo") }
             if let id = savedID { Button("Apri contenuto salvato") { opened = items.first { $0.id == id } }.accessibilityIdentifier("library-open-saved") }
         }
     }
-    private func filterButton(_ name: String, value: CollectionFilter) -> some View {
-        Button { filter = value } label: {
-            Text(name).font(.subheadline).padding(.horizontal, 12).frame(minHeight: 44)
-                .background(filter == value ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.08), in: Capsule())
-        }.buttonStyle(.plain).accessibilityAddTraits(filter == value ? [.isSelected] : [])
-    }
-    private func sectionHeading(_ name: String, action: @escaping () -> Void) -> some View {
-        HStack { Text(name).font(.headline); Spacer(); Button("Vedi tutte", action: action).font(.subheadline) }.textCase(nil)
-    }
     private func card(_ item: CapturedLink) -> some View {
-        NoteCard(item: item, tags: tags, editTags: { if !selecting { tagNote = item } }) { if !selecting { opened = item } }
-            .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
-            .listRowBackground(Color.clear).listRowSeparator(.hidden)
-            .highPriorityGesture(LongPressGesture(minimumDuration: 0.45).onEnded { _ in
-                selecting = true; selection = [item.id]
-            })
-            .swipeActions(allowsFullSwipe: false) {
-                Button(archived ? "Ripristina" : "Archivia", systemImage: "archivebox") {
-                    do {
-                        let previous = item.isArchived
-                        try LinkStore.setArchived(!previous, for: item, in: context)
-                        archiveUndo = ArchiveUndo(ids: [item.id], wasArchived: previous)
-                        notice = previous ? "Nota ripristinata" : "Nota archiviata"
-                    }
-                    catch { self.error = error.localizedDescription }
-                }.tint(.orange)
-            }
+        ArchiveTile(item: item, selected: selection.contains(item.id), selecting: selecting, revealed: $revealed,
+                    openNote: { if !selecting { opened = item } }, editTags: { tagNote = item }, select: {
+                        if selecting { if selection.contains(item.id) { selection.remove(item.id) } else { selection.insert(item.id) } }
+                        else { selecting = true; selection = [item.id]; revealed = nil }
+                    }, archive: { archive(item) }, delete: { deleting = item })
+    }
+    private func archive(_ item: CapturedLink) {
+        do {
+            let previous = item.isArchived
+            try LinkStore.setArchived(!previous, for: item, in: context)
+            archiveUndo = ArchiveUndo(ids: [item.id], wasArchived: previous)
+            notice = previous ? "Nota ripristinata" : "Nota archiviata"
+        } catch { self.error = error.localizedDescription }
     }
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Menu {
+                Button(archived ? "Torna alla libreria" : "Archivio", systemImage: "archivebox") { archived.toggle(); filter = .all; allNotes = true; search = ""; kind = nil }.accessibilityIdentifier("settings-archive")
                 Button("Gestisci tag", systemImage: "tag") { managingTags = true }
                 Picker("Formato", selection: $kind) {
                     Text("Tutti").tag(Optional<ContentKind>.none)
@@ -170,10 +163,10 @@ struct LibraryView: View {
                 Picker("Ordina", selection: $sort) { ForEach(LibrarySort.allCases) { Text($0.label).tag($0) } }
                 Button("Backup locale", systemImage: "externaldrive") { backup = true }
                 Button("Come salvare dai social") { guide = true }
-            } label: { Label("Strumenti", systemImage: "slider.horizontal.3") }
+            } label: { Label("Impostazioni", systemImage: "gearshape") }.accessibilityIdentifier("library-settings")
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Button(selecting ? "Fine" : "Seleziona") { selecting.toggle(); selection.removeAll() }.accessibilityIdentifier("library-select")
+            Button(selecting ? "Fine" : "Seleziona") { if showingTags { allNotes = true }; selecting.toggle(); selection.removeAll(); revealed = nil }.accessibilityIdentifier("library-select")
         }
         ToolbarItem(placement: .primaryAction) {
             Button { adding = true } label: { Label("Aggiungi nota", systemImage: "plus") }.accessibilityIdentifier("capture-add").disabled(selecting)

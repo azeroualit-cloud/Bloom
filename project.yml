@@ -16,6 +16,7 @@ targets:
     sources: [Bloom, Shared]
     settings:
       base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_BUNDLE_IDENTIFIER: app.bloom.ios
         INFOPLIST_FILE: Bloom/Info.plist
   BloomTests:
