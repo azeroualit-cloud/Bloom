@@ -142,7 +142,7 @@ enum LinkStore {
                                 into context: ModelContext) throws -> CaptureReceipt {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ImportError.emptyText }
         let data = Data(text.utf8)
-        guard data.count + link.noteFiles.reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
+        guard data.count <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
         let key = ContentFingerprint.make(data, kind: .text)
         if let existing = try fingerprintItem(key, in: context) { return CaptureReceipt(id: existing.id, inserted: false) }
         let collection = try resolveCollection(collectionID, in: context)

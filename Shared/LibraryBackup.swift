@@ -75,7 +75,11 @@ struct LibraryBackup: Codable, Sendable {
                   (item.noteLinks?.count ?? 0) + (item.noteFiles?.count ?? 0) <= 10 else { throw BackupError.invalid }
             guard item.imageFraming?.isValid ?? true else { throw BackupError.invalid }
             guard item.noteVersion == nil || item.noteVersion == 1 else { throw BackupError.unsupportedVersion }
-            guard (item.data?.count ?? 0) + (item.text?.utf8.count ?? 0) + (item.notes?.utf8.count ?? 0) + (item.noteFiles ?? []).reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw BackupError.tooLarge }
+            let primaryBytes = item.data?.count ?? 0
+            let textBytes = item.text?.utf8.count ?? 0
+            let noteBytes = item.notes?.utf8.count ?? 0
+            let fileBytes = (item.noteFiles ?? []).reduce(0) { $0 + $1.data.count }
+            guard primaryBytes + textBytes + noteBytes + fileBytes <= AttachmentLoader.maximumBytes else { throw BackupError.tooLarge }
             for raw in item.noteLinks ?? [] {
                 guard let url = URL(string: raw), (try? LinkValidation.validate(url)) != nil else { throw BackupError.invalid }
                 try count(raw.utf8.count)
