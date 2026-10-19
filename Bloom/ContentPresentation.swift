@@ -131,6 +131,7 @@ struct TextContentView: View {
     @State private var editing = false
     @State private var draft = ""
     @State private var error: String?
+    @State private var showingDetails = false
 
     init(item: CapturedLink, source: TextContentSource = .capturedText, originalText: String? = nil) {
         self.item = item
@@ -147,6 +148,9 @@ struct TextContentView: View {
         .navigationTitle(item.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
+        .sheet(isPresented: $showingDetails) {
+            NavigationStack { LinkDetailView(link: item).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fine") { showingDetails = false } } } }
+        }
         .alert("Modifica non riuscita", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
             Button("OK", role: .cancel) { }
         } message: { Text(error ?? "") }
@@ -179,6 +183,9 @@ struct TextContentView: View {
         ToolbarItem(placement: .secondaryAction) {
             if editing { Button("Annulla") { editing = false; draft = originalText } }
             else { Button(showingSource ? "Lettura" : "Sorgente") { showingSource.toggle() } }
+        }
+        ToolbarItem(placement: .secondaryAction) {
+            if !editing { Button("Dettagli") { showingDetails = true } }
         }
     }
 
