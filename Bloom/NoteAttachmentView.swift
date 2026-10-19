@@ -3,6 +3,7 @@ import SwiftData
 import UniformTypeIdentifiers
 
 /// Resolves by identity on every render so edits never keep displaying an old copy.
+@MainActor
 struct NoteAttachmentView: View {
     @Environment(\.modelContext) private var context
     let item: CapturedLink
@@ -30,11 +31,11 @@ struct NoteAttachmentView: View {
         .sheet(isPresented: $framing) { if let file { ImageFramingEditor(item: item, file: file) } }
         .sheet(isPresented: $editing) {
             NavigationStack {
-                TextEditor(text: $draft).font(.body.monospaced()).padding(12).accessibilityLabel("Testo modificabile")
+                TextEditor(text: $draft).font(.body.monospaced()).padding(12).accessibilityLabel("Testo modificabile").accessibilityIdentifier("attachment-editor")
                     .navigationTitle("Modifica documento").navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) { Button("Annulla") { editing = false } }
-                        ToolbarItem(placement: .confirmationAction) { Button("Salva", action: save) }
+                        ToolbarItem(placement: .confirmationAction) { Button("Salva", action: save).accessibilityIdentifier("attachment-save") }
                     }
                     .interactiveDismissDisabled()
                     .alert("Salvataggio non riuscito", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {

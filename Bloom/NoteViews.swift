@@ -135,7 +135,7 @@ struct NoteDetailView: View {
                             }
                             Label(file.name, systemImage: "paperclip").font(.subheadline)
                         }
-                    }
+                    }.accessibilityIdentifier("note-file-\(file.name)")
                 }
                 Text(tagNames).font(.caption).foregroundStyle(.secondary)
             }.padding(20).frame(maxWidth: 740, alignment: .leading).frame(maxWidth: .infinity)

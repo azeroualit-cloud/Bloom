@@ -3,6 +3,35 @@ import UIKit
 
 final class DailyUseUITests: XCTestCase {
     @MainActor
+    func testSecondaryMarkdownCanBeEditedAndReopened() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-attachments"]
+        app.launch()
+        let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
+        XCTAssertTrue(note.waitForExistence(timeout: 15))
+        note.tap()
+        let attachment = app.buttons["note-file-secondary.md"]
+        XCTAssertTrue(attachment.waitForExistence(timeout: 5), diagnostics(app))
+        attachment.tap()
+        XCTAssertTrue(app.buttons["Modifica"].waitForExistence(timeout: 5))
+        app.buttons["Modifica"].tap()
+        let editor = app.textViews["attachment-editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        editor.tap(); editor.typeText(" 123456")
+        let expected = editor.value as? String
+        app.buttons["attachment-save"].tap()
+        let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: editor)
+        XCTAssertEqual(XCTWaiter.wait(for: [closed], timeout: 5), .completed)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(attachment.waitForExistence(timeout: 5))
+        attachment.tap(); app.buttons["Modifica"].tap()
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
+        XCTAssertEqual(editor.value as? String, expected)
+        app.buttons["Annulla"].tap()
+    }
+
+    @MainActor
     func testDraftRestoresAcrossAppRelaunch() {
         continueAfterFailure = false
         let app = XCUIApplication()

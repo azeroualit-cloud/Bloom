@@ -315,6 +315,14 @@ enum LocalLibrary {
             let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
             let container = try ModelContainer(for: schema, configurations: [config])
             try LinkStore.initializeTags(in: container.mainContext)
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-attachments") {
+                let note = CapturedLink(kind: .text)
+                note.title = "Attachment fixture"; note.textContent = "Documents"; note.noteVersion = 1
+                let file = NoteFile(name: "secondary.md", type: "public.text", data: Data("# Original".utf8))
+                note.noteFilesData = try JSONEncoder().encode([file]); note.noteFileCount = 1
+                container.mainContext.insert(note)
+                try container.mainContext.save()
+            }
             cached = container
             return container
         }
