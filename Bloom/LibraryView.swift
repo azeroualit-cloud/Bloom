@@ -44,6 +44,7 @@ struct LibraryView: View {
             if visible.isEmpty {
                 ContentUnavailableView("Nessuna nota", systemImage: "note.text", description: Text("Aggiungi una nota o cambia i filtri."))
             } else if grouped {
+                let tagGroups = memberships(visible)
                 Section {
                     ForEach(Array(visible.prefix(4))) { item in card(item) }
                 } header: { sectionHeading("Recenti") { allNotes = true } }
@@ -53,9 +54,9 @@ struct LibraryView: View {
                         ForEach(Array(undefined.prefix(3))) { item in card(item) }
                     } header: { sectionHeading("Da specificare") { filter = .unfiled } }
                 }
-                ForEach(tags.filter { tag in visible.contains { $0.tagIDs.contains(tag.id) } }) { tag in
+                ForEach(tags.filter { tagGroups[$0.id] != nil }) { tag in
                     Section {
-                        ForEach(Array(visible.filter { $0.tagIDs.contains(tag.id) }.prefix(3))) { item in card(item) }
+                        ForEach(Array((tagGroups[tag.id] ?? []).prefix(3))) { item in card(item) }
                     } header: { sectionHeading(tag.name) { filter = .collection(tag.id) } }
                 }
             } else {
@@ -72,6 +73,13 @@ struct LibraryView: View {
         .searchable(text: $search, prompt: "Cerca note, testi e tag")
         .navigationDestination(item: $opened) { ContentViewer(item: $0) }
         .toolbar { toolbar }
+    }
+    private func memberships(_ notes: [CapturedLink]) -> [UUID: [CapturedLink]] {
+        var groups: [UUID: [CapturedLink]] = [:]
+        for note in notes {
+            for id in note.tagIDs { groups[id, default: []].append(note) }
+        }
+        return groups
     }
     private var presentedLibrary: some View {
         library
