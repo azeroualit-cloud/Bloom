@@ -7,6 +7,13 @@ struct ContentViewer: View {
     var body: some View {
         if item.kind == .link, let url = URL(string: item.urlString), BrowserPolicy.isWebURL(url) {
             WebContentView(item: item, url: url)
+        } else if item.kind == .image {
+            ImageContentView(item: item)
+        } else if item.kind == .text {
+            TextContentView(item: item)
+        } else if let data = item.attachmentData,
+                  let text = DocumentText.decode(data, name: item.fileName ?? "contenuto", type: item.contentType) {
+            TextContentView(item: item, source: .attachment, originalText: text)
         } else { LinkDetailView(link: item) }
     }
 }
@@ -29,17 +36,21 @@ private struct WebContentView: View {
 @MainActor
 private struct BrowserScreen: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.modelContext) private var context
     let item: CapturedLink
     let browser: BrowserSession
     @State private var showingDetails = false
     @State private var confirmClear = false
     @State private var externalError = false
+    @State private var preview = LinkPreviewController()
 
     var body: some View {
         VStack(spacing: 0) {
             Text(browser.currentURL.absoluteString)
                 .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 .textSelection(.enabled).padding(.horizontal).padding(.vertical, 8)
+            SocialPreviewCard(item: item, isLoading: preview.isLoading, message: preview.message)
+                .padding(.horizontal).padding(.bottom, item.previewImageData == nil && !preview.isLoading && preview.message == nil ? 0 : 8)
             if browser.isLoading { ProgressView(value: browser.progress).accessibilityLabel("Caricamento pagina") }
             if browser.clearingData { ProgressView("Cancellazione dati di navigazione…").padding() }
             if let error = browser.error {
@@ -99,6 +110,7 @@ private struct BrowserScreen: View {
         .alert("Apertura esterna non riuscita", isPresented: $externalError) {
             Button("OK", role: .cancel) { }
         } message: { Text("Puoi copiare o condividere l’indirizzo della pagina dalla barra del browser.") }
+        .task(id: item.id) { preview.prepare(for: item, in: context) }
     }
 
     private func openExternal() {

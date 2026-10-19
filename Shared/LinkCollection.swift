@@ -19,6 +19,7 @@ final class LinkCollection {
 enum LibraryError: LocalizedError {
     case emptyCollectionName
     case duplicateCollection
+    case duplicateContent
     case collectionMissing
     case selectionMissing
 
@@ -26,6 +27,7 @@ enum LibraryError: LocalizedError {
         switch self {
         case .emptyCollectionName: return "Inserisci un nome per la raccolta."
         case .duplicateCollection: return "Esiste già una raccolta con questo nome."
+        case .duplicateContent: return "Esiste già un contenuto con lo stesso testo."
         case .selectionMissing: return "La selezione è cambiata. Seleziona nuovamente i contenuti."
         case .collectionMissing: return "La raccolta selezionata non è più disponibile. Scegline un’altra."
         }

@@ -205,3 +205,16 @@ il feed.
 Non cambia lo schema SwiftData, il percorso di backup o la firma: aggiornare
 senza disinstallare. La beta resta locale e non include AI, lezioni di lingua,
 importazione massiva PKMS o scoperte esterne.
+
+## Build 12 — consultazione dei contenuti
+
+Immagini locali e screenshot si aprono in una vista dedicata a contrasto alto,
+senza i controlli del modulo attorno al contenuto. I dettagli restano raggiungibili
+da un’unica azione. Testi e file Markdown si leggono come Markdown, possono mostrare
+la sorgente e si modificano direttamente: il salvataggio aggiorna il contenuto
+locale e impedisce di creare un duplicato dello stesso testo.
+
+Aprendo un link Bloom prova una sola volta a preparare e conservare un’anteprima
+visiva offerta dal sito. È usata anche per Pinterest, TikTok e Instagram quando
+il sito la espone; altrimenti resta il browser interno con player e il fallback
+esterno. Non esiste scraping, bypass di login o download forzato dei social.

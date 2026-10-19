@@ -14,7 +14,11 @@ struct AttachmentView: View {
 
     var body: some View {
         Section(item.kind.label) {
-            if item.kind == .image { AttachmentThumbnail(item: item) }
+            if item.kind == .image {
+                NavigationLink { ImageContentView(item: item) } label: {
+                    AttachmentThumbnail(item: item, maximumPixelSize: 768).frame(maxHeight: 220)
+                }
+            }
             Text(item.fileName ?? item.kind.label).textSelection(.enabled)
             if let count = item.attachmentByteCount {
                 Text(ByteCountFormatter.string(fromByteCount: Int64(count), countStyle: .file))
@@ -23,8 +27,10 @@ struct AttachmentView: View {
             if let error { Text(error).foregroundStyle(.red) }
             if let exportURL { ShareLink("Condividi file", item: exportURL) }
             if loading { ProgressView("Preparazione anteprima…") }
-            Button("Apri contenuto", systemImage: "doc.viewfinder", action: preview)
-                .disabled(loading)
+            if item.kind != .image {
+                Button("Apri contenuto", systemImage: "doc.viewfinder", action: preview)
+                    .disabled(loading)
+            }
         }
         .sheet(item: $reader) { document in
             NavigationStack {

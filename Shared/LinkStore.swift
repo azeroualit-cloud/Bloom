@@ -127,6 +127,38 @@ enum LinkStore {
         try save(context)
     }
 
+    static func updateTextContent(_ text: String, for link: CapturedLink, in context: ModelContext) throws {
+        guard link.kind == .text else { throw ImportError.emptyText }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ImportError.emptyText }
+        let data = Data(text.utf8)
+        guard data.count <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
+        let key = ContentFingerprint.make(data, kind: .text)
+        if let existing = try fingerprintItem(key, in: context), existing.id != link.id { throw LibraryError.duplicateContent }
+        link.textContent = text
+        link.contentFingerprint = key
+        try save(context)
+    }
+
+    static func updateDocumentText(_ text: String, for link: CapturedLink, in context: ModelContext) throws {
+        guard link.kind == .file else { throw ImportError.invalidFile }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ImportError.emptyText }
+        let data = Data(text.utf8)
+        guard data.count <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
+        let key = ContentFingerprint.make(data, kind: .file)
+        if let existing = try fingerprintItem(key, in: context), existing.id != link.id { throw LibraryError.duplicateContent }
+        link.attachmentData = data
+        link.attachmentByteCount = data.count
+        link.contentFingerprint = key
+        try save(context)
+    }
+
+    static func storePreview(_ data: Data?, sourceURL: URL?, for link: CapturedLink, in context: ModelContext) throws {
+        guard link.kind == .link else { return }
+        link.previewImageData = data
+        link.previewSourceURL = sourceURL?.absoluteString
+        try save(context)
+    }
+
     static func setArchived(_ archived: Bool, for link: CapturedLink, in context: ModelContext) throws {
         link.isArchived = archived
         try save(context)

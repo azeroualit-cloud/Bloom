@@ -44,6 +44,20 @@ final class MediaCaptureTests: XCTestCase {
         XCTAssertEqual(try container.mainContext.fetchCount(FetchDescriptor<CapturedLink>()), 0)
     }
 
+    @MainActor
+    func testEditableTextPersistsAndKeepsContentDeduplicated() throws {
+        let container = try LinkStore.container(at: root())
+        let context = container.mainContext
+        XCTAssertTrue(try LinkStore.captureText("# Prima", title: "Nota", into: context))
+        XCTAssertTrue(try LinkStore.captureText("# Seconda", title: "Altra", into: context))
+        let items = try context.fetch(FetchDescriptor<CapturedLink>())
+        let first = try XCTUnwrap(items.first { $0.textContent == "# Prima" })
+        try LinkStore.updateTextContent("# Aggiornata\n\nContenuto", for: first, in: context)
+        XCTAssertEqual(first.textContent, "# Aggiornata\n\nContenuto")
+        XCTAssertThrowsError(try LinkStore.updateTextContent("# Seconda", for: first, in: context))
+        XCTAssertEqual(first.textContent, "# Aggiornata\n\nContenuto")
+    }
+
     func testOversizedFileAndDirectoryAreRejected() throws {
         let directory = try root()
         let url = directory.appendingPathComponent("large.bin")

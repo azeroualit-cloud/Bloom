@@ -17,6 +17,8 @@ final class CapturedLink {
     var attachmentByteCount: Int?
     var contentFingerprint: String?
     @Attribute(.externalStorage) var attachmentData: Data?
+    @Attribute(.externalStorage) var previewImageData: Data?
+    var previewSourceURL: String?
 
     var kind: ContentKind { ContentKind(rawValue: contentKind ?? "") ?? .link }
     var displayTitle: String {
