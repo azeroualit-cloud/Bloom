@@ -12,9 +12,9 @@ struct RediscoveryCandidate {
 enum RediscoveryPlanner {
     static let maximumItems = 30
 
-    static func select(_ candidates: [RediscoveryCandidate], day: Int, round: Int = 0) -> [UUID] {
+    static func select(_ candidates: [RediscoveryCandidate], day: Int, round: Int = 0, excluding: Set<UUID> = []) -> [UUID] {
         var used = Set<UUID>()
-        var remaining = candidates.filter { !$0.isArchived && used.insert($0.id).inserted }
+        var remaining = candidates.filter { !$0.isArchived && !excluding.contains($0.id) && used.insert($0.id).inserted }
         remaining.sort {
             let left = rank($0.id, day: day, round: round)
             let right = rank($1.id, day: day, round: round)

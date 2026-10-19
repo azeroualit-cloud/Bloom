@@ -21,14 +21,16 @@ final class ContentImportController {
     var importingName: String?
     var message: String?
     var completionID = UUID()
+    var savedID: UUID?
+    private var collectionID: UUID?
     var error: String?
     var canRetry: Bool { pending != nil }
     private var pending: AttachmentPayload?
     private var task: Task<Void, Never>?
     private var requestID = UUID()
 
-    func importFile(_ url: URL, into context: ModelContext) {
-        load(name: url.lastPathComponent, into: context) {
+    func importFile(_ url: URL, collectionID: UUID? = nil, into context: ModelContext) {
+        load(name: url.lastPathComponent, collectionID: collectionID, into: context) {
             try await Task.detached(priority: .userInitiated) {
                 let access = url.startAccessingSecurityScopedResource()
                 defer { if access { url.stopAccessingSecurityScopedResource() } }
@@ -37,8 +39,8 @@ final class ContentImportController {
         }
     }
 
-    func importPhoto(_ item: PhotosPickerItem, into context: ModelContext) {
-        load(name: "Foto", into: context) {
+    func importPhoto(_ item: PhotosPickerItem, collectionID: UUID? = nil, into context: ModelContext) {
+        load(name: "Foto", collectionID: collectionID, into: context) {
             guard let photo = try await item.loadTransferable(type: ImportedPhoto.self) else {
                 throw ImportError.missingData
             }
@@ -57,18 +59,21 @@ final class ContentImportController {
     func retry(into context: ModelContext) {
         guard let pending else { return }
         do {
-            let inserted = try LinkStore.captureAttachment(pending, into: context)
-            message = inserted ? "Contenuto importato" : "Contenuto già presente. Controlla anche Archivio."
+            let receipt = try LinkStore.captureAttachmentItem(pending, collectionID: collectionID, into: context)
+            savedID = receipt.id
+            message = receipt.inserted ? "Contenuto importato" : "Contenuto già presente. Controlla anche Archivio."
             self.pending = nil
             error = nil
             completionID = UUID()
         } catch { self.error = error.localizedDescription }
     }
 
-    private func load(name: String, into context: ModelContext,
+    private func load(name: String, collectionID: UUID?, into context: ModelContext,
                       operation: @escaping @Sendable () async throws -> AttachmentPayload) {
         cancel()
         let id = requestID
+        self.collectionID = collectionID
+        savedID = nil
         error = nil
         message = nil
         isImporting = true

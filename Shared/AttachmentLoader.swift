@@ -2,7 +2,7 @@ import Foundation
 import UniformTypeIdentifiers
 import CryptoKit
 
-enum ContentKind: String, Sendable {
+enum ContentKind: String, Sendable, CaseIterable {
     case link, text, image, file
     var label: String {
         switch self {

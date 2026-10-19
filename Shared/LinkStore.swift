@@ -13,56 +13,110 @@ enum LinkStore {
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 
-    /// Returns false for an exact URL already present. All entry points use this path.
     @discardableResult
     static func capture(_ url: URL, into context: ModelContext) throws -> Bool {
-        let valid = try LinkValidation.validate(url)
-        let value = valid.absoluteString
+        try captureLink(url, into: context).inserted
+    }
+
+    static func captureLink(_ url: URL, title: String = "", collectionID: UUID? = nil,
+                            into context: ModelContext) throws -> CaptureReceipt {
+        let value = try LinkValidation.validate(url).absoluteString
         let request = FetchDescriptor<CapturedLink>(predicate: #Predicate { $0.urlString == value })
-        guard try context.fetch(request).isEmpty else { return false }
-        context.insert(CapturedLink(url: valid))
-        do { try context.save() }
-        catch { context.rollback(); throw error }
-        return true
+        if let existing = try context.fetch(request).first { return CaptureReceipt(id: existing.id, inserted: false) }
+        let collection = try resolveCollection(collectionID, in: context)
+        let item = CapturedLink(url: url)
+        item.title = title.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        item.collection = collection
+        context.insert(item)
+        try save(context)
+        return CaptureReceipt(id: item.id, inserted: true)
     }
 
     @discardableResult
     static func captureText(_ text: String, title: String, into context: ModelContext) throws -> Bool {
+        try captureTextItem(text, title: title, into: context).inserted
+    }
+
+    static func captureTextItem(_ text: String, title: String, collectionID: UUID? = nil,
+                                into context: ModelContext) throws -> CaptureReceipt {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ImportError.emptyText }
         let data = Data(text.utf8)
         guard data.count <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
         let key = ContentFingerprint.make(data, kind: .text)
-        if try containsFingerprint(key, in: context) { return false }
+        if let existing = try fingerprintItem(key, in: context) { return CaptureReceipt(id: existing.id, inserted: false) }
+        let collection = try resolveCollection(collectionID, in: context)
         let item = CapturedLink(kind: .text)
         item.textContent = text
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         item.title = cleanTitle.isEmpty ? String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80)) : cleanTitle
+        item.collection = collection
         item.contentFingerprint = key
         context.insert(item)
         try save(context)
-        return true
+        return CaptureReceipt(id: item.id, inserted: true)
     }
 
     @discardableResult
     static func captureAttachment(_ payload: AttachmentPayload, into context: ModelContext) throws -> Bool {
+        try captureAttachmentItem(payload, into: context).inserted
+    }
+
+    static func captureAttachmentItem(_ payload: AttachmentPayload, collectionID: UUID? = nil,
+                                      into context: ModelContext) throws -> CaptureReceipt {
         guard payload.data.count <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
         guard payload.kind == .image || payload.kind == .file else { throw ImportError.invalidFile }
         let key = payload.fingerprint
-        if try containsFingerprint(key, in: context) { return false }
+        if let existing = try fingerprintItem(key, in: context) { return CaptureReceipt(id: existing.id, inserted: false) }
+        let collection = try resolveCollection(collectionID, in: context)
         let item = CapturedLink(kind: payload.kind)
         item.fileName = payload.name
         item.contentType = payload.type
         item.attachmentData = payload.data
         item.attachmentByteCount = payload.data.count
         item.contentFingerprint = key
+        item.collection = collection
         context.insert(item)
         try save(context)
-        return true
+        return CaptureReceipt(id: item.id, inserted: true)
     }
 
-    private static func containsFingerprint(_ key: String, in context: ModelContext) throws -> Bool {
-        let request = FetchDescriptor<CapturedLink>(predicate: #Predicate { $0.contentFingerprint == key })
-        return try !context.fetch(request).isEmpty
+    private static func fingerprintItem(_ key: String, in context: ModelContext) throws -> CapturedLink? {
+        try context.fetch(FetchDescriptor<CapturedLink>(predicate: #Predicate { $0.contentFingerprint == key })).first
+    }
+
+    static func resolveCollection(_ id: UUID?, in context: ModelContext) throws -> LinkCollection? {
+        guard let id else { return nil }
+        guard let collection = try context.fetch(FetchDescriptor<LinkCollection>(predicate: #Predicate { $0.id == id })).first else {
+            throw LibraryError.collectionMissing
+        }
+        return collection
+    }
+
+    enum BulkChange { case archived(Bool), collection(UUID?) }
+
+    static func apply(_ change: BulkChange, to ids: Set<UUID>, in context: ModelContext) throws -> Int {
+        let items = try context.fetch(FetchDescriptor<CapturedLink>()).filter { ids.contains($0.id) }
+        guard items.count == ids.count else { throw LibraryError.selectionMissing }
+        var collection: LinkCollection?
+        if case .collection(let id) = change { collection = try resolveCollection(id, in: context) }
+        for item in items {
+            switch change {
+            case .archived(let value): item.isArchived = value
+            case .collection: item.collection = collection
+            }
+        }
+        try save(context)
+        return items.count
+    }
+
+    @discardableResult
+    static func fillMissingTitle(_ title: String, for item: CapturedLink, in context: ModelContext) throws -> Bool {
+        let clean = String(title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500))
+        guard item.kind == .link, item.title?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false,
+              !clean.isEmpty else { return false }
+        item.title = clean
+        try save(context)
+        return true
     }
 
     static func update(_ link: CapturedLink, title: String, notes: String,
@@ -116,6 +170,15 @@ enum LocalLibrary {
 
     static func open() throws -> ModelContainer {
         if let cached { return cached }
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-in-memory") {
+            let schema = Schema([CapturedLink.self, LinkCollection.self])
+            let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+            let container = try ModelContainer(for: schema, configurations: [config])
+            cached = container
+            return container
+        }
+        #endif
         let root = try FileManager.default.url(for: .applicationSupportDirectory,
                                               in: .userDomainMask, appropriateFor: nil, create: true)
             .appendingPathComponent("Bloom", isDirectory: true)
@@ -127,4 +190,9 @@ enum LocalLibrary {
 
 private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
+struct CaptureReceipt {
+    let id: UUID
+    let inserted: Bool
 }

@@ -4,8 +4,11 @@ import SwiftData
 struct AddLinkView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
-    let onSaved: (Bool) -> Void
+    let onSaved: (CaptureReceipt, Bool) -> Void
     @State private var value = ""
+    @State private var title = ""
+    @State private var collectionID: UUID?
+    @State private var openAfterSave = true
     @State private var error: String?
 
     var body: some View {
@@ -21,6 +24,9 @@ struct AddLinkView: View {
                         if let first = values.first { value = first }
                     }
                 }
+                Section("Titolo") { TextField("Titolo facoltativo", text: $title) }
+                CaptureCollectionSection(selection: $collectionID)
+                Toggle("Apri dopo il salvataggio", isOn: $openAfterSave)
                 if let error {
                     Section { Text(error).foregroundStyle(.red) }
                 }
@@ -47,8 +53,8 @@ struct AddLinkView: View {
             guard let url = URL(string: value.trimmingCharacters(in: .whitespacesAndNewlines)) else {
                 throw CaptureError.invalidURL
             }
-            let inserted = try LinkStore.capture(url, into: context)
-            onSaved(inserted)
+            let result = try LinkStore.captureLink(url, title: title, collectionID: collectionID, into: context)
+            onSaved(result, openAfterSave)
             dismiss()
         } catch { self.error = error.localizedDescription }
     }

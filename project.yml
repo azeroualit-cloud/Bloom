@@ -27,10 +27,20 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: Bloom
+  BloomUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Bloom
+    dependencies:
+      - target: Bloom
 schemes:
   Bloom:
     build:
       targets:
         Bloom: all
     test:
-      targets: [BloomTests]
+      targets: [BloomTests, BloomUITests]

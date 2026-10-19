@@ -9,6 +9,17 @@ struct LibraryView: View {
     @Query(sort: \CapturedLink.capturedAt, order: .reverse) private var links: [CapturedLink]
     @Query(sort: \LinkCollection.name) private var collections: [LinkCollection]
     @State private var search = ""
+    @State private var kindFilter: ContentKind?
+    @State private var selecting = false
+    @State private var selection = Set<UUID>()
+    @State private var titles = LinkTitleController()
+    @State private var importKind: ContentKind?
+    @State private var showingImportOptions = false
+    @State private var importCollectionID: UUID?
+    @State private var continueImport = false
+    @State private var savedID: UUID?
+    @State private var pendingOpenID: UUID?
+    @State private var openedItem: CapturedLink?
     @State private var archived = false
     @State private var collectionFilter: CollectionFilter = .all
     @State private var showingAdd = false
@@ -24,12 +35,12 @@ struct LibraryView: View {
     @State private var error: String?
 
     private var visibleLinks: [CapturedLink] {
-        links.filter { LibraryFilter.matches($0, search: search, archived: archived, collection: collectionFilter) }
+        links.filter { LibraryFilter.matches($0, search: search, archived: archived, collection: collectionFilter, kind: kindFilter) }
     }
 
     var body: some View {
         NavigationStack {
-            List {
+            List(selection: $selection) {
                 Section {
                     Picker("Stato contenuti", selection: $archived) {
                         Text("Libreria").tag(false)
@@ -38,7 +49,11 @@ struct LibraryView: View {
                     if collectionFilter != .all {
                         LabeledContent("Raccolta", value: selectedCollectionName)
                     }
+                    if let kindFilter { LabeledContent("Formato", value: kindFilter.label) }
+                    Text("\(visibleLinks.count) contenuti").font(.caption).foregroundStyle(.secondary)
                     if let notice { Text(notice).foregroundStyle(.secondary) }
+                    if let savedID { Button("Apri contenuto salvato") { open(savedID) } }
+                    if let message = titles.message { Text(message).font(.subheadline).foregroundStyle(.secondary) }
                     if let importError = importer.error {
                         Label(importError, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
                         if importer.canRetry { Button("Riprova importazione") { importer.retry(into: context) } }
@@ -51,6 +66,13 @@ struct LibraryView: View {
                 }
                 ForEach(visibleLinks) { link in
                     NavigationLink { ContentViewer(item: link) } label: { LibraryRow(link: link) }
+                        .tag(link.id)
+                        .contextMenu {
+                            if link.kind == .link && link.title == nil {
+                                Button("Recupera titolo dal sito") { titles.start([link], in: context) }
+                                    .disabled(titles.isLoading)
+                            }
+                        }
                         .swipeActions(allowsFullSwipe: false) {
                             Button(archived ? "Ripristina" : "Archivia", systemImage: "archivebox") {
                                 do {
@@ -61,42 +83,48 @@ struct LibraryView: View {
                         }
                 }
             }
+            .environment(\.editMode, .constant(selecting ? .active : .inactive))
             .navigationTitle("Bloom")
+            .navigationDestination(item: $openedItem) { ContentViewer(item: $0) }
             .searchable(text: $search, prompt: "Cerca nei contenuti")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
-                        Picker("Filtra raccolta", selection: $collectionFilter) {
-                            Text("Tutte").tag(CollectionFilter.all)
-                            Text("Senza raccolta").tag(CollectionFilter.unfiled)
-                            ForEach(collections) { Text($0.name).tag(CollectionFilter.collection($0.id)) }
-                        }
+                        ContentFilterOptions(collection: $collectionFilter, kind: $kindFilter)
                         Divider()
                         Button("Gestisci raccolte", systemImage: "folder") { showingCollections = true }
                         Button("Backup locale", systemImage: "externaldrive") { showingBackup = true }
                         Button("Come salvare dai social", systemImage: "square.and.arrow.up") { showingGuide = true }
                     } label: { Label("Raccolte e guida", systemImage: "folder") }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(selecting ? "Fine" : "Seleziona") { selecting.toggle(); selection.removeAll() }.accessibilityIdentifier("library-select")
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button("Link", systemImage: "link") { showingAdd = true }
-                        Button("Testo", systemImage: "text.alignleft") { showingText = true }
-                        Button("Foto", systemImage: "photo") { showingPhotos = true }
-                        Button("File (max 25 MB)", systemImage: "doc") { showingFiles = true }
+                        Button("Testo", systemImage: "text.alignleft") { showingText = true }.accessibilityIdentifier("capture-text")
+                        Button("Foto", systemImage: "photo") { importKind = .image; showingImportOptions = true }
+                        Button("File (max 25 MB)", systemImage: "doc") { importKind = .file; showingImportOptions = true }
                     } label: { Label("Aggiungi contenuto", systemImage: "plus") }
-                        .disabled(importer.isImporting)
+                        .accessibilityIdentifier("capture-add")
+                        .disabled(importer.isImporting || selecting)
                 }
             }
-            .sheet(isPresented: $showingAdd) {
-                AddLinkView { inserted in
-                    if inserted { archived = false; collectionFilter = .all; search = "" }
-                    notice = inserted ? "Link salvato" : "Link già presente. Controlla anche Archivio."
-                }
+            .sheet(isPresented: $showingAdd, onDismiss: openPending) {
+                AddLinkView { receipt, openAfterSave in captured(receipt, openAfterSave: openAfterSave) }
             }
-            .sheet(isPresented: $showingText) {
-                AddTextView { inserted in
-                    if inserted { archived = false; collectionFilter = .all; search = "" }
-                    notice = inserted ? "Testo salvato" : "Testo già presente. Controlla anche Archivio."
+            .sheet(isPresented: $showingText, onDismiss: openPending) {
+                AddTextView { receipt, openAfterSave in captured(receipt, openAfterSave: openAfterSave) }
+            }
+            .sheet(isPresented: $showingImportOptions, onDismiss: {
+                guard continueImport else { return }
+                continueImport = false
+                if importKind == .image { showingPhotos = true } else { showingFiles = true }
+            }) {
+                ImportOptionsView(kind: importKind ?? .file) { id in
+                    importCollectionID = id
+                    continueImport = true
                 }
             }
             .sheet(isPresented: $showingFiles) {
@@ -104,27 +132,34 @@ struct LibraryView: View {
                     showingFiles = false
                     switch result {
                     case .success(let url):
-                        if let url { importer.importFile(url, into: context) }
+                        if let url { importer.importFile(url, collectionID: importCollectionID, into: context) }
                     case .failure(let failure): importer.error = failure.localizedDescription
                     }
                 }
             }
             .photosPicker(isPresented: $showingPhotos, selection: $selectedPhoto, matching: .images)
             .onChange(of: selectedPhoto) { _, item in
-                if let item { importer.importPhoto(item, into: context); selectedPhoto = nil }
+                if let item { importer.importPhoto(item, collectionID: importCollectionID, into: context); selectedPhoto = nil }
             }
             .onChange(of: importer.completionID) { _, _ in
-                if let message = importer.message { notice = message; archived = false; collectionFilter = .all; search = "" }
+                if let message = importer.message { notice = message; savedID = importer.savedID; resetFilters() }
             }
             .safeAreaInset(edge: .bottom) {
-                if importer.isImporting {
-                    HStack {
-                        ProgressView("Importazione: \(importer.importingName ?? "contenuto")")
-                        Spacer()
-                        Button("Annulla") { importer.cancel() }
-                    }.padding().background(.regularMaterial)
-                }
+                VStack(spacing: 8) {
+                    if selecting { selectionActions }
+                    if titles.isLoading {
+                        HStack { ProgressView("Recupero titoli…"); Spacer(); Button("Annulla") { titles.cancel() } }.padding()
+                    }
+                    if importer.isImporting {
+                        HStack {
+                            ProgressView("Importazione: \(importer.importingName ?? "contenuto")")
+                            Spacer()
+                            Button("Annulla") { importer.cancel() }
+                        }.padding()
+                    }
+                }.background(.regularMaterial)
             }
+            .onChange(of: visibleLinks.map(\.id)) { _, ids in selection.formIntersection(Set(ids)) }
             .sheet(isPresented: $showingGuide) { CaptureGuideView() }
             .sheet(isPresented: $showingCollections) { CollectionsView() }
             .sheet(isPresented: $showingBackup) { BackupView() }
@@ -138,6 +173,65 @@ struct LibraryView: View {
         }
     }
 
+    private func resetFilters() { archived = false; collectionFilter = .all; kindFilter = nil; search = "" }
+
+    private func captured(_ receipt: CaptureReceipt, openAfterSave: Bool) {
+        if receipt.inserted { resetFilters() }
+        savedID = receipt.id
+        notice = receipt.inserted ? "Contenuto salvato" : "Contenuto già presente: metadati conservati."
+        if openAfterSave { pendingOpenID = receipt.id }
+    }
+
+    private func openPending() {
+        if let id = pendingOpenID { pendingOpenID = nil; open(id) }
+    }
+
+    private func open(_ id: UUID) {
+        do {
+            guard let item = try context.fetch(FetchDescriptor<CapturedLink>(predicate: #Predicate { $0.id == id })).first else {
+                throw LibraryError.selectionMissing
+            }
+            openedItem = item
+        } catch { self.error = error.localizedDescription }
+    }
+
+    private var selectionActions: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("\(selection.count) selezionati").font(.subheadline)
+                Spacer()
+                Button("Seleziona visibili") { selection = Set(visibleLinks.map(\.id)) }
+            }
+            ViewThatFits(in: .horizontal) {
+                HStack { bulkCollectionMenu; archiveSelection; titleSelection }
+                VStack(alignment: .leading) { bulkCollectionMenu; archiveSelection; titleSelection }
+            }
+        }.padding()
+    }
+
+    private var bulkCollectionMenu: some View {
+        Menu {
+            Button("Senza raccolta") { bulk(.collection(nil)) }
+            ForEach(collections) { collection in Button(collection.name) { bulk(.collection(collection.id)) } }
+        } label: { Label("Raccolta", systemImage: "folder") }.disabled(selection.isEmpty)
+    }
+    private var archiveSelection: some View {
+        Button(archived ? "Ripristina" : "Archivia", systemImage: "archivebox") { bulk(.archived(!archived)) }
+            .disabled(selection.isEmpty)
+    }
+    private var titleSelection: some View {
+        Button("Titoli (max 10)", systemImage: "text.magnifyingglass") {
+            titles.start(links.filter { selection.contains($0.id) }, in: context)
+        }.disabled(selection.isEmpty || titles.isLoading)
+    }
+    private func bulk(_ change: LinkStore.BulkChange) {
+        do {
+            let count = try LinkStore.apply(change, to: selection, in: context)
+            notice = "Aggiornati \(count) contenuti."
+            selection.removeAll()
+        } catch { self.error = error.localizedDescription }
+    }
+
     private var selectedCollectionName: String {
         switch collectionFilter {
         case .all: return "Tutte"
@@ -146,11 +240,11 @@ struct LibraryView: View {
         }
     }
     private var emptyTitle: String {
-        if !search.isEmpty || collectionFilter != .all { return "Nessun risultato" }
+        if !search.isEmpty || collectionFilter != .all || kindFilter != nil { return "Nessun risultato" }
         return archived ? "Archivio vuoto" : "Nessun contenuto in libreria"
     }
     private var emptyDescription: String {
-        if !search.isEmpty || collectionFilter != .all { return "Prova un’altra ricerca o cambia raccolta." }
+        if !search.isEmpty || collectionFilter != .all || kindFilter != nil { return "Prova un’altra ricerca o cambia raccolta." }
         return archived ? "I contenuti archiviati restano qui e puoi ripristinarli."
             : "Aggiungi link, testi, foto o file con +."
     }
@@ -161,15 +255,18 @@ private struct LibraryRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(link.displayTitle, systemImage: link.kind.symbol).font(.headline).lineLimit(2)
+            if link.kind == .image {
+                AttachmentThumbnail(item: link, maximumPixelSize: 384).frame(maxHeight: 140)
+            }
             if link.kind == .link {
                 Text(link.urlString).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
             } else if link.kind == .text {
-                Text(link.textContent ?? "").font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                Text(String((link.textContent ?? "").prefix(250))).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
             } else if let count = link.attachmentByteCount {
                 Text(ByteCountFormatter.string(fromByteCount: Int64(count), countStyle: .file))
                     .font(.caption).foregroundStyle(.secondary)
             }
-            if let notes = link.notes { Text(notes).font(.subheadline).lineLimit(2) }
+            if let notes = link.notes { Text(String(notes.prefix(250))).font(.subheadline).lineLimit(2) }
             if let collection = link.collection { Label(collection.name, systemImage: "folder").font(.caption) }
             Text(link.capturedAt, style: .date).font(.caption).foregroundStyle(.secondary)
         }.padding(.vertical, 4)

@@ -18,6 +18,19 @@ final class RediscoveryTests: XCTestCase {
         XCTAssertNotEqual(first, RediscoveryPlanner.select(items, day: 100, round: 1))
     }
 
+    func testRoundsExhaustLibraryWithoutRepeatsAndResetIsPossible() {
+        let items = (1...65).map { candidate($0) }
+        var history = Set<UUID>()
+        for expected in [30, 30, 5] {
+            let round = RediscoveryPlanner.select(items, day: 100, excluding: history)
+            XCTAssertEqual(round.count, expected)
+            XCTAssertTrue(history.isDisjoint(with: round))
+            history.formUnion(round)
+        }
+        XCTAssertTrue(RediscoveryPlanner.select(items, day: 100, excluding: history).isEmpty)
+        XCTAssertEqual(RediscoveryPlanner.select(items, day: 100).count, 30)
+    }
+
     func testEmptyArchivedAndDuplicateInputs() {
         XCTAssertTrue(RediscoveryPlanner.select([], day: 100).isEmpty)
         XCTAssertTrue(RediscoveryPlanner.select([candidate(1, archived: true)], day: 100).isEmpty)

@@ -5,6 +5,7 @@ struct LinkDetailView: View {
     @Environment(\.modelContext) private var context
     let link: CapturedLink
     @State private var editing = false
+    @State private var titles = LinkTitleController()
     @State private var error: String?
 
     var body: some View {
@@ -12,6 +13,11 @@ struct LinkDetailView: View {
             if link.kind == .link {
                 Section("Indirizzo salvato") {
                     Text(link.urlString).textSelection(.enabled)
+                    if link.title == nil {
+                        Button("Recupera titolo dal sito") { titles.start([link], in: context) }.disabled(titles.isLoading)
+                    }
+                    if titles.isLoading { ProgressView("Recupero titolo…"); Button("Annulla") { titles.cancel() } }
+                    if let message = titles.message { Text(message).font(.subheadline).foregroundStyle(.secondary) }
                     if let url = URL(string: link.urlString) { Link("Apri nel browser", destination: url) }
                 }
             } else if link.kind == .text {
@@ -30,6 +36,7 @@ struct LinkDetailView: View {
                 }
             }
         }
+        .onDisappear { titles.cancel() }
         .navigationTitle(link.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { Button("Modifica") { editing = true } }

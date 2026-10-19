@@ -84,7 +84,7 @@ struct CollectionNameEditor: View {
                             onSaved(saved)
                             dismiss()
                         } catch { self.error = error.localizedDescription }
-                    }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }.accessibilityIdentifier("collection-save").disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
             .onChange(of: name) { _, _ in error = nil }

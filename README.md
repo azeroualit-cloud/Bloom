@@ -175,3 +175,13 @@ Reimportazione senza duplicati per ID, URL esatto o impronta dei contenuti.
 Include Archivio, raccolte, titoli e note; esclude cookie e dati del browser.
 File non cifrato, salvato nella destinazione scelta in File. Nessun backend.
 Limiti e comportamento: [Backup locale](docs/backup.md).
+
+## Build 10 — release per l’uso quotidiano
+
+Cattura link/testi con raccolta e apertura dopo il salvataggio; destinazione
+raccolta anche per foto/file. Anteprime foto nella Library, filtri per formato
+e raccolta condivisi con Riscopri, selezione multipla per spostare/archiviare/
+ripristinare. Titoli web recuperabili su richiesta (senza sovrascrivere quelli
+personali), anche in gruppo fino a 10 link. Riscopri esclude i contenuti già
+proposti nei giri della sessione, con Ricomincia a esaurimento.
+Schema e backup invariati. [Flusso completo e verifiche](docs/daily-use.md).

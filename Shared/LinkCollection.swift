@@ -20,11 +20,13 @@ enum LibraryError: LocalizedError {
     case emptyCollectionName
     case duplicateCollection
     case collectionMissing
+    case selectionMissing
 
     var errorDescription: String? {
         switch self {
         case .emptyCollectionName: return "Inserisci un nome per la raccolta."
         case .duplicateCollection: return "Esiste già una raccolta con questo nome."
+        case .selectionMissing: return "La selezione è cambiata. Seleziona nuovamente i contenuti."
         case .collectionMissing: return "La raccolta selezionata non è più disponibile. Scegline un’altra."
         }
     }
@@ -38,7 +40,8 @@ enum CollectionFilter: Hashable {
 
 enum LibraryFilter {
     static func matches(_ link: CapturedLink, search: String,
-                        archived: Bool, collection: CollectionFilter) -> Bool {
+                        archived: Bool, collection: CollectionFilter, kind: ContentKind? = nil) -> Bool {
+        if let kind, link.kind != kind { return false }
         guard link.isArchived == archived else { return false }
         switch collection {
         case .all: break
