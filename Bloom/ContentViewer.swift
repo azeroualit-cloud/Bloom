@@ -4,6 +4,11 @@ import UIKit
 
 struct ContentViewer: View {
     let item: CapturedLink
+    var body: some View { NoteDetailView(item: item) }
+}
+
+struct PrimaryContentView: View {
+    let item: CapturedLink
     var body: some View {
         if item.kind == .link, let url = URL(string: item.urlString), BrowserPolicy.isWebURL(url) {
             WebContentView(item: item, url: url)
@@ -19,7 +24,7 @@ struct ContentViewer: View {
 }
 
 @MainActor
-private struct WebContentView: View {
+struct WebContentView: View {
     let item: CapturedLink
     let url: URL
     @State private var browser: BrowserSession?
@@ -42,15 +47,12 @@ private struct BrowserScreen: View {
     @State private var showingDetails = false
     @State private var confirmClear = false
     @State private var externalError = false
-    @State private var preview = LinkPreviewController()
 
     var body: some View {
         VStack(spacing: 0) {
             Text(browser.currentURL.absoluteString)
                 .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 .textSelection(.enabled).padding(.horizontal).padding(.vertical, 8)
-            SocialPreviewCard(item: item, isLoading: preview.isLoading, message: preview.message)
-                .padding(.horizontal).padding(.bottom, item.previewImageData == nil && !preview.isLoading && preview.message == nil ? 0 : 8)
             if browser.isLoading { ProgressView(value: browser.progress).accessibilityLabel("Caricamento pagina") }
             if browser.clearingData { ProgressView("Cancellazione dati di navigazione…").padding() }
             if let error = browser.error {
@@ -110,7 +112,6 @@ private struct BrowserScreen: View {
         .alert("Apertura esterna non riuscita", isPresented: $externalError) {
             Button("OK", role: .cancel) { }
         } message: { Text("Puoi copiare o condividere l’indirizzo della pagina dalla barra del browser.") }
-        .task(id: item.id) { preview.prepare(for: item, in: context) }
     }
 
     private func openExternal() {

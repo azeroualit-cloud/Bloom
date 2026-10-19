@@ -5,6 +5,7 @@ struct CollectionsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Query(sort: \LinkCollection.name) private var collections: [LinkCollection]
+    @Query private var items: [CapturedLink]
     @State private var creating = false
     @State private var editing: LinkCollection?
     @State private var deleting: LinkCollection?
@@ -14,37 +15,37 @@ struct CollectionsView: View {
         NavigationStack {
             List {
                 if collections.isEmpty {
-                    ContentUnavailableView("Nessuna raccolta", systemImage: "folder",
-                        description: Text("Crea una raccolta per organizzare i tuoi contenuti."))
+                    ContentUnavailableView("Nessun tag", systemImage: "tag",
+                        description: Text("Crea un tag per organizzare le tue note."))
                 }
                 ForEach(collections) { collection in
                     Button { editing = collection } label: {
-                        LabeledContent(collection.name, value: "\(collection.links.count)")
+                        LabeledContent(collection.name, value: "\(items.filter { $0.tagIDs.contains(collection.id) }.count)")
                     }
                     .swipeActions(allowsFullSwipe: false) {
                         Button("Elimina", role: .destructive) { deleting = collection }
                     }
                 }
             }
-            .navigationTitle("Raccolte")
+            .navigationTitle("Tag")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Fine") { dismiss() } }
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Nuova raccolta", systemImage: "plus") { creating = true }
+                    Button("Nuovo tag", systemImage: "plus") { creating = true }
                 }
             }
             .sheet(isPresented: $creating) { CollectionNameEditor(collection: nil) }
             .sheet(item: $editing) { CollectionNameEditor(collection: $0) }
-            .confirmationDialog("Eliminare la raccolta?", isPresented: Binding(
+            .confirmationDialog("Eliminare il tag?", isPresented: Binding(
                 get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
-                Button("Elimina raccolta", role: .destructive) {
+                Button("Elimina tag", role: .destructive) {
                     guard let collection = deleting else { return }
                     do { try LinkStore.deleteCollection(collection, in: context) }
                     catch { self.error = error.localizedDescription }
                     deleting = nil
                 }
                 Button("Annulla", role: .cancel) { deleting = nil }
-            } message: { Text("I contenuti restano nella libreria, senza raccolta.") }
+            } message: { Text("Le note restano nella libreria e conservano gli altri tag.") }
             .alert("Operazione non riuscita", isPresented: Binding(
                 get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("OK", role: .cancel) { }
@@ -70,17 +71,18 @@ struct CollectionNameEditor: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Nome raccolta", text: $name).autocorrectionDisabled().accessibilityIdentifier("collection-name")
+                TextField("Tag · una parola", text: $name).autocorrectionDisabled().accessibilityIdentifier("collection-name")
                 if let error { Text(error).foregroundStyle(.red) }
             }
-            .navigationTitle(collection == nil ? "Nuova raccolta" : "Rinomina raccolta")
+            .navigationTitle(collection == nil ? "Nuovo tag" : "Rinomina tag")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salva") {
                         do {
-                            let saved = try LinkStore.saveCollection(collection, name: name, in: context)
+                            let clean = try NoteTags.validate(name)
+                            let saved = try LinkStore.saveCollection(collection, name: clean, in: context)
                             onSaved(saved)
                             dismiss()
                         } catch { self.error = error.localizedDescription }

@@ -7,7 +7,7 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["Dettagli"].tap()
         let collection = app.descendants(matching: .any)["detail-collection"].firstMatch
         XCTAssertTrue(collection.waitForExistence(timeout: 5), diagnostics(app))
-        XCTAssertEqual(collection.value as? String, "Projects", diagnostics(app))
+        XCTAssertEqual(collection.value as? String, "Salute · Studio", diagnostics(app))
     }
 
     @MainActor
@@ -63,17 +63,16 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertFalse(enteredTitle.isEmpty)
         if withCollection {
             app.swipeUp()
-            app.buttons["Crea raccolta"].tap()
-            let collection = app.textFields["collection-name"]
-            XCTAssertTrue(collection.waitForExistence(timeout: 10), diagnostics(app))
-            collection.tap()
-            collection.typeText("Projects")
-            app.buttons["collection-save"].tap()
+            let salute = app.buttons["tag-Salute"]
+            if !salute.isHittable { app.swipeUp() }
+            XCTAssertTrue(salute.waitForExistence(timeout: 5), diagnostics(app))
+            salute.tap()
+            app.buttons["tag-Studio"].tap()
         }
         XCTAssertTrue(app.buttons["capture-save"].waitForExistence(timeout: 5))
         app.buttons["capture-save"].tap()
         XCTAssertTrue(app.buttons["library-open-saved"].waitForExistence(timeout: 5), diagnostics(app))
-        app.buttons["Annulla"].tap()
+        app.navigationBars["Nuova nota"].buttons["Fine"].tap()
         XCTAssertTrue(app.buttons["library-open-saved"].waitForExistence(timeout: 5), diagnostics(app))
         app.buttons["library-open-saved"].tap()
         XCTAssertTrue(app.navigationBars[enteredTitle].waitForExistence(timeout: 10), diagnostics(app))

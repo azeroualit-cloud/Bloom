@@ -8,23 +8,30 @@ import Observation
 @MainActor
 @Observable
 final class LinkPreviewController {
+    static let shared = LinkPreviewController()
     var isLoading = false
     var message: String?
+    private var queued = Set<UUID>()
+    private var tail: Task<Void, Never>?
 
     func prepare(for link: CapturedLink, in context: ModelContext) {
-        guard link.kind == .link, link.previewImageData == nil,
-              let url = URL(string: link.urlString), !isLoading else { return }
-        isLoading = true
-        message = nil
-        Task {
-            defer { isLoading = false }
+        guard link.previewImageData == nil, let url = link.allLinks.first,
+              !queued.contains(link.id),
+              link.previewAttemptedAt.map({ Date().timeIntervalSince($0) >= 86_400 }) ?? true else { return }
+        queued.insert(link.id)
+        let previous = tail
+        tail = Task {
+            await previous?.value
+            isLoading = true
+            defer { isLoading = false; queued.remove(link.id) }
             do {
+                link.previewAttemptedAt = .now
+                try context.save()
                 let provider = LPMetadataProvider()
                 provider.timeout = 12
                 provider.shouldFetchSubresources = true
                 let metadata = try await provider.startFetchingMetadata(for: url)
                 guard let imageProvider = metadata.imageProvider else {
-                    message = "Il sito non ha fornito un’anteprima visiva."
                     return
                 }
                 let image = try await loadImage(from: imageProvider)
@@ -32,6 +39,7 @@ final class LinkPreviewController {
                     message = "L’anteprima del sito non è utilizzabile."
                     return
                 }
+                guard link.allLinks.first == url else { return }
                 try LinkStore.storePreview(data, sourceURL: url, for: link, in: context)
             } catch is CancellationError { }
             catch { message = "Anteprima non disponibile. Puoi continuare nel browser." }
@@ -61,6 +69,7 @@ struct CachedPreviewImage: View {
     let label: String
     let maxPixel: Int
     @State private var image: UIImage?
+    @State private var decodingFinished = false
 
     init(data: Data?, label: String, maxPixel: Int = 2048) {
         self.data = data
@@ -71,10 +80,15 @@ struct CachedPreviewImage: View {
     var body: some View {
         Group {
             if let image { Image(uiImage: image).resizable().scaledToFit().accessibilityLabel(label) }
-            else if data != nil { ProgressView("Preparazione immagine…") }
+            else if data != nil && !decodingFinished { ProgressView("Preparazione immagine…") }
             else { ContentUnavailableView("Immagine non disponibile", systemImage: "photo") }
         }
-        .task(id: data) { image = await Self.decode(data, maximumPixel: maxPixel) }
+        .task(id: data) {
+            decodingFinished = false
+            let decoded = await Self.decode(data, maximumPixel: maxPixel)
+            guard !Task.isCancelled else { return }
+            image = decoded; decodingFinished = true
+        }
     }
 
     static func decode(_ data: Data?, maximumPixel: Int) async -> UIImage? {
@@ -95,12 +109,13 @@ struct ImageContentView: View {
     let item: CapturedLink
     @State private var showingDetails = false
     @State private var cleanEdges = true
+    @State private var framing = false
 
     var body: some View {
         GeometryReader { proxy in
             ZStack {
                 Color.black.ignoresSafeArea()
-                CachedPreviewImage(data: item.attachmentData, label: item.displayTitle, maxPixel: 4096)
+                FramedImage(data: item.attachmentData, framing: item.imageFraming, zoomable: true)
                     .padding(cleanEdges ? 12 : 0)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
@@ -109,6 +124,7 @@ struct ImageContentView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) { Button("Dettagli") { showingDetails = true } }
+            ToolbarItem(placement: .topBarTrailing) { Button("Inquadratura") { framing = true } }
             ToolbarItem(placement: .secondaryAction) {
                 Toggle(cleanEdges ? "Sfondo pulito" : "A pieno schermo", isOn: $cleanEdges)
             }
@@ -116,6 +132,7 @@ struct ImageContentView: View {
         .sheet(isPresented: $showingDetails) {
             NavigationStack { LinkDetailView(link: item).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fine") { showingDetails = false } } } }
         }
+        .sheet(isPresented: $framing) { ImageFramingEditor(item: item) }
     }
 }
 
@@ -160,9 +177,9 @@ struct TextContentView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 if showingSource {
-                    Text(originalText).font(.body.monospaced()).textSelection(.enabled)
+                    Text(currentText).font(.body.monospaced()).textSelection(.enabled)
                 } else {
-                    MarkdownText(text: originalText)
+                    MarkdownDocumentView(text: currentText)
                 }
             }.frame(maxWidth: 720, alignment: .leading).padding(20)
         }
@@ -181,11 +198,11 @@ struct TextContentView: View {
             else { Button("Dettagli") { showingDetails = true } }
         }
         ToolbarItem(placement: .secondaryAction) {
-            if editing { Button("Annulla") { editing = false; draft = originalText } }
+            if editing { Button("Annulla") { editing = false; draft = currentText } }
             else { Button(showingSource ? "Lettura" : "Sorgente") { showingSource.toggle() } }
         }
         ToolbarItem(placement: .secondaryAction) {
-            if !editing { Button("Modifica") { draft = originalText; editing = true } }
+            if !editing { Button("Modifica") { draft = currentText; editing = true } }
         }
     }
 
@@ -197,6 +214,13 @@ struct TextContentView: View {
             }
             editing = false
         } catch { self.error = error.localizedDescription }
+    }
+    private var currentText: String {
+        switch source {
+        case .capturedText: return item.textContent ?? ""
+        case .attachment:
+            return item.attachmentData.flatMap { DocumentText.decode($0, name: item.fileName ?? "contenuto", type: item.contentType) } ?? originalText
+        }
     }
 }
 

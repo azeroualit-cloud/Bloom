@@ -25,7 +25,8 @@ enum BackupStore {
             records.append(LibraryBackup.Item(id: item.id, kind: item.kind.rawValue, capturedAt: item.capturedAt,
                 urlString: item.urlString, title: item.title, notes: item.notes, archived: item.isArchived,
                 collectionID: item.collection?.id, text: item.textContent, fileName: item.fileName,
-                contentType: item.contentType, data: data))
+                contentType: item.contentType, data: data, tagIDs: Array(item.tagIDs),
+                noteLinks: item.noteLinks.map(\.absoluteString), noteFiles: item.noteFiles, imageFraming: item.imageFraming, noteVersion: item.noteVersion))
         }
         return LibraryBackup(collections: collections.map {
             .init(id: $0.id, name: $0.name, createdAt: $0.createdAt)
@@ -62,7 +63,7 @@ enum BackupStore {
             var fingerprints = Set(existing.compactMap(\.contentFingerprint))
             for record in backup.items {
                 let fingerprint = record.fingerprint
-                if ids.contains(record.id) || (record.kind == ContentKind.link.rawValue && urls.contains(record.urlString))
+                if ids.contains(record.id) || (record.noteVersion == nil && record.kind == ContentKind.link.rawValue && urls.contains(record.urlString))
                     || fingerprint.map({ fingerprints.contains($0) }) == true {
                     result.skipped += 1
                     continue
@@ -82,6 +83,11 @@ enum BackupStore {
                 item.attachmentData = record.data
                 item.attachmentByteCount = record.data?.count
                 item.contentFingerprint = fingerprint
+                if let tags = record.tagIDs { item.tagIDs = Set(tags.compactMap { mapping[$0]?.id }) }
+                item.noteLinksJSON = record.noteLinks.flatMap { try? JSONEncoder().encode($0) }.flatMap { String(data: $0, encoding: .utf8) }
+                item.noteFilesData = record.noteFiles.flatMap { try? JSONEncoder().encode($0) }
+                item.imageFramingData = record.imageFraming.flatMap { try? JSONEncoder().encode($0) }
+                item.noteVersion = record.noteVersion
                 context.insert(item)
                 ids.insert(item.id)
                 if kind == .link { urls.insert(record.urlString) }

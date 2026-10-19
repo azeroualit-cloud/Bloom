@@ -218,3 +218,12 @@ Aprendo un link Bloom prova una sola volta a preparare e conservare un’antepri
 visiva offerta dal sito. È usata anche per Pinterest, TikTok e Instagram quando
 il sito la espone; altrimenti resta il browser interno con player e il fallback
 esterno. Non esiste scraping, bypass di login o download forzato dei social.
+
+## Build 13 — note e tag manuali
+
+Libreria per argomenti, note con titolo/testo facoltativi e più allegati, undici
+tag iniziali e assegnazione multipla non obbligatoria. Le vecchie raccolte sono
+conservate come tag. Poster in homepage, apertura video nell’app con fallback
+WebKit; schermata della nota separata dal link. Zoom e inquadratura non distruttiva
+per le immagini principali. Backup v2 con importazione dei backup precedenti.
+[Flussi, compatibilità e limiti](docs/notes-library.md).

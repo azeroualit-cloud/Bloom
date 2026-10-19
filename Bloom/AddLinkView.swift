@@ -2,70 +2,8 @@ import SwiftUI
 import SwiftData
 
 struct AddLinkView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var context
-    @Query(sort: \LinkCollection.name) private var collections: [LinkCollection]
     let onSaved: (CaptureReceipt) -> Void
-    @State private var value = ""
-    @State private var title = ""
-    @State private var collectionID: UUID?
-    @State private var savedMessage: String?
-    @State private var error: String?
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Indirizzo web") {
-                    TextField("https://example.com", text: $value, axis: .vertical)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .accessibilityLabel("URL da salvare")
-                    PasteButton(payloadType: String.self) { values in
-                        if let first = values.first { value = first }
-                    }
-                }
-                Section("Titolo") { TextField("Titolo facoltativo", text: $title) }
-                CaptureCollectionSection(selection: $collectionID)
-                if let savedMessage { Section { Label(savedMessage, systemImage: "checkmark.circle.fill").foregroundStyle(.green) } }
-                if let error {
-                    Section { Text(error).foregroundStyle(.red) }
-                }
-                Section {
-                    Text("Il link viene salvato solo su questo dispositivo. La pagina web non viene scaricata per la lettura offline.")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .navigationTitle("Aggiungi link")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Salva", action: save)
-                        .disabled(value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
-            .onAppear {
-                if collectionID == nil, let saved = BloomPreferences.lastCaptureCollectionID,
-                   collections.contains(where: { $0.id == saved }) { collectionID = saved }
-            }
-            .onChange(of: value) { _, _ in error = nil; savedMessage = nil }
-        }
-    }
-
-    private func save() {
-        do {
-            guard let url = URL(string: value.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-                throw CaptureError.invalidURL
-            }
-            let result = try LinkStore.captureLink(url, title: title, collectionID: collectionID, into: context)
-            BloomPreferences.lastCaptureCollectionID = collectionID
-            onSaved(result)
-            savedMessage = result.inserted ? "Link salvato. Puoi aggiungerne un altro." : "Link già presente. Puoi aggiungerne un altro."
-            value = ""
-            title = ""
-        } catch { self.error = error.localizedDescription }
-    }
+    var body: some View { NoteComposer(startsWithLink: true, onSaved: onSaved) }
 }
 
 struct CaptureGuideView: View {

@@ -1,8 +1,81 @@
 import Foundation
 import SwiftData
+import UniformTypeIdentifiers
 
 @MainActor
 enum LinkStore {
+    static func setImageFraming(_ value: ImageFraming, for item: CapturedLink, in context: ModelContext) throws {
+        guard value.isValid else { throw ImportError.invalidFile }
+        item.imageFramingData = try JSONEncoder().encode(value)
+        try save(context)
+    }
+    static func initializeTags(in context: ModelContext) throws {
+        let existing = try context.fetch(FetchDescriptor<LinkCollection>())
+        for name in NoteTags.initial where !existing.contains(where: { $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }) {
+            context.insert(LinkCollection(name: name))
+        }
+        for item in try context.fetch(FetchDescriptor<CapturedLink>()) where item.tagIDsJSON == nil {
+            item.tagIDs = item.tagIDs
+        }
+        try save(context)
+    }
+
+    static func saveNote(existing: CapturedLink? = nil, title: String, body: String, urls: [URL],
+                         files: [NoteFile], tags: Set<UUID>, in context: ModelContext) throws -> CaptureReceipt {
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanTitle.isEmpty || !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !urls.isEmpty || !files.isEmpty || existing?.kind == .image || existing?.kind == .file else { throw NoteError.empty }
+        guard urls.count + files.count <= 10 else { throw NoteError.tooManyAttachments }
+        guard body.utf8.count + files.reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
+        let validated = try urls.map { try LinkValidation.validate($0) }
+        for tag in tags { _ = try resolveCollection(tag, in: context) }
+        let linksJSON = validated.isEmpty ? nil : String(data: try JSONEncoder().encode(validated.map(\.absoluteString)), encoding: .utf8)
+        let promoteFile = existing == nil && validated.isEmpty && !files.isEmpty
+        let storedFiles = promoteFile ? Array(files.dropFirst()) : files
+        let filesData = storedFiles.isEmpty ? nil : try JSONEncoder().encode(storedFiles)
+        if existing == nil, validated.count == 1, files.isEmpty, body.isEmpty {
+            let value = validated[0].absoluteString
+            if let duplicate = try context.fetch(FetchDescriptor<CapturedLink>(predicate: #Predicate { $0.urlString == value })).first {
+                return CaptureReceipt(id: duplicate.id, inserted: false)
+            }
+        }
+        let item = existing ?? CapturedLink(kind: validated.isEmpty ? .text : .link)
+        if existing == nil { context.insert(item) }
+        if promoteFile, let file = files.first {
+            item.contentKind = (UTType(file.type)?.conforms(to: .image) == true ? ContentKind.image : .file).rawValue
+            item.fileName = file.name; item.contentType = file.type; item.attachmentData = file.data
+            item.attachmentByteCount = file.data.count
+        }
+        let previousURL = item.allLinks.first
+        if item.kind == .link && validated.isEmpty {
+            item.contentKind = ContentKind.text.rawValue
+            item.urlString = ""
+        }
+        item.title = cleanTitle.nilIfEmpty
+        // Existing primary files/images retain their original bytes and kind.
+        if item.kind == .link {
+            item.urlString = validated.first?.absoluteString ?? item.urlString
+            item.noteLinksJSON = String(data: try JSONEncoder().encode(validated.dropFirst().map(\.absoluteString)), encoding: .utf8)
+            item.notes = body.nilIfEmpty
+        } else {
+            item.noteLinksJSON = linksJSON
+            if item.kind == .text { item.textContent = body; item.contentFingerprint = nil }
+            else { item.notes = body.nilIfEmpty }
+        }
+        item.noteFilesData = filesData
+        item.noteVersion = 1
+        item.tagIDs = tags
+        if previousURL != item.allLinks.first {
+            item.previewImageData = nil; item.previewSourceURL = nil; item.previewAttemptedAt = nil
+        }
+        try save(context)
+        return CaptureReceipt(id: item.id, inserted: existing == nil)
+    }
+
+    static func setTags(_ tags: Set<UUID>, for items: [CapturedLink], in context: ModelContext) throws {
+        for id in tags { _ = try resolveCollection(id, in: context) }
+        for item in items { item.tagIDs = tags }
+        try save(context)
+    }
     static func container(at directory: URL) throws -> ModelContainer {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let schema = Schema([CapturedLink.self, LinkCollection.self])
@@ -153,7 +226,6 @@ enum LinkStore {
     }
 
     static func storePreview(_ data: Data?, sourceURL: URL?, for link: CapturedLink, in context: ModelContext) throws {
-        guard link.kind == .link else { return }
         link.previewImageData = data
         link.previewSourceURL = sourceURL?.absoluteString
         try save(context)
@@ -183,6 +255,11 @@ enum LinkStore {
     }
 
     static func deleteCollection(_ collection: LinkCollection, in context: ModelContext) throws {
+        for item in try context.fetch(FetchDescriptor<CapturedLink>()) where item.tagIDs.contains(collection.id) {
+            var tags = item.tagIDs
+            tags.remove(collection.id)
+            item.tagIDs = tags
+        }
         // Explicitly detach links before deletion; never cascade into personal content.
         for link in collection.links { link.collection = nil }
         context.delete(collection)
@@ -207,6 +284,7 @@ enum LocalLibrary {
             let schema = Schema([CapturedLink.self, LinkCollection.self])
             let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
             let container = try ModelContainer(for: schema, configurations: [config])
+            try LinkStore.initializeTags(in: container.mainContext)
             cached = container
             return container
         }
@@ -215,6 +293,10 @@ enum LocalLibrary {
                                               in: .userDomainMask, appropriateFor: nil, create: true)
             .appendingPathComponent("Bloom", isDirectory: true)
         let container = try LinkStore.container(at: root)
+        if !UserDefaults.standard.bool(forKey: "notes.tags.initialized") {
+            try LinkStore.initializeTags(in: container.mainContext)
+            UserDefaults.standard.set(true, forKey: "notes.tags.initialized")
+        }
         cached = container
         return container
     }

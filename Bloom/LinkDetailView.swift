@@ -4,6 +4,7 @@ import UIKit
 
 struct LinkDetailView: View {
     @Environment(\.modelContext) private var context
+    @Query(sort: \LinkCollection.name) private var tags: [LinkCollection]
     let link: CapturedLink
     @State private var editing = false
     @State private var titles = LinkTitleController()
@@ -27,10 +28,10 @@ struct LinkDetailView: View {
             } else { AttachmentView(item: link) }
             Section { Text(link.capturedAt, format: .dateTime).foregroundStyle(.secondary) }
             Section("Organizzazione") {
-                LabeledContent("Raccolta", value: link.collection?.name ?? "Senza raccolta")
+                LabeledContent("Tag", value: tagNames)
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Raccolta")
-                    .accessibilityValue(link.collection?.name ?? "Senza raccolta")
+                    .accessibilityLabel("Tag")
+                    .accessibilityValue(tagNames)
                     .accessibilityIdentifier("detail-collection")
                 LabeledContent("Stato", value: link.isArchived ? "Archiviato" : "Attivo")
                 if let notes = link.notes { Text(notes).textSelection(.enabled) }
@@ -46,11 +47,15 @@ struct LinkDetailView: View {
         .navigationTitle(link.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { Button("Modifica") { editing = true } }
-        .sheet(isPresented: $editing) { LinkEditor(link: link) }
+        .sheet(isPresented: $editing) { NoteComposer(item: link) { _ in } }
         .alert("Operazione non riuscita", isPresented: Binding(
             get: { error != nil }, set: { if !$0 { error = nil } })) {
             Button("OK", role: .cancel) { }
         } message: { Text(error ?? "") }
+    }
+    private var tagNames: String {
+        let names = tags.filter { link.tagIDs.contains($0.id) }.map(\.name)
+        return names.isEmpty ? "Da specificare" : names.joined(separator: " · ")
     }
 }
 

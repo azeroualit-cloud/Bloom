@@ -47,12 +47,12 @@ enum LibraryFilter {
         guard link.isArchived == archived else { return false }
         switch collection {
         case .all: break
-        case .unfiled: guard link.collection == nil else { return false }
-        case .collection(let id): guard link.collection?.id == id else { return false }
+        case .unfiled: guard link.tagIDs.isEmpty else { return false }
+        case .collection(let id): guard link.tagIDs.contains(id) else { return false }
         }
         let term = search.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !term.isEmpty else { return true }
-        return [link.title, link.urlString, link.notes, link.collection?.name, link.textContent, link.fileName]
+        return [link.title, link.urlString, link.notes, link.collection?.name, link.textContent, link.fileName, link.noteLinksJSON]
             .compactMap { $0 }.contains { $0.localizedStandardContains(term) }
     }
 }

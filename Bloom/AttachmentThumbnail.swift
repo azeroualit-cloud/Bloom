@@ -24,11 +24,12 @@ struct AttachmentThumbnail: View {
             } else if !finished { ProgressView("Caricamento immagine…") }
             else { Label(error ?? "Anteprima non disponibile", systemImage: "photo.badge.exclamationmark") }
         }
-        .task(id: item.id) {
+        .task(id: "\(item.id)-\(item.imageFraming)") {
             finished = false
             defer { finished = true }
             guard let data = item.attachmentData else { error = ImportError.missingData.localizedDescription; return }
             let pixelLimit = maximumPixelSize
+            let framing = item.imageFraming
             let thumbnail = await Task.detached(priority: .userInitiated) {
                 guard let source = CGImageSourceCreateWithData(data as CFData, nil),
                       let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, [
@@ -36,7 +37,10 @@ struct AttachmentThumbnail: View {
                         kCGImageSourceCreateThumbnailWithTransform: true,
                         kCGImageSourceThumbnailMaxPixelSize: pixelLimit
                       ] as CFDictionary) else { return Optional<UIImage>.none }
-                return UIImage(cgImage: cgImage)
+                let rect = CGRect(x: Double(cgImage.width) * framing.left, y: Double(cgImage.height) * framing.top,
+                                  width: Double(cgImage.width) * (1 - framing.left - framing.right),
+                                  height: Double(cgImage.height) * (1 - framing.top - framing.bottom))
+                return UIImage(cgImage: cgImage.cropping(to: rect) ?? cgImage)
             }.value
             guard !Task.isCancelled else { return }
             image = thumbnail

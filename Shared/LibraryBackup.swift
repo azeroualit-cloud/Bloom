@@ -7,7 +7,7 @@ struct LibraryBackup: Codable, Sendable {
     static let maximumCollections = 2_000
 
     var format = "Bloom"
-    var version = 1
+    var version = 2
     var createdAt = Date()
     var collections: [CollectionRecord]
     var items: [Item]
@@ -31,10 +31,17 @@ struct LibraryBackup: Codable, Sendable {
         let fileName: String?
         let contentType: String?
         let data: Data?
+        var tagIDs: [UUID]? = nil
+        var noteLinks: [String]? = nil
+        var noteFiles: [NoteFile]? = nil
+        var imageFraming: ImageFraming? = nil
+        var noteVersion: Int? = nil
 
         var fingerprint: String? {
+            guard noteVersion == nil else { return nil }
             guard let type = ContentKind(rawValue: kind) else { return nil }
-            if type == .text, let text { return ContentFingerprint.make(Data(text.utf8), kind: .text) }
+            if type == .text, let text, !text.isEmpty,
+               (noteLinks ?? []).isEmpty, (noteFiles ?? []).isEmpty { return ContentFingerprint.make(Data(text.utf8), kind: .text) }
             if (type == .file || type == .image), let data { return ContentFingerprint.make(data, kind: type) }
             return nil
         }
@@ -42,7 +49,7 @@ struct LibraryBackup: Codable, Sendable {
 
     func validated() throws -> LibraryBackup {
         guard format == "Bloom" else { throw BackupError.invalid }
-        guard version == 1 else { throw BackupError.unsupportedVersion }
+        guard version == 1 || version == 2 else { throw BackupError.unsupportedVersion }
         guard items.count <= Self.maximumItems, collections.count <= Self.maximumCollections else {
             throw BackupError.tooLarge
         }
@@ -64,6 +71,19 @@ struct LibraryBackup: Codable, Sendable {
             guard let kind = ContentKind(rawValue: item.kind),
                   item.capturedAt.timeIntervalSince1970.isFinite,
                   item.collectionID.map({ ids.contains($0) }) ?? true else { throw BackupError.invalid }
+            guard (item.tagIDs ?? []).allSatisfy({ ids.contains($0) }),
+                  (item.noteLinks?.count ?? 0) + (item.noteFiles?.count ?? 0) <= 10 else { throw BackupError.invalid }
+            guard item.imageFraming?.isValid ?? true else { throw BackupError.invalid }
+            guard item.noteVersion == nil || item.noteVersion == 1 else { throw BackupError.unsupportedVersion }
+            guard (item.data?.count ?? 0) + (item.text?.utf8.count ?? 0) + (item.noteFiles ?? []).reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw BackupError.tooLarge }
+            for raw in item.noteLinks ?? [] {
+                guard let url = URL(string: raw), (try? LinkValidation.validate(url)) != nil else { throw BackupError.invalid }
+                try count(raw.utf8.count)
+            }
+            for file in item.noteFiles ?? [] {
+                guard !file.name.isEmpty, file.data.count <= AttachmentLoader.maximumBytes else { throw BackupError.invalid }
+                try count(file.data.count)
+            }
             for value in [item.urlString, item.title, item.notes, item.fileName, item.contentType].compactMap({ $0 }) {
                 guard value.utf8.count <= 1_024 * 1_024 else { throw BackupError.tooLarge }
                 try count(value.utf8.count)
@@ -73,7 +93,8 @@ struct LibraryBackup: Codable, Sendable {
                 guard let url = URL(string: item.urlString), (try? LinkValidation.validate(url)) != nil,
                       item.text == nil, item.data == nil else { throw BackupError.invalid }
             case .text:
-                guard let text = item.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                guard let text = item.text, (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                    (version == 2 && (!(item.title ?? "").isEmpty || !(item.noteLinks ?? []).isEmpty || !(item.noteFiles ?? []).isEmpty))),
                       item.data == nil, item.urlString.isEmpty else { throw BackupError.invalid }
                 guard text.utf8.count <= AttachmentLoader.maximumBytes else { throw BackupError.tooLarge }
                 try count(text.utf8.count)

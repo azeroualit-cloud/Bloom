@@ -116,7 +116,7 @@ final class BackupTests: XCTestCase {
     func testRejectsCorruptFutureVersionDuplicateIDsAndNonWebLinks() throws {
         XCTAssertThrowsError(try LibraryBackup.decode(Data("not JSON".utf8)))
         var future = LibraryBackup(collections: [], items: [])
-        future.version = 2
+        future.version = 99
         XCTAssertThrowsError(try future.validated())
         let item = record()
         XCTAssertThrowsError(try LibraryBackup(collections: [], items: [item, item]).validated())

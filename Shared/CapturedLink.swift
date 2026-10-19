@@ -19,6 +19,39 @@ final class CapturedLink {
     @Attribute(.externalStorage) var attachmentData: Data?
     @Attribute(.externalStorage) var previewImageData: Data?
     var previewSourceURL: String?
+    var tagIDsJSON: String?
+    var noteLinksJSON: String?
+    @Attribute(.externalStorage) var noteFilesData: Data?
+    var previewAttemptedAt: Date?
+    var imageFramingData: Data?
+    var noteVersion: Int?
+    var imageFraming: ImageFraming {
+        guard let data = imageFramingData, let value = try? JSONDecoder().decode(ImageFraming.self, from: data), value.isValid else { return ImageFraming() }
+        return value
+    }
+
+    var tagIDs: Set<UUID> {
+        get {
+            if let raw = tagIDsJSON, let data = raw.data(using: .utf8),
+               let ids = try? JSONDecoder().decode([UUID].self, from: data) { return Set(ids) }
+            return Set(collection.map { [$0.id] } ?? [])
+        }
+        set { tagIDsJSON = String(data: (try? JSONEncoder().encode(newValue.sorted { $0.uuidString < $1.uuidString })) ?? Data("[]".utf8), encoding: .utf8) }
+    }
+    var noteLinks: [URL] {
+        guard let raw = noteLinksJSON, let data = raw.data(using: .utf8),
+              let strings = try? JSONDecoder().decode([String].self, from: data) else { return [] }
+        return strings.compactMap(URL.init(string:)).filter { (try? LinkValidation.validate($0)) != nil }
+    }
+    var noteFiles: [NoteFile] {
+        guard let data = noteFilesData else { return [] }
+        return (try? JSONDecoder().decode([NoteFile].self, from: data)) ?? []
+    }
+    var allLinks: [URL] {
+        let first = kind == .link ? URL(string: urlString).map { [$0] } ?? [] : []
+        return first + noteLinks
+    }
+    var noteBody: String { kind == .text ? textContent ?? "" : notes ?? "" }
 
     var kind: ContentKind { ContentKind(rawValue: contentKind ?? "") ?? .link }
     var displayTitle: String {
