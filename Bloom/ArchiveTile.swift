@@ -98,7 +98,7 @@ struct ArchiveTile: View {
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .contentShape(Rectangle())
                 }.contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityElement(children: .ignore)
+            }.buttonStyle(.plain)
                 .accessibilityIdentifier("note-open-\(item.id)").accessibilityLabel(item.displayTitle)
                 .disabled(opening)
                 .highPriorityGesture(LongPressGesture(minimumDuration: 0.45).onEnded { _ in suppressTapUntil = Date().addingTimeInterval(0.5); select() }, including: compact ? .subviews : .all)

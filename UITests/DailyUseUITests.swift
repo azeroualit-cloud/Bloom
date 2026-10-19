@@ -361,6 +361,6 @@ final class DailyUseUITests: XCTestCase {
 
     @MainActor
     private func diagnostics(_ app: XCUIApplication) -> String {
-        "Editors: \(app.textViews.allElementsBoundByIndex.map { ($0.identifier, $0.value as? String ?? "") }); Navigation: \(app.navigationBars.allElementsBoundByIndex.map(\.identifier)); texts: \(app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: ", ")); buttons: \(app.buttons.allElementsBoundByIndex.map(\.label).joined(separator: ", "))"
+        "Editors: \(app.textViews.allElementsBoundByIndex.map { ($0.identifier, $0.value as? String ?? "") }); Navigation: \(app.navigationBars.allElementsBoundByIndex.map(\.identifier)); texts: \(app.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: ", ")); buttons: \(app.buttons.allElementsBoundByIndex.map { "\($0.label) [\($0.identifier)]" }.joined(separator: ", "))"
     }
 }
