@@ -6,6 +6,6 @@ Image and social poster thumbnails fill and clip their square container; the ful
 
 Rediscovery reuses the same square preview component, media opening and actions. Its organizer edits multiple manual tags instead of the obsolete single collection relation. Rediscovery history/exhaustion behavior remains intact.
 
-Archive is accessible only through the Settings gear, not a home segmented control. Returning from Archive brings back the tag catalog. The gear also retains tag management, sorting, backup and capture guidance.
+Archive is accessible only through the Settings gear, not a home segmented control. The Tag back control returns from Archive to the tag catalog. The gear also retains tag management, sorting, backup and capture guidance.
 
-Glass containers use native glassEffect on iOS 26+ when compiled with Swift 6.2+ and system material otherwise. No custom simulated refraction. The icon is bundled as a 1024px opaque universal iOS AppIcon asset. Existing notes, tags and backup formats are unchanged.
+CI selects Xcode 26.3 and the newest available iPhone simulator runtime to compile and test the native appearance. Glass containers use native glassEffect on iOS 26+ when compiled with Swift 6.2+ and system material otherwise. No custom simulated refraction. The icon is bundled as a 1024px opaque universal iOS AppIcon asset. Existing notes, tags and backup formats are unchanged.

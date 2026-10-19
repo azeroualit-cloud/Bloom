@@ -12,6 +12,8 @@ jobs:
   test-and-package:
     runs-on: macos-15
     timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain
@@ -27,7 +29,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for key,devices in d["devices"].items() if "iOS" in key for x in devices if x["name"].startswith("iPhone")))')
+          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys,re; d=json.load(sys.stdin); keys=sorted((k for k in d["devices"] if "iOS" in k), key=lambda k: tuple(map(int,re.findall(r"\d+",k))), reverse=True); print(next(x["udid"] for key in keys for x in d["devices"][key] if x["name"].startswith("iPhone")))')
           xcodebuild -project Bloom.xcodeproj -scheme Bloom -destination "platform=iOS Simulator,id=$DEVICE_ID" -resultBundlePath build/Tests.xcresult CODE_SIGNING_ALLOWED=NO test 2>&1 | tee build-xcodebuild.log
       - name: Build diagnostics summary
         if: always()

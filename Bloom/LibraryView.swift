@@ -136,7 +136,7 @@ struct LibraryView: View {
             Text("\(visible.count) contenuti").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("library-count")
             if let notice { Text(notice).font(.subheadline).foregroundStyle(.secondary) }
             if archiveUndo != nil { Button("Annulla spostamento", action: undoArchive).accessibilityIdentifier("archive-undo") }
-            if let id = savedID { Button("Apri contenuto salvato") { opened = items.first { $0.id == id } }.accessibilityIdentifier("library-open-saved") }
+            if let id = savedID, items.contains(where: { $0.id == id }) { Button("Apri contenuto salvato") { opened = items.first { $0.id == id } }.accessibilityIdentifier("library-open-saved") }
         }
     }
     private func card(_ item: CapturedLink) -> some View {
