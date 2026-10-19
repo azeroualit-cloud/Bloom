@@ -334,6 +334,14 @@ enum LocalLibrary {
                 container.mainContext.insert(note)
                 try container.mainContext.save()
             }
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-tags") {
+                let note = CapturedLink(kind: .text)
+                note.title = "Tag fixture"; note.textContent = "Keep this note"; note.noteVersion = 1
+                note.tagIDs = Set(try container.mainContext.fetch(FetchDescriptor<LinkCollection>())
+                    .filter { ["Alimentazione", "Casa"].contains($0.name) }.map(\.id))
+                container.mainContext.insert(note)
+                try container.mainContext.save()
+            }
             cached = container
             return container
         }

@@ -87,6 +87,11 @@ struct RediscoveryView: View {
             .navigationTitle("Riscopri")
             .navigationDestination(item: $opened) { ContentViewer(item: $0) }
         .navigationDestination(item: $contentRoute) { ArchiveContentDestination(route: $0) }
+            .onChange(of: contents.map(\.id)) { _, _ in
+                if opened?.modelContext == nil { opened = nil }
+                if contentRoute?.item.modelContext == nil { contentRoute = nil }
+                if tagNote?.modelContext == nil { tagNote = nil }
+            }
             .sheet(item: $tagNote) { NoteTagEditor(item: $0) }
             .alert("Eliminare definitivamente la nota?", isPresented: $deletePrompt) {
                 Button("Elimina definitivamente", role: .destructive) {

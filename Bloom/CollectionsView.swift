@@ -19,9 +19,18 @@ struct CollectionsView: View {
                         description: Text("Crea un tag per organizzare le tue note."))
                 }
                 ForEach(collections) { collection in
-                    Button { editing = collection } label: {
-                        LabeledContent(collection.name, value: "\(items.filter { $0.tagIDs.contains(collection.id) }.count)")
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(collection.name).font(.headline)
+                            Text("\(items.filter { $0.tagIDs.contains(collection.id) }.count) note").font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button { editing = collection } label: { Image(systemName: "pencil").frame(width: 44, height: 44) }
+                            .accessibilityLabel("Rinomina \(collection.name)").accessibilityIdentifier("tag-rename-\(collection.name)")
+                        Button(role: .destructive) { deleting = collection } label: { Image(systemName: "trash").frame(width: 44, height: 44) }
+                            .accessibilityLabel("Elimina \(collection.name)").accessibilityIdentifier("tag-delete-\(collection.name)")
                     }
+                    .buttonStyle(.borderless)
                     .swipeActions(allowsFullSwipe: false) {
                         Button("Elimina", role: .destructive) { deleting = collection }
                     }
@@ -29,7 +38,7 @@ struct CollectionsView: View {
             }
             .navigationTitle("Tag")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Fine") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Fine") { dismiss() }.accessibilityIdentifier("tags-done") }
                 ToolbarItem(placement: .primaryAction) {
                     Button("Nuovo tag", systemImage: "plus") { creating = true }
                 }

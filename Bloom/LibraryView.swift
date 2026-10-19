@@ -50,11 +50,12 @@ struct LibraryView: View {
             VStack(alignment: .leading, spacing: 16) {
                 header
                 if showingTags {
+                    let homeItems = visible
                     LazyVGrid(columns: columns, spacing: 12) {
-                        category("Tutti", symbol: "square.grid.2x2", value: .all, count: visible.count)
-                        category("Da specificare", symbol: "tag", value: .unfiled, count: visible.filter { $0.tagIDs.isEmpty }.count)
+                        category("Tutti", symbol: "square.grid.2x2", value: .all, members: homeItems)
+                        category("Da specificare", symbol: "tag", value: .unfiled, members: homeItems.filter { $0.tagIDs.isEmpty })
                         ForEach(tags) { tag in
-                            category(tag.name, symbol: "tag.fill", value: .collection(tag.id), count: visible.filter { $0.tagIDs.contains(tag.id) }.count)
+                            category(tag.name, symbol: "tag.fill", value: .collection(tag.id), members: homeItems.filter { $0.tagIDs.contains(tag.id) })
                         }
                     }.accessibilityIdentifier("category-grid")
                 } else if visible.isEmpty {
@@ -81,16 +82,16 @@ struct LibraryView: View {
         case .collection(let id): return tags.first { $0.id == id }?.name ?? "Note"
         }
     }
-    private func category(_ name: String, symbol: String, value: CollectionFilter, count: Int) -> some View {
+    private func category(_ name: String, symbol: String, value: CollectionFilter, members: [CapturedLink]) -> some View {
+        let cover = members.first { $0.kind == .image || ($0.previewImageData != nil && $0.previewSourceURL == $0.allLinks.first?.absoluteString) } ?? members.first
+        return categoryButton(name, symbol: symbol, value: value, count: members.count, cover: cover)
+    }
+    private func categoryButton(_ name: String, symbol: String, value: CollectionFilter, count: Int, cover: CapturedLink?) -> some View {
         GeometryReader { proxy in
             Button { filter = value; allNotes = true; revealed = nil } label: {
-                VStack(alignment: .leading, spacing: 12) {
-                    Image(systemName: symbol).font(.title2).foregroundStyle(Color.accentColor)
-                    Spacer(minLength: 0)
-                    Text(name).font(.headline).foregroundStyle(.primary).lineLimit(2)
-                    Text("\(count) note").font(.caption).foregroundStyle(.secondary)
-                }.padding(16).frame(width: proxy.size.width, height: proxy.size.width, alignment: .leading)
-                    .bloomGlass(cornerRadius: 16).contentShape(Rectangle())
+                CategoryCover(name: name, symbol: symbol, count: count, item: cover)
+                    .frame(width: proxy.size.width, height: proxy.size.width).clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 16)).contentShape(Rectangle())
             }.buttonStyle(.plain).frame(width: proxy.size.width, height: proxy.size.width)
                 .accessibilityElement(children: .ignore).accessibilityLabel("\(name), \(count) note")
                 .accessibilityAddTraits(.isButton).accessibilityIdentifier("category-\(name)")
@@ -106,7 +107,12 @@ struct LibraryView: View {
             .sheet(isPresented: $editingTags) { bulkTagEditor }
             .sheet(item: $tagNote) { NoteTagEditor(item: $0) }
             .safeAreaInset(edge: .bottom) { if selecting { selectionBar } }
-            .onChange(of: visible.map(\.id)) { _, ids in selection.formIntersection(ids) }
+            .onChange(of: visible.map(\.id)) { _, ids in
+                selection.formIntersection(ids)
+                if opened?.modelContext == nil { opened = nil }
+                if contentRoute?.item.modelContext == nil { contentRoute = nil }
+                if tagNote?.modelContext == nil { tagNote = nil }
+            }
             .onChange(of: tags.map(\.id)) { _, ids in
                 if case .collection(let id) = filter, !ids.contains(id) { filter = .all }
             }
@@ -118,7 +124,13 @@ struct LibraryView: View {
             .alert("Eliminare definitivamente la nota e i suoi allegati?", isPresented: $deletePrompt) {
                 Button("Elimina definitivamente", role: .destructive) {
                     if let deleting {
-                        do { try LinkStore.deleteNote(deleting, in: context); notice = "Nota eliminata"; selection.remove(deleting.id) }
+                        let id = deleting.id
+                        do {
+                            try LinkStore.deleteNote(deleting, in: context)
+                            notice = "Nota eliminata"; selection.remove(id)
+                            if savedID == id { savedID = nil }
+                            revealed = nil
+                        }
                         catch { self.error = error.localizedDescription }
                     }
                     deleting = nil
@@ -138,6 +150,10 @@ struct LibraryView: View {
                 }.accessibilityIdentifier("library-back-tags")
             }
             Text("\(visible.count) contenuti").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("library-count")
+            if showingTags {
+                Button("Gestisci tag", systemImage: "tag") { managingTags = true }
+                    .frame(minHeight: 44).accessibilityIdentifier("library-manage-tags")
+            }
             if let notice { Text(notice).font(.subheadline).foregroundStyle(.secondary) }
             if archiveUndo != nil { Button("Annulla spostamento", action: undoArchive).accessibilityIdentifier("archive-undo") }
             if let id = savedID, items.contains(where: { $0.id == id }) { Button("Apri contenuto salvato") { opened = items.first { $0.id == id } }.accessibilityIdentifier("library-open-saved") }

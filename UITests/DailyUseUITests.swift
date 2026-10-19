@@ -2,6 +2,36 @@ import XCTest
 
 final class DailyUseUITests: XCTestCase {
     @MainActor
+    func testVisibleTagManagementRenamesAndDeletesWithoutDeletingNote() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-tags"]
+        app.launch()
+        XCTAssertTrue(app.buttons["library-manage-tags"].waitForExistence(timeout: 15))
+        app.buttons["library-manage-tags"].tap()
+        XCTAssertTrue(app.buttons["tag-rename-Alimentazione"].waitForExistence(timeout: 5), diagnostics(app))
+        app.buttons["tag-rename-Alimentazione"].tap()
+        let field = app.textFields["collection-name"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "Alimentazione".count) + "Alimenti")
+        app.buttons["collection-save"].tap()
+        XCTAssertTrue(app.buttons["tag-delete-Alimenti"].waitForExistence(timeout: 5), diagnostics(app))
+        app.buttons["tag-delete-Alimenti"].tap()
+        app.buttons["Elimina tag"].tap()
+        XCTAssertFalse(app.buttons["tag-delete-Alimenti"].exists)
+        app.buttons["tags-done"].tap()
+        XCTAssertFalse(app.buttons["category-Alimenti"].exists)
+        app.buttons["category-Tutti"].tap()
+        let title = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-title-'")).firstMatch
+        XCTAssertTrue(title.waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertEqual(title.label, "Tag fixture")
+        title.tap()
+        XCTAssertTrue(app.navigationBars["Tag fixture"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Casa"].exists, diagnostics(app))
+    }
+
+    @MainActor
     func testLinkPreviewOpensBrowserDirectly() {
         continueAfterFailure = false
         let app = XCUIApplication()

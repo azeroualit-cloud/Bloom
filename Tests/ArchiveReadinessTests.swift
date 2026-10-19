@@ -9,6 +9,24 @@ final class ArchiveReadinessTests: XCTestCase {
         addTeardownBlock { try FileManager.default.removeItem(at: url) }
         return try LinkStore.container(at: url)
     }
+    func testTagRenameAndDeletionPersistWithoutChangingNotesOrOtherTags() throws {
+        let source = try container(), context = source.mainContext
+        let tag = try LinkStore.saveCollection(nil, name: "Alimentazione", in: context)
+        let other = try LinkStore.saveCollection(nil, name: "Casa", in: context)
+        let tagID = tag.id, otherID = other.id
+        let receipt = try LinkStore.saveNote(title: "Keep", body: "Original body", urls: [], files: [], tags: [tagID, otherID], in: context)
+        _ = try LinkStore.saveCollection(tag, name: "Alimenti", in: context)
+        let renamed = ModelContext(source)
+        XCTAssertEqual(try renamed.fetch(FetchDescriptor<LinkCollection>()).first { $0.id == tagID }?.name, "Alimenti")
+        XCTAssertEqual(try renamed.fetch(FetchDescriptor<CapturedLink>()).first?.tagIDs, [tagID, otherID])
+        try LinkStore.deleteCollection(tag, in: context)
+        let check = ModelContext(source)
+        let note = try XCTUnwrap(check.fetch(FetchDescriptor<CapturedLink>()).first)
+        XCTAssertEqual(note.id, receipt.id)
+        XCTAssertEqual(note.tagIDs, [otherID])
+        XCTAssertEqual(note.noteBody, "Original body")
+        XCTAssertEqual(try check.fetch(FetchDescriptor<LinkCollection>()).map(\.id), [otherID])
+    }
     func testDeletingNotePreservesSharedTagsAndOtherNotesAfterReopen() throws {
         let source = try container(), context = source.mainContext
         let tag = try LinkStore.saveCollection(nil, name: "Studio", in: context)

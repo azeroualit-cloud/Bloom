@@ -17,6 +17,9 @@ struct SquareSwipeContainer: UIViewControllerRepresentable {
         controller.update(surface: surface, actions: actions, width: width, actionWidth: actionWidth,
                           revealed: revealed, enabled: enabled, onReveal: onReveal, onDrag: onDrag)
     }
+    static func dismantleUIViewController(_ controller: SquareSwipeController, coordinator: ()) {
+        controller.detach()
+    }
 }
 
 final class SquareSwipeController: UIViewController, UIScrollViewDelegate {
@@ -25,6 +28,12 @@ final class SquareSwipeController: UIViewController, UIScrollViewDelegate {
     private var actionWidth: CGFloat = 0
     private var onReveal: (Bool) -> Void = { _ in }
     private var onDrag: () -> Void = { }
+
+    func detach() {
+        scroller.delegate = nil
+        onReveal = { _ in }; onDrag = { }
+        host.rootView = AnyView(EmptyView())
+    }
 
     override func loadView() {
         view = scroller

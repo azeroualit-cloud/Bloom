@@ -21,11 +21,18 @@ struct ArchiveTile: View {
     private var isRevealed: Bool { revealed == item.id }
 
     var body: some View {
+        Group {
+            if item.modelContext != nil && !item.isDeleted { tile }
+        }
+    }
+
+    private var tile: some View {
         GeometryReader { geometry in
+            let id = item.id
             let width = geometry.size.width
             let actionWidth = min(112.0, width * 0.65)
             SquareSwipeContainer(surface: AnyView(surface), actions: AnyView(actions), width: width, actionWidth: actionWidth,
-                                 revealed: isRevealed, enabled: !selecting, onReveal: { open in revealed = open ? item.id : nil },
+                                 revealed: isRevealed, enabled: !selecting, onReveal: { open in revealed = open ? id : nil },
                                  onDrag: { suppressTapUntil = Date().addingTimeInterval(0.8) })
                 .frame(width: width, height: width).clipShape(RoundedRectangle(cornerRadius: 16))
                 .overlay(alignment: .bottom) { if !isRevealed { footer } }
@@ -50,7 +57,9 @@ struct ArchiveTile: View {
                     } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(Color.primary) }
                         .accessibilityLabel("Azioni nota").accessibilityIdentifier("note-actions-\(item.id)")
                 }
-            }.padding(.horizontal, 8).bloomGlass(cornerRadius: 12).padding(6)
+            }.padding(.horizontal, 8)
+                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+                .padding(6)
     }
 
     private var actions: some View {
