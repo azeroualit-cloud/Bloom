@@ -38,4 +38,4 @@ Verification includes existing migrations/backups and new tests for draft
 persistence, stale writes, independent draft keys, additive/removal tag semantics,
 quick paste, save-and-add, discard, draft relaunch recovery, swipe/Undo, quick tags
 and long-press selection. UI fixtures use an in-memory library; the draft relaunch
-test uses a UUID-isolated temporary directory available only in DEBUG.
+test uses a UUID-isolated Application Support directory available only in DEBUG.

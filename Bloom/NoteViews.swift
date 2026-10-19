@@ -7,8 +7,8 @@ import QuickLook
 struct NoteCard: View {
     let item: CapturedLink
     let tags: [LinkCollection]
+    let editTags: () -> Void
     let openNote: () -> Void
-    @State private var editingTags = false
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let url = item.allLinks.first {
@@ -31,7 +31,7 @@ struct NoteCard: View {
             HStack {
                 let assigned = item.tagIDs
                 let names = tags.filter { assigned.contains($0.id) }.map(\.name)
-                Button { editingTags = true } label: {
+                Button(action: editTags) {
                     Text(names.isEmpty ? "Da specificare" : names.joined(separator: " · "))
                         .font(.caption).foregroundStyle(.secondary).lineLimit(2).frame(minHeight: 44)
                 }.buttonStyle(.plain).accessibilityLabel("Modifica tag").accessibilityIdentifier("quick-tags-\(item.id)")
@@ -49,7 +49,6 @@ struct NoteCard: View {
             }
         }.padding(16).background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
             .task(id: item.allLinks.first) { LinkPreviewController.shared.prepare(for: item, in: previewContext) }
-            .sheet(isPresented: $editingTags) { NoteTagEditor(item: item) }
     }
     @Environment(\.modelContext) private var previewContext
 }

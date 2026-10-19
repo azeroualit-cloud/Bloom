@@ -86,9 +86,10 @@ struct NoteComposer: View {
                 if saved { Label("Nota salvata. Puoi aggiungerne un’altra.", systemImage: "checkmark.circle").foregroundStyle(.green).accessibilityIdentifier("note-saved") }
                 if let error { Text(error).foregroundStyle(.red) }
             }
+            .disabled(!loaded)
             .navigationTitle(item == nil ? "Nuova nota" : "Modifica nota").navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { if isDirty { confirmingClose = true } else { dismiss() } }.disabled(loading).accessibilityIdentifier("capture-close") }
+                ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { if isDirty { confirmingClose = true } else { dismiss() } }.disabled(!loaded || loading).accessibilityIdentifier("capture-close") }
                 ToolbarItem(placement: .confirmationAction) { Button("Salva") { save() }.disabled(!loaded || loading || isEmpty).accessibilityIdentifier("capture-save") }
                 ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Fine") { focused = nil }.accessibilityIdentifier("capture-keyboard-done") }
             }
@@ -110,7 +111,7 @@ struct NoteComposer: View {
             .onChange(of: snapshot) { _, value in draftRevision += 1; scheduleDraft(value) }
             .onChange(of: scenePhase) { _, phase in if phase != .active { persistDraft() } }
             .onDisappear { operation?.cancel(); persistDraft() }
-            .interactiveDismissDisabled(loading || isDirty)
+            .interactiveDismissDisabled(!loaded || loading || isDirty)
             .confirmationDialog("Modifiche non salvate", isPresented: $confirmingClose) {
                 Button("Conserva bozza e chiudi") { closeKeepingDraft() }
                 Button("Scarta modifiche", role: .destructive) { discard() }
@@ -199,7 +200,7 @@ struct NoteComposer: View {
             }
             Spacer()
             if item == nil { Button("Salva e aggiungi") { save(addAnother: true) }.disabled(!loaded || loading || isEmpty).accessibilityIdentifier("capture-save-another") }
-        }.padding(12).background(.regularMaterial)
+        }.padding(12).background(.regularMaterial).disabled(!loaded || loading)
     }
     private var snapshot: NoteDraft { NoteDraft(title: title, body: bodyText, links: linksText, tags: tags, files: files) }
     private var isDirty: Bool { snapshot != initialDraft }

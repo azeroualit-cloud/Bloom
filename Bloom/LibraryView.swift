@@ -24,6 +24,7 @@ struct LibraryView: View {
     @State private var notice: String?
     @State private var error: String?
     @State private var editingTags = false
+    @State private var tagNote: CapturedLink?
     @State private var bulkTags = Set<UUID>()
     @State private var bulkMode = LinkStore.TagChange.add
     private struct ArchiveUndo { let ids: Set<UUID>; let wasArchived: Bool }
@@ -92,6 +93,7 @@ struct LibraryView: View {
             .sheet(isPresented: $backup) { BackupView() }
             .sheet(isPresented: $guide) { CaptureGuideView() }
             .sheet(isPresented: $editingTags) { bulkTagEditor }
+            .sheet(item: $tagNote) { NoteTagEditor(item: $0) }
             .safeAreaInset(edge: .bottom) { if selecting { selectionBar } }
             .onChange(of: visible.map(\.id)) { _, ids in selection.formIntersection(ids) }
             .onChange(of: tags.map(\.id)) { _, ids in
@@ -139,10 +141,12 @@ struct LibraryView: View {
         HStack { Text(name).font(.headline); Spacer(); Button("Vedi tutte", action: action).font(.subheadline) }.textCase(nil)
     }
     private func card(_ item: CapturedLink) -> some View {
-        NoteCard(item: item, tags: tags) { opened = item }
+        NoteCard(item: item, tags: tags, editTags: { if !selecting { tagNote = item } }) { if !selecting { opened = item } }
             .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
             .listRowBackground(Color.clear).listRowSeparator(.hidden)
-            .onLongPressGesture(minimumDuration: 0.45) { selecting = true; selection = [item.id] }
+            .highPriorityGesture(LongPressGesture(minimumDuration: 0.45).onEnded { _ in
+                selecting = true; selection = [item.id]
+            })
             .swipeActions(allowsFullSwipe: false) {
                 Button(archived ? "Ripristina" : "Archivia", systemImage: "archivebox") {
                     do {

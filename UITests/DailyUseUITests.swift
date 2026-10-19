@@ -15,7 +15,8 @@ final class DailyUseUITests: XCTestCase {
         body.tap(); body.typeText("111222333")
         app.buttons["capture-close"].tap()
         app.buttons["Conserva bozza e chiudi"].tap()
-        XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5))
+        let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.navigationBars["Nuova nota"])
+        XCTAssertEqual(XCTWaiter.wait(for: [closed], timeout: 10), .completed, diagnostics(app))
         app.terminate(); app.launch()
         XCTAssertTrue(app.buttons["capture-add"].waitForExistence(timeout: 15))
         app.buttons["capture-add"].tap()
@@ -53,13 +54,16 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
         app.buttons["archive-undo"].tap()
         XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
-        let tags = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'quick-tags-'")).firstMatch
+        app.buttons["Per tag"].tap()
+        // Edit the Unspecified occurrence: assigning its first tag removes that row.
+        let tags = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'quick-tags-'")).element(boundBy: 1)
         tags.tap()
         app.buttons["tag-Salute"].tap()
         app.buttons["quick-tags-save"].tap()
         XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5))
         note.press(forDuration: 0.7)
         XCTAssertTrue(app.staticTexts["1 selezionati"].waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertFalse(app.navigationBars["Bloom test note"].exists, diagnostics(app))
     }
 
     @MainActor

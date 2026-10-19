@@ -16,7 +16,8 @@ actor NoteDraftStore {
         let prefix = "--ui-test-drafts="
         if let value = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix(prefix) }),
            let id = UUID(uuidString: String(value.dropFirst(prefix.count))) {
-            return NoteDraftStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent("BloomDraftTest-\(id.uuidString)", isDirectory: true))
+            let root = (try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)) ?? FileManager.default.temporaryDirectory
+            return NoteDraftStore(directory: root.appendingPathComponent("Bloom/DraftUITests/\(id.uuidString)", isDirectory: true))
         }
         #endif
         return NoteDraftStore()
