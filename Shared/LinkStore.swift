@@ -32,7 +32,7 @@ enum LinkStore {
         let promoteFile = existing == nil && validated.isEmpty && !files.isEmpty
         let storedFiles = promoteFile ? Array(files.dropFirst()) : files
         let filesData = storedFiles.isEmpty ? nil : try JSONEncoder().encode(storedFiles)
-        if existing == nil, validated.count == 1, files.isEmpty, body.isEmpty {
+        if existing == nil, validated.count == 1, files.isEmpty, body.isEmpty, cleanTitle.isEmpty {
             let value = validated[0].absoluteString
             if let duplicate = try context.fetch(FetchDescriptor<CapturedLink>(predicate: #Predicate { $0.urlString == value })).first {
                 return CaptureReceipt(id: duplicate.id, inserted: false)

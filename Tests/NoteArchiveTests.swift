@@ -82,9 +82,10 @@ final class NoteArchiveTests: XCTestCase {
         let url = URL(string: "https://youtu.be/same-video")!
         _ = try LinkStore.saveNote(title: "Prima", body: "Prima osservazione", urls: [url], files: [], tags: [], in: source.mainContext)
         _ = try LinkStore.saveNote(title: "Seconda", body: "Seconda osservazione", urls: [url], files: [], tags: [], in: source.mainContext)
+        _ = try LinkStore.saveNote(title: "Solo un titolo", body: "", urls: [url], files: [], tags: [], in: source.mainContext)
         let target = try LinkStore.container(at: root())
         let backup = try LibraryBackup.decode(BackupStore.snapshot(from: source).encoded())
-        XCTAssertEqual(try BackupStore.restore(backup, into: target).added, 2)
+        XCTAssertEqual(try BackupStore.restore(backup, into: target).added, 3)
         XCTAssertEqual(try BackupStore.restore(backup, into: target).added, 0)
     }
 
