@@ -42,6 +42,7 @@ struct CaptureCollectionSection: View {
 
 struct ImportOptionsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \LinkCollection.name) private var collections: [LinkCollection]
     let kind: ContentKind
     let onContinue: (UUID?) -> Void
     @State private var collectionID: UUID?
@@ -54,7 +55,10 @@ struct ImportOptionsView: View {
             }
             .navigationTitle(kind == .image ? "Importa foto" : "Importa file")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear { if collectionID == nil { collectionID = BloomPreferences.lastCaptureCollectionID } }
+            .onAppear {
+                if collectionID == nil, let saved = BloomPreferences.lastCaptureCollectionID,
+                   collections.contains(where: { $0.id == saved }) { collectionID = saved }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

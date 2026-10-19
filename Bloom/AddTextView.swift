@@ -4,6 +4,7 @@ import SwiftData
 struct AddTextView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @Query(sort: \LinkCollection.name) private var collections: [LinkCollection]
     let onSaved: (CaptureReceipt) -> Void
     private enum Field { case title, text }
     @FocusState private var focusedField: Field?
@@ -48,7 +49,10 @@ struct AddTextView: View {
                     }.accessibilityIdentifier("capture-save").disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            .onAppear { if collectionID == nil { collectionID = BloomPreferences.lastCaptureCollectionID } }
+            .onAppear {
+                if collectionID == nil, let saved = BloomPreferences.lastCaptureCollectionID,
+                   collections.contains(where: { $0.id == saved }) { collectionID = saved }
+            }
             .onChange(of: text) { _, _ in error = nil; savedMessage = nil }
         }
     }

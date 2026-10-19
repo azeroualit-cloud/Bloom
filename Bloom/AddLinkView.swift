@@ -4,6 +4,7 @@ import SwiftData
 struct AddLinkView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @Query(sort: \LinkCollection.name) private var collections: [LinkCollection]
     let onSaved: (CaptureReceipt) -> Void
     @State private var value = ""
     @State private var title = ""
@@ -44,7 +45,10 @@ struct AddLinkView: View {
                         .disabled(value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            .onAppear { if collectionID == nil { collectionID = BloomPreferences.lastCaptureCollectionID } }
+            .onAppear {
+                if collectionID == nil, let saved = BloomPreferences.lastCaptureCollectionID,
+                   collections.contains(where: { $0.id == saved }) { collectionID = saved }
+            }
             .onChange(of: value) { _, _ in error = nil; savedMessage = nil }
         }
     }
