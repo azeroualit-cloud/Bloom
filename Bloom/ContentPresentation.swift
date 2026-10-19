@@ -178,14 +178,14 @@ struct TextContentView: View {
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             if editing { Button("Salva", action: save).disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
-            else { Button("Modifica") { draft = originalText; editing = true } }
+            else { Button("Dettagli") { showingDetails = true } }
         }
         ToolbarItem(placement: .secondaryAction) {
             if editing { Button("Annulla") { editing = false; draft = originalText } }
             else { Button(showingSource ? "Lettura" : "Sorgente") { showingSource.toggle() } }
         }
         ToolbarItem(placement: .secondaryAction) {
-            if !editing { Button("Dettagli") { showingDetails = true } }
+            if !editing { Button("Modifica") { draft = originalText; editing = true } }
         }
     }
 
