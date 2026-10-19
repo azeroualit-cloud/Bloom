@@ -39,78 +39,20 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List(selection: $selection) {
-                Section {
-                    Picker("Stato contenuti", selection: $archived) {
-                        Text("Libreria").tag(false)
-                        Text("Archivio").tag(true)
-                    }.pickerStyle(.segmented)
-                    if collectionFilter != .all {
-                        LabeledContent("Raccolta", value: selectedCollectionName)
-                    }
-                    if let kindFilter { LabeledContent("Formato", value: kindFilter.label) }
-                    Text("\(visibleLinks.count) contenuti").font(.caption).foregroundStyle(.secondary)
-                    if let notice { Text(notice).foregroundStyle(.secondary) }
-                    if let savedID { Button("Apri contenuto salvato") { open(savedID) } }
-                    if let message = titles.message { Text(message).font(.subheadline).foregroundStyle(.secondary) }
-                    if let importError = importer.error {
-                        Label(importError, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
-                        if importer.canRetry { Button("Riprova importazione") { importer.retry(into: context) } }
-                        Button("Chiudi errore") { importer.error = nil; importer.cancel() }
-                    }
-                }
-                if visibleLinks.isEmpty {
-                    ContentUnavailableView(emptyTitle, systemImage: "tray",
-                        description: Text(emptyDescription))
-                }
-                ForEach(visibleLinks) { link in
-                    NavigationLink { ContentViewer(item: link) } label: { LibraryRow(link: link) }
-                        .tag(link.id)
-                        .contextMenu {
-                            if link.kind == .link && link.title == nil {
-                                Button("Recupera titolo dal sito") { titles.start([link], in: context) }
-                                    .disabled(titles.isLoading)
-                            }
-                        }
-                        .swipeActions(allowsFullSwipe: false) {
-                            Button(archived ? "Ripristina" : "Archivia", systemImage: "archivebox") {
-                                do {
-                                    try LinkStore.setArchived(!link.isArchived, for: link, in: context)
-                                    notice = archived ? "Contenuto ripristinato" : "Contenuto spostato in Archivio"
-                                } catch { self.error = error.localizedDescription }
-                            }.tint(.orange)
-                        }
-                }
-            }
+        NavigationStack { presentedLibrary }
+    }
+
+    private var libraryContent: some View {
+        libraryList
             .environment(\.editMode, .constant(selecting ? .active : .inactive))
             .navigationTitle("Bloom")
             .navigationDestination(item: $openedItem) { ContentViewer(item: $0) }
             .searchable(text: $search, prompt: "Cerca nei contenuti")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Menu {
-                        ContentFilterOptions(collection: $collectionFilter, kind: $kindFilter)
-                        Divider()
-                        Button("Gestisci raccolte", systemImage: "folder") { showingCollections = true }
-                        Button("Backup locale", systemImage: "externaldrive") { showingBackup = true }
-                        Button("Come salvare dai social", systemImage: "square.and.arrow.up") { showingGuide = true }
-                    } label: { Label("Raccolte e guida", systemImage: "folder") }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(selecting ? "Fine" : "Seleziona") { selecting.toggle(); selection.removeAll() }.accessibilityIdentifier("library-select")
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Button("Link", systemImage: "link") { showingAdd = true }
-                        Button("Testo", systemImage: "text.alignleft") { showingText = true }.accessibilityIdentifier("capture-text")
-                        Button("Foto", systemImage: "photo") { importKind = .image; showingImportOptions = true }
-                        Button("File (max 25 MB)", systemImage: "doc") { importKind = .file; showingImportOptions = true }
-                    } label: { Label("Aggiungi contenuto", systemImage: "plus") }
-                        .accessibilityIdentifier("capture-add")
-                        .disabled(importer.isImporting || selecting)
-                }
-            }
+            .toolbar { libraryToolbar }
+    }
+
+    private var presentedLibrary: some View {
+        libraryContent
             .sheet(isPresented: $showingAdd, onDismiss: openPending) {
                 AddLinkView { receipt, openAfterSave in captured(receipt, openAfterSave: openAfterSave) }
             }
@@ -170,7 +112,80 @@ struct LibraryView: View {
                 get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("Chiudi", role: .cancel) { }
             } message: { Text(error ?? "") }
-        }
+    }
+
+    private var libraryList: some View {
+            List(selection: $selection) {
+                Section {
+                    Picker("Stato contenuti", selection: $archived) {
+                        Text("Libreria").tag(false)
+                        Text("Archivio").tag(true)
+                    }.pickerStyle(.segmented)
+                    if collectionFilter != .all {
+                        LabeledContent("Raccolta", value: selectedCollectionName)
+                    }
+                    if let kindFilter { LabeledContent("Formato", value: kindFilter.label) }
+                    Text("\(visibleLinks.count) contenuti").font(.caption).foregroundStyle(.secondary)
+                    if let notice { Text(notice).foregroundStyle(.secondary) }
+                    if let savedID { Button("Apri contenuto salvato") { open(savedID) } }
+                    if let message = titles.message { Text(message).font(.subheadline).foregroundStyle(.secondary) }
+                    if let importError = importer.error {
+                        Label(importError, systemImage: "exclamationmark.triangle").foregroundStyle(.red)
+                        if importer.canRetry { Button("Riprova importazione") { importer.retry(into: context) } }
+                        Button("Chiudi errore") { importer.error = nil; importer.cancel() }
+                    }
+                }
+                if visibleLinks.isEmpty {
+                    ContentUnavailableView(emptyTitle, systemImage: "tray",
+                        description: Text(emptyDescription))
+                }
+                ForEach(visibleLinks) { link in
+                    NavigationLink { ContentViewer(item: link) } label: { LibraryRow(link: link) }
+                        .tag(link.id)
+                        .contextMenu {
+                            if link.kind == .link && link.title == nil {
+                                Button("Recupera titolo dal sito") { titles.start([link], in: context) }
+                                    .disabled(titles.isLoading)
+                            }
+                        }
+                        .swipeActions(allowsFullSwipe: false) {
+                            Button(archived ? "Ripristina" : "Archivia", systemImage: "archivebox") {
+                                do {
+                                    try LinkStore.setArchived(!link.isArchived, for: link, in: context)
+                                    notice = archived ? "Contenuto ripristinato" : "Contenuto spostato in Archivio"
+                                } catch { self.error = error.localizedDescription }
+                            }.tint(.orange)
+                        }
+                }
+            }
+    }
+
+    @ToolbarContentBuilder
+    private var libraryToolbar: some ToolbarContent {
+
+                ToolbarItem(placement: .topBarLeading) {
+                    Menu {
+                        ContentFilterOptions(collection: $collectionFilter, kind: $kindFilter)
+                        Divider()
+                        Button("Gestisci raccolte", systemImage: "folder") { showingCollections = true }
+                        Button("Backup locale", systemImage: "externaldrive") { showingBackup = true }
+                        Button("Come salvare dai social", systemImage: "square.and.arrow.up") { showingGuide = true }
+                    } label: { Label("Raccolte e guida", systemImage: "folder") }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(selecting ? "Fine" : "Seleziona") { selecting.toggle(); selection.removeAll() }.accessibilityIdentifier("library-select")
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button("Link", systemImage: "link") { showingAdd = true }
+                        Button("Testo", systemImage: "text.alignleft") { showingText = true }.accessibilityIdentifier("capture-text")
+                        Button("Foto", systemImage: "photo") { importKind = .image; showingImportOptions = true }
+                        Button("File (max 25 MB)", systemImage: "doc") { importKind = .file; showingImportOptions = true }
+                    } label: { Label("Aggiungi contenuto", systemImage: "plus") }
+                        .accessibilityIdentifier("capture-add")
+                        .disabled(importer.isImporting || selecting)
+                }
+
     }
 
     private func resetFilters() { archived = false; collectionFilter = .all; kindFilter = nil; search = "" }

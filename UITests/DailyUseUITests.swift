@@ -1,6 +1,7 @@
 import XCTest
 
 final class DailyUseUITests: XCTestCase {
+    @MainActor
     func testCaptureCollectionOpenBulkArchiveRestoreAndRediscover() {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -16,8 +17,7 @@ final class DailyUseUITests: XCTestCase {
         let body = app.textViews["capture-body"]
         body.tap()
         body.typeText("Contenuto personale per la prova")
-        // Dismiss the keyboard without relying on its localized Done button.
-        app.navigationBars["Aggiungi testo"].tap()
+        app.buttons["capture-keyboard-done"].tap()
         app.swipeUp()
         app.buttons["Crea raccolta"].tap()
         let collection = app.textFields["Nome raccolta"]

@@ -5,6 +5,8 @@ struct AddTextView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     let onSaved: (CaptureReceipt, Bool) -> Void
+    private enum Field { case title, text }
+    @FocusState private var focusedField: Field?
     @State private var collectionID: UUID?
     @State private var openAfterSave = true
     @State private var title = ""
@@ -14,9 +16,9 @@ struct AddTextView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Titolo") { TextField("Titolo facoltativo", text: $title).accessibilityIdentifier("capture-title") }
+                Section("Titolo") { TextField("Titolo facoltativo", text: $title).accessibilityIdentifier("capture-title").focused($focusedField, equals: .title) }
                 Section("Testo") {
-                    TextEditor(text: $text).frame(minHeight: 220).accessibilityLabel("Testo da salvare").accessibilityIdentifier("capture-body")
+                    TextEditor(text: $text).frame(minHeight: 220).accessibilityLabel("Testo da salvare").accessibilityIdentifier("capture-body").focused($focusedField, equals: .text)
                     PasteButton(payloadType: String.self) { values in
                         if let first = values.first { text = first }
                     }
@@ -28,6 +30,10 @@ struct AddTextView: View {
             .navigationTitle("Aggiungi testo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Fine") { focusedField = nil }.accessibilityIdentifier("capture-keyboard-done")
+                }
                 ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salva") {
