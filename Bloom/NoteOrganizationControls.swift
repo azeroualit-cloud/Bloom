@@ -45,7 +45,7 @@ struct NoteOrganizationControls: View {
     }
     private func savePlace(_ place: NotePlace?) {
         do { try LinkStore.setPlace(place, for: item, in: context) }
-        catch { error = error.localizedDescription }
+        catch { self.error = error.localizedDescription }
     }
     private func row(_ title: String, value: String, symbol: String, expanded: Bool) -> some View {
         HStack(spacing: 12) {
