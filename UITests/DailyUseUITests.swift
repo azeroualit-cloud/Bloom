@@ -448,7 +448,10 @@ final class DailyUseUITests: XCTestCase {
     private func returnToLibrary(_ app: XCUIApplication) {
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5), diagnostics(app))
-        if app.buttons["library-back-tags"].exists { app.buttons["library-back-tags"].tap() }
+        let back = app.buttons["library-back-tags"]
+        XCTAssertTrue(back.waitForExistence(timeout: 5), diagnostics(app))
+        back.tap()
+        XCTAssertTrue(app.buttons["category-Tutti"].waitForExistence(timeout: 5), diagnostics(app))
     }
 
     @MainActor
