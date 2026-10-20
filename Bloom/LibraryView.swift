@@ -112,7 +112,7 @@ struct LibraryView: View {
             .sheet(isPresented: $guide) { CaptureGuideView() }
             .sheet(isPresented: $editingTags) { bulkTagEditor }
             .sheet(item: $tagNote) { NoteTagEditor(item: $0) }
-            .safeAreaInset(edge: .bottom) { if selecting { selectionBar }; feedback }
+            .safeAreaInset(edge: .bottom) { if selecting { selectionBar } else { feedback } }
             .onChange(of: visible.map(\.id)) { _, ids in
                 selection.formIntersection(ids)
                 if opened?.modelContext == nil || opened?.isArchived != archived { opened = nil }
@@ -232,6 +232,7 @@ struct LibraryView: View {
 
     }
     private func captured(_ receipt: CaptureReceipt) {
+        archiveUndo = nil
         filter = .all; kind = nil; search = ""; archived = false
         notice = receipt.inserted ? "Nota salvata" : "Link già presente: nota esistente conservata."
     }

@@ -337,16 +337,16 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["library-select"].tap()
         app.buttons["bulk-select-all"].tap()
         app.buttons["bulk-archive-action"].tap()
-        XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
+        assertLibraryCount(app, count: 0)
         app.buttons["library-settings"].tap()
         app.buttons["settings-archive"].tap()
-        XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
+        assertLibraryCount(app, count: 1)
         app.buttons["bulk-select-all"].tap()
         app.buttons["bulk-archive-action"].tap()
-        XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
+        assertLibraryCount(app, count: 0)
         app.buttons["library-settings"].tap()
         app.buttons["settings-archive"].tap()
-        XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
+        assertLibraryCount(app, count: 1)
     }
 
     @MainActor
@@ -417,6 +417,13 @@ final class DailyUseUITests: XCTestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5), diagnostics(app))
         if app.buttons["library-back-tags"].exists { app.buttons["library-back-tags"].tap() }
+    }
+
+    @MainActor
+    private func assertLibraryCount(_ app: XCUIApplication, count: Int) {
+        let expected = "\(count) contenuti"
+        let condition = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", expected), object: app.staticTexts["library-count"])
+        XCTAssertEqual(XCTWaiter.wait(for: [condition], timeout: 5), .completed, diagnostics(app))
     }
 
     @MainActor
