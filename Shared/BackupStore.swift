@@ -26,7 +26,7 @@ enum BackupStore {
                 urlString: item.urlString, title: item.title, notes: item.notes, archived: item.isArchived,
                 collectionID: item.collection?.id, text: item.textContent, fileName: item.fileName,
                 contentType: item.contentType, data: data, tagIDs: Array(item.tagIDs),
-                noteLinks: item.noteLinks.map(\.absoluteString), noteFiles: item.noteFiles, imageFraming: item.imageFraming, noteVersion: item.noteVersion, trashedAt: item.trashedAt, modifiedAt: item.modifiedAt))
+                noteLinks: item.noteLinks.map(\.absoluteString), noteFiles: item.noteFiles, imageFraming: item.imageFraming, noteVersion: item.noteVersion, trashedAt: item.trashedAt, modifiedAt: item.modifiedAt, place: item.place))
         }
         return LibraryBackup(collections: collections.map {
             .init(id: $0.id, name: $0.name, createdAt: $0.createdAt, modifiedAt: $0.modifiedAt)
@@ -74,6 +74,7 @@ enum BackupStore {
                 item.id = record.id
                 item.capturedAt = record.capturedAt
                 item.modifiedAt = record.modifiedAt
+                item.place = record.place
                 item.urlString = record.urlString
                 item.title = record.title
                 item.notes = record.notes

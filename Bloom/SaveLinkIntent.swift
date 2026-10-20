@@ -18,6 +18,7 @@ struct SaveLinkIntent: AppIntent, ForegroundContinuableIntent {
         do {
             let container = try LocalLibrary.open()
             let inserted = try LinkStore.capture(url, into: container.mainContext)
+            CaptureFailureInbox.resolve(url: url)
             let message: IntentDialog = inserted ? "Link salvato in Bloom" : "Link già presente in Bloom"
             return .result(dialog: message)
         } catch {

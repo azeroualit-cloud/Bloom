@@ -4,6 +4,14 @@ import UniformTypeIdentifiers
 
 @MainActor
 enum LinkStore {
+    enum PlaceChange { case keep, set(NotePlace?) }
+    static func setPlace(_ place: NotePlace?, for item: CapturedLink, in context: ModelContext) throws {
+        guard item.modelContext != nil, !item.isDeleted else { throw LibraryError.selectionMissing }
+        guard place?.isValid ?? true else { throw ImportError.invalidFile }
+        item.place = place
+        try touch(item, in: context)
+        try save(context)
+    }
     private static func touch(_ item: CapturedLink, previousTags: Set<UUID> = [], in context: ModelContext) throws {
         let now = Date()
         item.modifiedAt = now
@@ -61,10 +69,16 @@ enum LinkStore {
     }
 
     static func saveNote(existing: CapturedLink? = nil, title: String, body: String, urls: [URL],
-                         files: [NoteFile], tags: Set<UUID>, in context: ModelContext) throws -> CaptureReceipt {
+                         files: [NoteFile], tags: Set<UUID>, location: PlaceChange = .keep, in context: ModelContext) throws -> CaptureReceipt {
+        let chosenPlace: NotePlace?
+        switch location {
+        case .keep: chosenPlace = existing?.place ?? urls.compactMap(NotePlace.from).first
+        case .set(let place): chosenPlace = place
+        }
+        guard chosenPlace?.isValid ?? true else { throw ImportError.invalidFile }
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard cleanTitle.utf8.count <= 1_024 * 1_024 else { throw ImportError.tooLarge }
-        guard !cleanTitle.isEmpty || !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !urls.isEmpty || !files.isEmpty || existing?.kind == .image || existing?.kind == .file else { throw NoteError.empty }
+        guard !cleanTitle.isEmpty || !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !urls.isEmpty || !files.isEmpty || existing?.kind == .image || existing?.kind == .file || chosenPlace != nil else { throw NoteError.empty }
         let primaryBytes = (existing?.kind == .image || existing?.kind == .file) ? (existing?.attachmentData?.count ?? 0) : 0
         let primaryCount = (existing?.kind == .image || existing?.kind == .file) ? 1 : 0
         guard urls.count + files.count + primaryCount <= 10 else { throw NoteError.tooManyAttachments }
@@ -80,6 +94,7 @@ enum LinkStore {
             let value = validated[0].absoluteString
             if let duplicate = try context.fetch(FetchDescriptor<CapturedLink>(predicate: #Predicate { $0.urlString == value })).first {
                 if duplicate.isArchived { try setArchived(false, for: duplicate, in: context) }
+                if let chosenPlace { try setPlace(chosenPlace, for: duplicate, in: context) }
                 return CaptureReceipt(id: duplicate.id, inserted: false)
             }
         }
@@ -96,6 +111,7 @@ enum LinkStore {
             item.urlString = ""
         }
         item.title = cleanTitle.nilIfEmpty
+        item.place = chosenPlace
         // Existing primary files/images retain their original bytes and kind.
         if item.kind == .link {
             item.urlString = validated.first?.absoluteString ?? item.urlString
@@ -164,6 +180,7 @@ enum LinkStore {
         }
         let collection = try resolveCollection(collectionID, in: context)
         let item = CapturedLink(url: url)
+        item.place = NotePlace.from(url)
         item.title = title.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         item.collection = collection
         context.insert(item)
@@ -378,6 +395,9 @@ enum LocalLibrary {
                 note.noteFilesData = try JSONEncoder().encode([file]); note.noteFileCount = 1
                 container.mainContext.insert(note)
                 try container.mainContext.save()
+            }
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-map") {
+                _ = try LinkStore.saveNote(title: "Rome fixture", body: "Place note", urls: [], files: [], tags: [], location: .set(NotePlace(name: "Colosseo", latitude: 41.8902, longitude: 12.4922)), in: container.mainContext)
             }
             if ProcessInfo.processInfo.arguments.contains("--ui-test-carousel") {
                 let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAAFCAIAAADg0arLAAAAFUlEQVR4nGPUK37NwMDAxMDAgIsCADMhAZaUqgUxAAAAAElFTkSuQmCC")!

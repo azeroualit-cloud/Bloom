@@ -11,6 +11,14 @@ final class CapturedLink {
     var isArchived: Bool = false
     var trashedAt: Date?
     var modifiedAt: Date?
+    var placeData: Data?
+    var place: NotePlace? {
+        get {
+            guard let data = placeData, let value = try? JSONDecoder().decode(NotePlace.self, from: data), value.isValid else { return nil }
+            return value
+        }
+        set { placeData = newValue.flatMap { try? JSONEncoder().encode($0) } }
+    }
     var collection: LinkCollection?
     var contentKind: String?
     var textContent: String?
@@ -67,6 +75,7 @@ final class CapturedLink {
             let plain = line.trimmingCharacters(in: CharacterSet(charactersIn: "# *>-\t "))
             if !plain.isEmpty { return String(plain.prefix(80)) }
         }
+        if let place { return place.name }
         return (kind == .link ? URL(string: urlString)?.host : nil) ?? fileName ?? kind.label
     }
 

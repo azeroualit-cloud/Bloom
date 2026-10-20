@@ -70,10 +70,13 @@ struct NoteDetailView: View {
     let item: CapturedLink
     @State private var editing = false
     @State private var details = false
+    @State private var choosingPlace = false
+    @State private var placeError: String?
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
                 NoteCarousel(item: item)
+                Button { choosingPlace = true } label: { Label(item.place?.name ?? "Aggiungi luogo", systemImage: "mappin.and.ellipse") }.frame(minHeight: 44).accessibilityIdentifier("note-edit-place")
                 Text(tagNames).font(.caption).foregroundStyle(.secondary)
             }.padding(20).frame(maxWidth: 740, alignment: .leading).frame(maxWidth: .infinity)
         }
@@ -82,6 +85,13 @@ struct NoteDetailView: View {
             ToolbarItem(placement: .primaryAction) { Button("Modifica") { editing = true } }
             ToolbarItem(placement: .topBarTrailing) { Button("Dettagli") { details = true } }
         }
+        .sheet(isPresented: $choosingPlace) {
+            PlacePicker { place in
+                do { try LinkStore.setPlace(place, for: item, in: context) }
+                catch { placeError = error.localizedDescription }
+            }
+        }
+        .alert("Luogo non salvato", isPresented: Binding(get: { placeError != nil }, set: { if !$0 { placeError = nil } })) { Button("OK", role: .cancel) { } } message: { Text(placeError ?? "") }
         .sheet(isPresented: $editing) { NoteComposer(item: item) { _ in } }
         .sheet(isPresented: $details) {
             NavigationStack { LinkDetailView(link: item).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fine") { details = false } } } }

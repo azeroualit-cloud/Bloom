@@ -15,6 +15,11 @@ enum CaptureFailureInbox {
         failures.append(["url": url.absoluteString, "message": message])
         defaults.set(failures, forKey: key)
     }
+    static func resolve(url: URL, defaults: UserDefaults = .standard) {
+        let failures = (defaults.array(forKey: key) as? [[String: String]] ?? []).filter { $0["url"] != url.absoluteString }
+        if failures.isEmpty { defaults.removeObject(forKey: key) }
+        else { defaults.set(failures, forKey: key) }
+    }
     static func take(defaults: UserDefaults = .standard) -> Failure? {
         var failures = defaults.array(forKey: key) as? [[String: String]] ?? []
         guard !failures.isEmpty else { return nil }

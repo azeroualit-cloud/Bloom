@@ -6,6 +6,8 @@ struct NoteDraft: Codable, Equatable, Sendable {
     var links: String
     var tags: Set<UUID>
     var files: [NoteFile]
+    var place: NotePlace? = nil
+    var placeEdited: Bool? = nil
 }
 
 /// Draft writes are serialized away from the UI. Closing a session invalidates
@@ -44,6 +46,7 @@ actor NoteDraftStore {
         let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard size <= 40 * 1024 * 1024 else { throw ImportError.tooLarge }
         let value = try JSONDecoder().decode(NoteDraft.self, from: Data(contentsOf: url))
+        guard value.place?.isValid ?? true else { throw ImportError.invalidFile }
         guard value.files.count <= 10, value.body.utf8.count + value.files.reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
         if let session { owners[key?.uuidString ?? "new"] = session }
         return value

@@ -43,6 +43,9 @@ struct NoteComposer: View {
     @State private var bodyText: String
     @State private var linksText: String
     @State private var tags: Set<UUID>
+    @State private var place: NotePlace?
+    @State private var choosingPlace = false
+    @State private var placeEdited = false
     @State private var files: [NoteFile]
     @State private var showingFile = false
     @State private var showingPhoto = false
@@ -63,11 +66,12 @@ struct NoteComposer: View {
 
     init(item: CapturedLink? = nil, startsWithLink: Bool = false, autoPickPhoto: Bool = false, onSaved: @escaping (CaptureReceipt) -> Void) {
         self.item = item; self.startsWithLink = startsWithLink; self.autoPickPhoto = autoPickPhoto; self.onSaved = onSaved
-        initialDraft = NoteDraft(title: item?.title ?? "", body: item?.noteBody ?? "", links: item?.allLinks.map(\.absoluteString).joined(separator: "\n") ?? "", tags: item?.tagIDs ?? [], files: item?.noteFiles ?? [])
+        initialDraft = NoteDraft(title: item?.title ?? "", body: item?.noteBody ?? "", links: item?.allLinks.map(\.absoluteString).joined(separator: "\n") ?? "", tags: item?.tagIDs ?? [], files: item?.noteFiles ?? [], place: item?.place, placeEdited: false)
         _title = State(initialValue: item?.title ?? "")
         _bodyText = State(initialValue: item?.noteBody ?? "")
         _linksText = State(initialValue: item?.allLinks.map(\.absoluteString).joined(separator: "\n") ?? "")
         _tags = State(initialValue: item?.tagIDs ?? [])
+        _place = State(initialValue: item?.place)
         _files = State(initialValue: item?.noteFiles ?? [])
     }
 
@@ -83,6 +87,12 @@ struct NoteComposer: View {
                 if !startsWithLink { linkSection }
                 TagSelection(selected: $tags)
                 attachmentSection
+                Section("Luogo · facoltativo") {
+                    Button { focused = nil; choosingPlace = true } label: {
+                        Label(place?.name ?? "Aggiungi luogo", systemImage: "mappin.and.ellipse")
+                    }.accessibilityIdentifier("note-place-picker")
+                    if place != nil { Button("Rimuovi luogo", role: .destructive) { place = nil; placeEdited = true } }
+                }
                 if restored { Text("Bozza ripristinata").font(.caption).foregroundStyle(.secondary) }
                 if saved { Label("Nota salvata. Puoi aggiungerne un’altra.", systemImage: "checkmark.circle").foregroundStyle(Color.accentColor).accessibilityIdentifier("note-saved") }
                 if let error { Text(error).foregroundStyle(.red) }
@@ -117,6 +127,7 @@ struct NoteComposer: View {
                 }
             }
             .safeAreaInset(edge: .bottom) { if item == nil && focused == nil { captureActions } }
+            .sheet(isPresented: $choosingPlace) { PlacePicker { place = $0; placeEdited = true } }
             .sheet(isPresented: $showingFile) {
                 DocumentImportPicker { result in
                     showingFile = false
@@ -142,7 +153,7 @@ struct NoteComposer: View {
             } message: { Text("Puoi conservare la bozza e riprenderla alla prossima apertura.") }
         }
     }
-    private var isEmpty: Bool { title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && linksText.isEmpty && files.isEmpty && item == nil }
+    private var isEmpty: Bool { title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && linksText.isEmpty && files.isEmpty && item == nil && place == nil }
     private var linkSection: some View {
         Section("Link e video") {
             TextField("Incolla un link per riga", text: $linksText, axis: .vertical)
@@ -218,11 +229,11 @@ struct NoteComposer: View {
                 guard let url = URL(string: line.trimmingCharacters(in: .whitespacesAndNewlines)) else { throw CaptureError.invalidURL }
                 return try LinkValidation.validate(url)
             }
-            let receipt = try LinkStore.saveNote(existing: item, title: title, body: bodyText, urls: urls, files: files, tags: tags, in: context)
+            let receipt = try LinkStore.saveNote(existing: item, title: title, body: bodyText, urls: urls, files: files, tags: tags, location: placeEdited ? .set(place) : .keep, in: context)
             clearDraft()
             onSaved(receipt)
             if item != nil || !addAnother { dismiss(); return }
-            title = ""; bodyText = ""; linksText = ""; files = []; tags = []; saved = true; error = nil
+            title = ""; bodyText = ""; linksText = ""; files = []; tags = []; place = nil; placeEdited = false; saved = true; error = nil
             session = UUID(); preserveDraft = true; focused = .body
         } catch { self.error = error.localizedDescription }
     }
@@ -246,7 +257,7 @@ struct NoteComposer: View {
         linksText += (linksText.isEmpty ? "" : "\n") + text
         if saveImmediately { save() }
     }
-    private var snapshot: NoteDraft { NoteDraft(title: title, body: bodyText, links: linksText, tags: tags, files: files) }
+    private var snapshot: NoteDraft { NoteDraft(title: title, body: bodyText, links: linksText, tags: tags, files: files, place: place, placeEdited: placeEdited) }
     private var isDirty: Bool { snapshot != initialDraft }
     private var draftsEnabled: Bool {
         let arguments = ProcessInfo.processInfo.arguments
@@ -257,7 +268,7 @@ struct NoteComposer: View {
         if draftsEnabled {
             do {
                 if let draft = try await NoteDraftStore.shared.load(item?.id, session: session), draft != initialDraft {
-                    title = draft.title; bodyText = draft.body; linksText = draft.links
+                    title = draft.title; bodyText = draft.body; linksText = draft.links; place = draft.place; placeEdited = draft.placeEdited == true
                     tags = draft.tags.intersection(availableTags.map(\.id)); files = draft.files; restored = true
                 }
             } catch { self.error = "Non è stato possibile leggere la bozza: \(error.localizedDescription)" }

@@ -2,6 +2,21 @@ import XCTest
 
 final class DailyUseUITests: XCTestCase {
     @MainActor
+    func testMapListsSavedPlaceAndOpensItsNote() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-map"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Mappa"].waitForExistence(timeout: 15))
+        app.tabBars.buttons["Mappa"].tap()
+        app.buttons["map-places-list"].tap()
+        XCTAssertTrue(app.staticTexts["Colosseo"].waitForExistence(timeout: 5), diagnostics(app))
+        app.buttons["Rome fixture"].tap()
+        XCTAssertTrue(app.navigationBars["Rome fixture"].waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertTrue(app.buttons["note-edit-place"].exists)
+    }
+
+    @MainActor
     func testMixedCarouselSwipesBetweenPhotosAndText() {
         continueAfterFailure = false
         let app = XCUIApplication()

@@ -16,6 +16,18 @@ final class CaptureFailureInboxTests: XCTestCase {
         XCTAssertEqual(CaptureFailureInbox.take(defaults: reopened), .init(url: second, message: "Store locked"))
         XCTAssertNil(CaptureFailureInbox.take(defaults: reopened))
     }
+    func testSuccessfulRetryClearsOnlyItsOwnPendingFailure() throws {
+        let suite = "BloomCaptureFailure-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let first = URL(string: "https://example.com/first")!
+        let second = URL(string: "https://example.com/second")!
+        CaptureFailureInbox.record(url: first, message: "First", defaults: defaults)
+        CaptureFailureInbox.record(url: second, message: "Second", defaults: defaults)
+        CaptureFailureInbox.resolve(url: first, defaults: defaults)
+        XCTAssertEqual(CaptureFailureInbox.take(defaults: defaults)?.url, second)
+        XCTAssertNil(CaptureFailureInbox.take(defaults: defaults))
+    }
     func testRepeatedFailureForSameLinkKeepsLatestErrorWithoutDuplicates() throws {
         let suite = "BloomCaptureFailure-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
