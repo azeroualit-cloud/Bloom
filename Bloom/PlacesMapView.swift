@@ -27,59 +27,76 @@ struct PlacesMapView: View {
     private var selected: PlaceGroup? { groups.first { $0.id == selectedID } }
     var body: some View {
         NavigationStack {
-            Group {
-                if groups.isEmpty {
-                    ContentUnavailableView("Nessun luogo salvato", systemImage: "map", description: Text("Aggiungi un luogo a una nota, oppure salva un link di Maps con coordinate. I geotag dei post social non arrivano nel link condiviso."))
-                } else {
-                    Map(position: $camera, selection: $selectedID) {
-                        ForEach(groups) { group in
-                            Marker(group.notes.count > 1 ? "\(group.place.name) · \(group.notes.count) note" : group.place.name,
-                                   coordinate: CLLocationCoordinate2D(latitude: group.place.latitude, longitude: group.place.longitude))
-                                .tag(group.id)
-                        }
-                    }.mapControls { MapCompass(); MapScaleView() }
-                        .safeAreaInset(edge: .bottom) {
-                            if let selected {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack {
-                                        Text(selected.place.name).font(.headline).lineLimit(2)
-                                        Spacer()
-                                        Button { selectedID = nil } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }.accessibilityLabel("Chiudi luogo")
-                                    }
-                                    ScrollView(.horizontal) {
-                                        HStack {
-                                            ForEach(selected.notes) { note in
-                                                Button(note.displayTitle) { opened = note }.buttonStyle(.bordered).frame(minHeight: 44)
-                                            }
-                                        }
-                                    }
-                                    Button("Apri in Mappe", systemImage: "arrow.triangle.turn.up.right.diamond") { openMaps(selected.place) }.frame(minHeight: 44)
-                                }.padding(.horizontal, 16).background(.regularMaterial)
-                            }
-                        }
-                }
-            }.navigationTitle("Mappa").navigationBarTitleDisplayMode(.inline)
+            mapContent
+                .navigationTitle("Mappa").navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(item: $opened) { ContentViewer(item: $0) }
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) { Button("Elenco luoghi", systemImage: "list.bullet") { showingList = true }.disabled(groups.isEmpty).accessibilityIdentifier("map-places-list") }
-                    ToolbarItem(placement: .topBarLeading) { Button("Mostra tutti", systemImage: "arrow.up.left.and.arrow.down.right") { selectedID = nil; camera = .automatic }.disabled(groups.isEmpty) }
+                .toolbar { toolbar }
+                .sheet(isPresented: $showingList) { placesList }
+                .onChange(of: groups.map(\.id)) { _, ids in
+                    if let selectedID, !ids.contains(selectedID) { self.selectedID = nil }
                 }
-                .sheet(isPresented: $showingList) {
-                    NavigationStack {
-                        List {
-                            ForEach(groups) { group in
-                                Section(group.place.name) {
-                                    ForEach(group.notes) { note in
-                                        NavigationLink { ContentViewer(item: note) } label: { Text(note.displayTitle) }
-                                    }
-                                }
-                            }
-                        }.navigationTitle("Luoghi salvati").navigationBarTitleDisplayMode(.inline)
-                            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fine") { showingList = false } } }
+                .onChange(of: notes.filter { !$0.isArchived }.map(\.id)) { _, _ in
+                    if opened?.modelContext == nil || opened?.isDeleted == true || opened?.isArchived == true { opened = nil }
+                }
+        }
+    }
+    @ViewBuilder private var mapContent: some View {
+        if groups.isEmpty {
+            ContentUnavailableView("Nessun luogo salvato", systemImage: "map", description: Text("Aggiungi un luogo a una nota, oppure salva un link di Maps con coordinate. I geotag dei post social non arrivano nel link condiviso."))
+        } else {
+            mapCanvas.safeAreaInset(edge: .bottom) { selectionPanel }
+        }
+    }
+    private var mapCanvas: some View {
+        Map(position: $camera, selection: $selectedID) {
+            ForEach(groups) { group in
+                Marker(markerTitle(group), coordinate: CLLocationCoordinate2D(latitude: group.place.latitude, longitude: group.place.longitude))
+                    .tag(group.id)
+            }
+        }.mapControls { MapCompass(); MapScaleView() }
+    }
+    private func markerTitle(_ group: PlaceGroup) -> String {
+        group.notes.count > 1 ? "\(group.place.name) · \(group.notes.count) note" : group.place.name
+    }
+    @ViewBuilder private var selectionPanel: some View {
+        if let selected {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(selected.place.name).font(.headline).lineLimit(2)
+                    Spacer()
+                    Button { selectedID = nil } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }.accessibilityLabel("Chiudi luogo")
+                }
+                ScrollView(.horizontal) {
+                    HStack {
+                        ForEach(selected.notes) { note in
+                            Button(note.displayTitle) { opened = note }.buttonStyle(.bordered).frame(minHeight: 44)
+                        }
                     }
                 }
-                .onChange(of: groups.map(\.id)) { _, ids in if let selectedID, !ids.contains(selectedID) { self.selectedID = nil } }
-                .onChange(of: notes.filter { !$0.isArchived }.map(\.id)) { _, ids in if opened?.modelContext == nil || opened?.isDeleted == true || opened?.isArchived == true { opened = nil } }
+                Button("Apri in Mappe", systemImage: "arrow.triangle.turn.up.right.diamond") { openMaps(selected.place) }.frame(minHeight: 44)
+            }.padding(.horizontal, 16).background(.regularMaterial)
+        }
+    }
+    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Button("Elenco luoghi", systemImage: "list.bullet") { showingList = true }.disabled(groups.isEmpty).accessibilityIdentifier("map-places-list")
+        }
+        ToolbarItem(placement: .topBarLeading) {
+            Button("Mostra tutti", systemImage: "arrow.up.left.and.arrow.down.right") { selectedID = nil; camera = .automatic }.disabled(groups.isEmpty)
+        }
+    }
+    private var placesList: some View {
+        NavigationStack {
+            List {
+                ForEach(groups) { group in
+                    Section(group.place.name) {
+                        ForEach(group.notes) { note in
+                            NavigationLink { ContentViewer(item: note) } label: { Text(note.displayTitle) }
+                        }
+                    }
+                }
+            }.navigationTitle("Luoghi salvati").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fine") { showingList = false } } }
         }
     }
     private func openMaps(_ place: NotePlace) {
