@@ -17,3 +17,7 @@ Verifica documentazione ufficiale del 20 ottobre 2026:
 La build non aggiunge scraping, credenziali social né un servizio di download. I link social tentano l’apertura dell’app tramite universal link e ripiegano sul browser integrato se iOS non la apre. Il carosello locale funziona con i file che l’utente allega. Un futuro embed online va trattato come modalità distinta dall’archivio offline.
 
 La disponibilità di una copertina non prova che siano disponibili tutti i media del post. oEmbed supporta il tipo carosello come contenuto incorporato, ma la possibilità di scorrere le slide nel rendering va verificata sul provider e sul post reale; non è garantita né implementata come carosello nativo in Bloom.
+
+## Salvataggio dai Comandi Rapidi
+
+L’azione Salva link in Bloom ha openAppWhenRun disattivato e salva in background senza caricare anteprime di rete. Solo dopo un errore usa la continuazione in primo piano di App Intents: iOS può chiedere il consenso a proseguire in Bloom. Gli errori e gli URL vengono accodati nello storage privato e presentati in Bloom per riprovare, senza risalvare automaticamente prima della scelta dell’utente. Eventuali ulteriori azioni Apri app/Apri URL aggiunte al comando dall’utente continuano naturalmente ad aprire l’app. La transizione dal foglio di condivisione dopo la firma Signulous richiede verifica sul dispositivo.

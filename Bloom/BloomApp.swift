@@ -36,7 +36,7 @@ private struct StorageRootView: View {
             if attempt == nil {
                 attempt = StorageAttempt.load()
             }
-            if !restoreIntentFailure() { savePendingURL() }
+            if captureError == nil && !restoreIntentFailure() { savePendingURL() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { _ = restoreIntentFailure() }
