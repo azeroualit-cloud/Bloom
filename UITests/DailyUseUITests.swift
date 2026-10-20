@@ -51,7 +51,7 @@ final class DailyUseUITests: XCTestCase {
         app.tabBars.buttons["Mappa"].tap()
         let marker = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-marker-' ")).firstMatch
         XCTAssertTrue(marker.waitForExistence(timeout: 10), diagnostics(app))
-        marker.tap()
+        tapWhenReady(marker, in: app)
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-open-note-' ")).firstMatch.waitForExistence(timeout: 5), diagnostics(app))
         app.buttons["map-places-list"].tap()
         XCTAssertTrue(app.staticTexts["Colosseo"].waitForExistence(timeout: 5), diagnostics(app))
@@ -399,16 +399,7 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["category-Da specificare"].tap()
         note.press(forDuration: 1.1)
         let editTags = app.buttons["note-context-tags"]
-        XCTAssertTrue(editTags.waitForExistence(timeout: 5), diagnostics(app))
-        var lastFrame = CGRect.null
-        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            guard editTags.exists, editTags.isHittable else { return false }
-            let frame = editTags.frame
-            defer { lastFrame = frame }
-            return !frame.isEmpty && frame == lastFrame
-        }, object: editTags)
-        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 10), .completed, "Menu action: \(editTags.debugDescription); last frame: \(lastFrame); \(diagnostics(app))")
-        editTags.tap()
+        tapWhenReady(editTags, in: app)
         let salute = app.buttons["tag-Salute"]
         XCTAssertTrue(salute.waitForExistence(timeout: 5), diagnostics(app))
         salute.tap()
@@ -462,13 +453,13 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["bulk-archive-action"].tap()
         assertLibraryCount(app, count: 0)
         app.buttons["library-settings"].tap()
-        app.buttons["settings-archive"].tap()
+        tapWhenReady(app.buttons["settings-archive"], in: app)
         assertLibraryCount(app, count: 1)
         app.buttons["bulk-select-all"].tap()
         app.buttons["bulk-archive-action"].tap()
         assertLibraryCount(app, count: 0)
         app.buttons["library-settings"].tap()
-        app.buttons["settings-archive"].tap()
+        tapWhenReady(app.buttons["settings-archive"], in: app)
         assertLibraryCount(app, count: 1)
     }
 
@@ -550,6 +541,21 @@ final class DailyUseUITests: XCTestCase {
         let expected = "\(count) contenuti"
         let condition = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", expected), object: app.staticTexts["library-count"])
         XCTAssertEqual(XCTWaiter.wait(for: [condition], timeout: 5), .completed, diagnostics(app))
+    }
+
+    @MainActor
+    private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(element.waitForExistence(timeout: 10), diagnostics(app), file: file, line: line)
+        var lastFrame = CGRect.null
+        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard element.exists, element.isHittable else { return false }
+            let frame = element.frame
+            defer { lastFrame = frame }
+            return !frame.isEmpty && frame == lastFrame
+        }, object: element)
+        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 10), .completed,
+                       "Target: \(element.debugDescription); last frame: \(lastFrame); \(diagnostics(app))", file: file, line: line)
+        element.tap()
     }
 
     @MainActor
