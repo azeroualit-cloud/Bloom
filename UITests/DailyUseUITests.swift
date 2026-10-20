@@ -3,6 +3,26 @@ import XCTest
 final class DailyUseUITests: XCTestCase {
 
     @MainActor
+    func testCategoryPinBecomesTitleOnlyRowAndLeavesTheGrid() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-grid"]
+        app.launch()
+        tapWhenReady(app.buttons["category-Casa"], in: app)
+        let cells = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'"))
+        XCTAssertTrue(cells.element(boundBy: 3).waitForExistence(timeout: 5), diagnostics(app))
+        cells.firstMatch.press(forDuration: 1.1)
+        tapWhenReady(app.buttons["note-context-pin"], in: app)
+        let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'pinned-note-' ")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertEqual(cells.count, 3)
+        XCTAssertLessThan(row.frame.height, 80)
+        XCTAssertGreaterThan(row.frame.width, app.frame.width * 0.85)
+        tapWhenReady(row, in: app)
+        XCTAssertTrue(app.staticTexts["note-detail-title"].waitForExistence(timeout: 5), diagnostics(app))
+    }
+
+    @MainActor
     func testPKMSFolderTreeEditsLiveAndRestoresOfflineDraftAfterRestart() {
         continueAfterFailure = false
         let app = XCUIApplication()

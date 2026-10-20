@@ -21,6 +21,7 @@ struct PKMSEditorView: View {
     @State private var query = ""
     @State private var conflict = false
     @State private var exporting = false
+    @State private var history = false
     @State private var exportError: String?
     private var document: PKMSDocument? { store.documents[entry.identity] }
     var body: some View {
@@ -33,7 +34,7 @@ struct PKMSEditorView: View {
                 if let storageError = store.storageError {
                     statusRow(storageError, symbol: "exclamationmark.triangle") { store.retryLocalSave() }
                 } else if document.remoteDeleted {
-                    statusRow("File non più su Dropbox · copia locale conservata", symbol: "exclamationmark.triangle") { exporting = true }
+                    statusRow("File non più nella cartella Dropbox · copia locale conservata", symbol: "exclamationmark.triangle") { exporting = true }
                 } else if document.hasConflict {
                     statusRow("Modifica anche su Dropbox · confronta le versioni", symbol: "exclamationmark.triangle") { conflict = true }
                 } else if let error = store.error {
@@ -62,6 +63,7 @@ struct PKMSEditorView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("Sincronizza ora", systemImage: "arrow.triangle.2.circlepath") { Task { await store.sync() } }.disabled(store.syncing || !store.connected)
+                    Button("Versioni locali", systemImage: "clock.arrow.circlepath") { history = true }.disabled(document == nil)
                     Button("Esporta Markdown", systemImage: "square.and.arrow.up") { exporting = true }.disabled(document == nil)
                     if document?.hasConflict == true { Button("Confronta versioni") { conflict = true } }
                 } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Azioni documento")
@@ -70,6 +72,7 @@ struct PKMSEditorView: View {
         .task { await store.open(entry) }
         .onDisappear { store.scheduleSync() }
         .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await store.sync() } } }
+        .sheet(isPresented: $history) { PKMSHistoryView(store: store, id: entry.identity) }
         .sheet(isPresented: $conflict) { PKMSConflictView(store: store, id: entry.identity) }
         .fileExporter(isPresented: $exporting, document: PKMSMarkdownFile(text: document?.text ?? ""), contentType: .plainText,
                       defaultFilename: entry.title + ".md") { result in if case .failure(let error) = result { exportError = error.localizedDescription } }
@@ -121,5 +124,41 @@ struct PKMSRecoveryView: View {
         ScrollView { Text(document.text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(20) }
             .background(Color.bloomBackground).navigationTitle((document.path as NSString).lastPathComponent)
             .toolbar { ShareLink(item: document.text) { Label("Condividi copia locale", systemImage: "square.and.arrow.up") } }
+    }
+}
+
+@MainActor
+private struct PKMSHistoryView: View {
+    @ObservedObject var store: PKMSStore
+    let id: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var versions: [PKMSDocument] = []
+    @State private var error: String?
+    var body: some View {
+        NavigationStack {
+            List {
+                if let error { Text(error).foregroundStyle(.red) }
+                if versions.isEmpty && error == nil {
+                    ContentUnavailableView("Nessuna versione precedente", systemImage: "clock", description: Text("Le copie vengono conservate prima delle modifiche e delle scelte sui conflitti."))
+                }
+                ForEach(Array(versions.enumerated()), id: \.offset) { _, version in
+                    NavigationLink {
+                        ScrollView { Text(version.text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(20) }
+                            .bloomCanvas().navigationTitle("Versione locale")
+                            .toolbar { ShareLink(item: version.text) { Label("Condividi versione", systemImage: "square.and.arrow.up") } }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(version.modifiedAt.formatted(date: .abbreviated, time: .standard))
+                            Text("\(version.text.count) caratteri").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }.bloomCanvas().navigationTitle("Versioni locali").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { dismiss() } } }
+                .task {
+                    do { versions = try store.recoveryVersions(id: id) }
+                    catch { self.error = error.localizedDescription }
+                }
+        }
     }
 }

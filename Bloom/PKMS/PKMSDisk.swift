@@ -27,6 +27,15 @@ struct PKMSDisk {
         try FileManager.default.createDirectory(at: history, withIntermediateDirectories: true)
         try write(document, to: history.appendingPathComponent("\(UUID().uuidString).json"))
     }
+    func recoveryVersions(id: String) throws -> [PKMSDocument] {
+        let directory = root.appendingPathComponent("Recovery", isDirectory: true)
+        guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
+        return try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "json" }
+            .map { try JSONDecoder().decode(PKMSDocument.self, from: Data(contentsOf: $0)) }
+            .filter { $0.id == id }
+            .sorted { $0.modifiedAt > $1.modifiedAt }
+    }
     private func documentURL(_ id: String) -> URL {
         root.appendingPathComponent("doc-" + Data(id.utf8).base64EncodedString().replacingOccurrences(of: "/", with: "_") + ".json")
     }

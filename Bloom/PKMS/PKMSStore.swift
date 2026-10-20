@@ -144,7 +144,7 @@ final class PKMSStore: ObservableObject {
             for entry in entries where !entry.isFolder {
                 guard var cached = documents[entry.identity] else { continue }
                 if cached.path != entry.pathLower { cached.path = entry.pathLower; try persist(cached) }
-                if cached.revision != entry.rev { try await receive(entry) }
+                if cached.revision != entry.rev || cached.remoteDeleted { try await receive(entry) }
                 guard let draft = documents[entry.identity], draft.dirty, !draft.hasConflict else { continue }
                 try await upload(draft)
             }
@@ -246,5 +246,5 @@ final class PKMSStore: ObservableObject {
         guard let disk else { throw DropboxFailure.storage("Archivio PKMS non disponibile. Non verrà creato un archivio vuoto al suo posto.") }
         return disk
     }
-    func recoveryMarkdown(id: String) -> String { documents[id]?.text ?? "" }
+    func recoveryVersions(id: String) throws -> [PKMSDocument] { try requireDisk().recoveryVersions(id: id) }
 }

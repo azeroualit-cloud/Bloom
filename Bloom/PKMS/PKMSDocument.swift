@@ -65,7 +65,7 @@ enum DropboxFailure: LocalizedError, Equatable {
         case .unauthorized: return "L’accesso Dropbox è scaduto o revocato. Ricollega lo stesso account: le modifiche locali sono conservate."
         case .conflict: return "La nota è stata modificata anche su Dropbox. Le due versioni sono conservate."
         case .cursorReset: return "Dropbox richiede un aggiornamento completo dell’indice. Riprova."
-        case .remoteMissing: return "Il documento non è più disponibile su Dropbox. La copia locale è conservata."
+        case .remoteMissing: return "Il documento non è più disponibile nella cartella Dropbox. La copia locale è conservata."
         case .invalidResponse: return "Risposta Dropbox non valida. Riprova."
         case .unsupportedText: return "Questo documento non è testo UTF-8 valido. Il file originale non è stato modificato."
         case .tooLarge: return "Questa nota supera il limite di 8 MB per l’editor. Il file originale non è stato modificato."

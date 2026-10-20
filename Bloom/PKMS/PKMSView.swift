@@ -80,7 +80,7 @@ struct PKMSView: View {
                     }.listRowSeparator(.hidden).listRowBackground(Color.bloomBackground)
                     let recovered = store.documents.values.filter { $0.remoteDeleted }
                     if !recovered.isEmpty {
-                        Section("Copie locali · file non più su Dropbox") {
+                        Section("Copie locali · file non più nella cartella Dropbox") {
                             ForEach(recovered.sorted { $0.path < $1.path }, id: \.id) { document in
                                 NavigationLink((document.path as NSString).lastPathComponent) {
                                     PKMSRecoveryView(document: document)
@@ -141,7 +141,7 @@ struct PKMSView: View {
 struct PKMSSettingsView: View {
     @ObservedObject var store: PKMSStore
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("pkms.dropbox.appKey") private var appKey = ""
+    @AppStorage("pkms.dropbox.appKey") private var appKey = Bundle.main.object(forInfoDictionaryKey: "DropboxAppKey") as? String ?? ""
     @State private var auth = DropboxAuthentication()
     @State private var connecting = false
     @State private var choosingRoot = false

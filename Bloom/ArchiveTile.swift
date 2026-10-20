@@ -72,7 +72,7 @@ struct ArchiveTile: View {
 
     @ViewBuilder private var compactActions: some View {
         Button("Modifica tag", systemImage: "tag", action: editTags).accessibilityIdentifier("note-context-tags")
-        if let pinAction { Button(pinnedInCategory ? "Rimuovi dai fissati" : "Fissa nella categoria", systemImage: pinnedInCategory ? "pin.slash" : "pin", action: pinAction) }
+        if let pinAction { Button(pinnedInCategory ? "Rimuovi dai fissati" : "Fissa nella categoria", systemImage: pinnedInCategory ? "pin.slash" : "pin", action: pinAction).accessibilityIdentifier("note-context-pin") }
         renameButton
         Button("Apri nota", systemImage: "note.text", action: openNote)
             .disabled(selecting).accessibilityIdentifier("note-context-open")
