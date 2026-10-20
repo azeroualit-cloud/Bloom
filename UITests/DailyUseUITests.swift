@@ -2,6 +2,29 @@ import XCTest
 
 final class DailyUseUITests: XCTestCase {
     @MainActor
+    func testMixedCarouselSwipesBetweenPhotosAndText() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-carousel"]
+        app.launch()
+        XCTAssertTrue(app.buttons["category-Tutti"].waitForExistence(timeout: 15))
+        app.buttons["category-Tutti"].tap()
+        openGridNote(app)
+        let carousel = app.otherElements["note-carousel"].firstMatch
+        XCTAssertTrue(carousel.waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertEqual(carousel.frame.width, carousel.frame.height, accuracy: 2)
+        let position = app.staticTexts["carousel-position"]
+        XCTAssertEqual(position.label, "1/3")
+        carousel.swipeLeft()
+        XCTAssertEqual(position.label, "2/3")
+        carousel.swipeLeft()
+        XCTAssertEqual(position.label, "3/3")
+        XCTAssertTrue(app.staticTexts["Carousel text"].exists)
+        carousel.swipeRight()
+        XCTAssertEqual(position.label, "2/3")
+    }
+
+    @MainActor
     func testRenameFromPreviewMenuAndFullWidthRediscoveryFeed() {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -23,9 +46,10 @@ final class DailyUseUITests: XCTestCase {
         app.alerts.buttons["Salva"].tap()
         XCTAssertEqual(note.label, "Updated title")
         app.tabBars.buttons["Riscopri"].tap()
-        XCTAssertTrue(note.waitForExistence(timeout: 5))
-        XCTAssertEqual(note.frame.width, app.frame.width, accuracy: 2)
-        XCTAssertEqual(note.frame.width, note.frame.height, accuracy: 2)
+        let carousel = app.otherElements["note-carousel"].firstMatch
+        XCTAssertTrue(carousel.waitForExistence(timeout: 5))
+        XCTAssertEqual(carousel.frame.width, app.frame.width, accuracy: 2)
+        XCTAssertEqual(carousel.frame.width, carousel.frame.height, accuracy: 2)
         let image = XCTAttachment(screenshot: app.screenshot())
         image.name = "Full width rediscovery feed"; image.lifetime = .keepAlways; add(image)
     }
@@ -72,9 +96,10 @@ final class DailyUseUITests: XCTestCase {
         openGridNote(app)
         XCTAssertTrue(app.navigationBars["Browser fixture"].waitForExistence(timeout: 5))
         app.tabBars.buttons["Riscopri"].tap()
-        let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
-        XCTAssertTrue(note.waitForExistence(timeout: 5), diagnostics(app))
-        note.swipeLeft()
+        XCTAssertTrue(app.otherElements["note-carousel"].firstMatch.waitForExistence(timeout: 5), diagnostics(app))
+        let actions = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-actions-'" )).firstMatch
+        XCTAssertTrue(actions.waitForExistence(timeout: 5))
+        actions.tap()
         XCTAssertTrue(app.buttons["Elimina"].waitForExistence(timeout: 5))
         app.buttons["Elimina"].tap()
         app.alerts.buttons["Sposta nel cestino"].tap()
@@ -137,8 +162,9 @@ final class DailyUseUITests: XCTestCase {
         let unspecified = app.buttons["category-Da specificare"]
         XCTAssertTrue(all.waitForExistence(timeout: 5))
         XCTAssertTrue(unspecified.exists)
-        XCTAssertEqual(all.frame.minY, unspecified.frame.minY, accuracy: 2)
-        XCTAssertGreaterThan(unspecified.frame.minX, all.frame.minX)
+        XCTAssertLessThanOrEqual(unspecified.frame.maxY, all.frame.minY)
+        XCTAssertLessThan(unspecified.frame.height, 80)
+        XCTAssertGreaterThan(unspecified.frame.width, all.frame.width)
         XCTAssertGreaterThan(all.frame.height, all.frame.width + 35)
         XCTAssertFalse(app.segmentedControls.buttons["Archivio"].exists)
         unspecified.tap()

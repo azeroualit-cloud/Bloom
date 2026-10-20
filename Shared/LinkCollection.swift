@@ -5,6 +5,7 @@ import SwiftData
 final class LinkCollection {
     var id: UUID
     var name: String
+    var modifiedAt: Date?
     var createdAt: Date
     @Relationship(deleteRule: .nullify, inverse: \CapturedLink.collection)
     var links: [CapturedLink] = []

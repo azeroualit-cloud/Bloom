@@ -43,6 +43,13 @@ struct ImageFraming: Codable, Equatable, Sendable {
 }
 
 enum SocialLink {
+    static func opensInApp(_ url: URL) -> Bool {
+        let host = (url.host ?? "").lowercased()
+        return ["instagram.com", "tiktok.com", "youtube.com", "youtu.be", "pinterest.com", "pin.it"].contains {
+            host == $0 || host.hasSuffix("." + $0)
+        }
+    }
+
     static func isVideo(_ url: URL) -> Bool {
         let host = (url.host ?? "").lowercased()
         if host == "youtu.be" || host == "youtube.com" || host.hasSuffix(".youtube.com") { return true }

@@ -28,7 +28,7 @@ struct ArchiveTile: View {
         Group {
             if item.modelContext != nil && !item.isDeleted {
                 if compact { tile.contextMenu { compactActions } }
-                else { tile }
+                else { feedTile }
             }
         }
         .alert("Modifica titolo", isPresented: $renaming) {
@@ -48,6 +48,13 @@ struct ArchiveTile: View {
             .accessibilityIdentifier("note-rename")
     }
 
+    private var feedTile: some View {
+        VStack(spacing: 0) {
+            NoteCarousel(item: item)
+            footer
+        }
+        .task(id: item.allLinks.first) { LinkPreviewController.shared.prepare(for: item, in: context) }
+    }
     private var tile: some View {
         GeometryReader { geometry in
             let id = item.id
@@ -64,10 +71,10 @@ struct ArchiveTile: View {
     }
 
     @ViewBuilder private var compactActions: some View {
+        Button("Modifica tag", systemImage: "tag", action: editTags).accessibilityIdentifier("note-context-tags")
+        renameButton
         Button("Apri nota", systemImage: "note.text", action: openNote)
             .disabled(selecting).accessibilityIdentifier("note-context-open")
-        renameButton
-        Button("Modifica tag", systemImage: "tag", action: editTags).accessibilityIdentifier("note-context-tags")
         Button(selected ? "Deseleziona" : "Seleziona", systemImage: "checkmark.circle", action: select).accessibilityIdentifier("note-context-select")
         if item.isArchived { Button("Ripristina", systemImage: "arrow.uturn.backward", action: archive) }
         Button("Elimina", systemImage: "trash", role: .destructive, action: delete)
@@ -82,9 +89,9 @@ struct ArchiveTile: View {
                 }.buttonStyle(.plain).accessibilityIdentifier("note-title-\(item.id)")
                 if !selecting {
                     Menu {
-                        Button("Apri nota", action: openNote)
-                        renameButton
                         Button("Modifica tag", action: editTags)
+                        renameButton
+                        Button("Apri nota", action: openNote)
                         if item.isArchived { Button("Ripristina", systemImage: "arrow.uturn.backward", action: archive) }
                         Button("Elimina", systemImage: "trash", role: .destructive, action: delete)
                     } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(Color.primary) }
@@ -131,6 +138,9 @@ struct ArchiveTile: View {
                     .padding(compact ? 8 : 0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: compact ? .topTrailing : .center).allowsHitTesting(false)
             }
+            if item.allLinks.count + item.noteFiles.count + ((item.kind == .image || item.kind == .file) ? 1 : 0) + (item.noteBody.isEmpty ? 0 : 1) > 1 {
+                Image(systemName: "square.on.square.fill").font(.caption).padding(8).foregroundStyle(.white).background(.black.opacity(0.5), in: Circle()).padding(6).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).allowsHitTesting(false)
+            }
             if selecting {
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle").font(.title2)
                     .foregroundStyle(Color.accentColor).padding(12).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing).allowsHitTesting(false)
@@ -161,7 +171,9 @@ struct ArchiveTile: View {
         guard Date() > suppressTapUntil else { return }
         guard !selecting else { select(); return }
         guard !isRevealed else { revealed = nil; return }
-        if let url = item.allLinks.first, SocialLink.isVideo(url) {
+        let count = item.allLinks.count + item.noteFiles.count + ((item.kind == .image || item.kind == .file) ? 1 : 0) + (item.noteBody.isEmpty ? 0 : 1)
+        if count > 1 { openNote(); return }
+        if let url = item.allLinks.first, SocialLink.opensInApp(url) {
             opening = true
             UIApplication.shared.open(url, options: [.universalLinksOnly: true]) { success in
                 Task { @MainActor in

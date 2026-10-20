@@ -26,10 +26,10 @@ enum BackupStore {
                 urlString: item.urlString, title: item.title, notes: item.notes, archived: item.isArchived,
                 collectionID: item.collection?.id, text: item.textContent, fileName: item.fileName,
                 contentType: item.contentType, data: data, tagIDs: Array(item.tagIDs),
-                noteLinks: item.noteLinks.map(\.absoluteString), noteFiles: item.noteFiles, imageFraming: item.imageFraming, noteVersion: item.noteVersion, trashedAt: item.trashedAt))
+                noteLinks: item.noteLinks.map(\.absoluteString), noteFiles: item.noteFiles, imageFraming: item.imageFraming, noteVersion: item.noteVersion, trashedAt: item.trashedAt, modifiedAt: item.modifiedAt))
         }
         return LibraryBackup(collections: collections.map {
-            .init(id: $0.id, name: $0.name, createdAt: $0.createdAt)
+            .init(id: $0.id, name: $0.name, createdAt: $0.createdAt, modifiedAt: $0.modifiedAt)
         }, items: records)
     }
 
@@ -50,6 +50,7 @@ enum BackupStore {
                     let collection = LinkCollection(name: record.name.trimmingCharacters(in: .whitespacesAndNewlines))
                     collection.id = record.id
                     collection.createdAt = record.createdAt
+                    collection.modifiedAt = record.modifiedAt
                     context.insert(collection)
                     mapping[record.id] = collection
                     byID[record.id] = collection
@@ -72,6 +73,7 @@ enum BackupStore {
                 let item = CapturedLink(kind: kind)
                 item.id = record.id
                 item.capturedAt = record.capturedAt
+                item.modifiedAt = record.modifiedAt
                 item.urlString = record.urlString
                 item.title = record.title
                 item.notes = record.notes

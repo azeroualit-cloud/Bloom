@@ -46,7 +46,7 @@ struct NoteComposer: View {
     @State private var files: [NoteFile]
     @State private var showingFile = false
     @State private var showingPhoto = false
-    @State private var photo: PhotosPickerItem?
+    @State private var photos: [PhotosPickerItem] = []
     @State private var loading = false
     @State private var error: String?
     @State private var saved = false
@@ -126,8 +126,8 @@ struct NoteComposer: View {
                     }
                 }
             }
-            .photosPicker(isPresented: $showingPhoto, selection: $photo, matching: .images)
-            .onChange(of: photo) { _, value in if let value { loadPhoto(value); photo = nil } }
+            .photosPicker(isPresented: $showingPhoto, selection: $photos, maxSelectionCount: 10, selectionBehavior: .ordered, matching: .any(of: [.images, .videos]))
+            .onChange(of: photos) { _, values in if !values.isEmpty { loadPhotos(values); photos = [] } }
             .onChange(of: bodyText) { _, _ in if !bodyText.isEmpty { saved = false } }
             .onChange(of: linksText) { _, _ in if !linksText.isEmpty { saved = false } }
             .task { await restoreDraft() }
@@ -162,7 +162,7 @@ struct NoteComposer: View {
                 }
             }
             HStack {
-                Button("Foto", systemImage: "photo") { focused = nil; showingPhoto = true }
+                Button("Foto e video", systemImage: "photo.on.rectangle") { focused = nil; showingPhoto = true }
                 Spacer(); Button("File", systemImage: "doc") { showingFile = true }
             }.buttonStyle(.borderless).disabled(loading)
             if loading { ProgressView("Importazione…") }
@@ -170,7 +170,10 @@ struct NoteComposer: View {
     }
     private func append(_ payload: AttachmentPayload) throws {
         try Task.checkCancellation()
-        guard files.count < 10, files.reduce(payload.data.count, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw NoteError.tooManyAttachments }
+        let primaryCount = (item?.kind == .image || item?.kind == .file) ? 1 : 0
+        let linkCount = linksText.split(whereSeparator: { $0.isNewline }).count
+        guard files.count + primaryCount + linkCount < 10,
+              files.reduce(payload.data.count + (item?.attachmentData?.count ?? 0) + bodyText.utf8.count, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw NoteError.tooManyAttachments }
         files.append(NoteFile(name: payload.name, type: payload.type, data: payload.data))
     }
     private func loadFile(_ url: URL) {
@@ -187,13 +190,25 @@ struct NoteComposer: View {
             } catch is CancellationError { } catch { self.error = error.localizedDescription }
         }
     }
-    private func loadPhoto(_ photo: PhotosPickerItem) {
+    private func loadPhotos(_ photos: [PhotosPickerItem]) {
         loading = true; error = nil
         operation = Task {
             defer { loading = false }
             do {
-                guard let imported = try await photo.loadTransferable(type: ImportedPhoto.self) else { throw ImportError.missingData }
-                try append(imported.payload)
+                var importedFiles: [NoteFile] = []
+                let primaryCount = (item?.kind == .image || item?.kind == .file) ? 1 : 0
+                let linkCount = linksText.split(whereSeparator: { $0.isNewline }).count
+                guard files.count + photos.count + primaryCount + linkCount <= 10 else { throw NoteError.tooManyAttachments }
+                var bytes = files.reduce(item?.attachmentData?.count ?? 0, { $0 + $1.data.count }) + bodyText.utf8.count
+                for photo in photos {
+                    try Task.checkCancellation()
+                    guard let imported = try await photo.loadTransferable(type: ImportedPhoto.self) else { throw ImportError.missingData }
+                    bytes += imported.payload.data.count
+                    guard bytes <= AttachmentLoader.maximumBytes else { throw NoteError.tooManyAttachments }
+                    importedFiles.append(NoteFile(name: imported.payload.name, type: imported.payload.type, data: imported.payload.data))
+                }
+                try Task.checkCancellation()
+                files.append(contentsOf: importedFiles)
             } catch is CancellationError { } catch { self.error = error.localizedDescription }
         }
     }

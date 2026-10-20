@@ -11,6 +11,42 @@ final class NoteArchiveTests: XCTestCase {
         return url
     }
 
+    func testOrderedMixedAttachmentsAndActivitySurviveRestore() throws {
+        let source = try LinkStore.container(at: root()), context = source.mainContext
+        let first = try LinkStore.saveCollection(nil, name: "Casa", in: context)
+        let second = try LinkStore.saveCollection(nil, name: "Studio", in: context)
+        let files = [NoteFile(name: "one.png", type: "public.png", data: Data([1, 2])),
+                     NoteFile(name: "clip.mov", type: "com.apple.quicktime-movie", data: Data([3, 4])),
+                     NoteFile(name: "note.md", type: "public.text", data: Data("# Hello".utf8))]
+        _ = try LinkStore.saveNote(title: "Mixed", body: "Caption", urls: [], files: files, tags: [first.id], in: context)
+        let note = try XCTUnwrap(context.fetch(FetchDescriptor<CapturedLink>()).first)
+        XCTAssertEqual(note.fileName, "one.png")
+        XCTAssertEqual(note.noteFiles.map(\.id), Array(files.dropFirst()).map(\.id))
+        let old = Date(timeIntervalSince1970: 1)
+        first.modifiedAt = old; second.modifiedAt = old; note.modifiedAt = old
+        try context.save()
+        try LinkStore.setTags([second.id], for: [note], in: context)
+        XCTAssertGreaterThan(try XCTUnwrap(first.modifiedAt), old)
+        XCTAssertGreaterThan(try XCTUnwrap(second.modifiedAt), old)
+        XCTAssertGreaterThan(try XCTUnwrap(note.modifiedAt), old)
+        let backup = try LibraryBackup.decode(BackupStore.snapshot(from: source).encoded())
+        let target = try LinkStore.container(at: root())
+        _ = try BackupStore.restore(backup, into: target)
+        let restored = try XCTUnwrap(target.mainContext.fetch(FetchDescriptor<CapturedLink>()).first)
+        XCTAssertEqual(restored.modifiedAt, note.modifiedAt)
+        XCTAssertEqual(restored.noteFiles, note.noteFiles)
+        XCTAssertEqual(restored.attachmentData, files[0].data)
+        XCTAssertEqual(restored.noteBody, "Caption")
+    }
+
+    func testAllSocialPostsUseAppOpeningWithoutHostSpoofing() {
+        XCTAssertTrue(SocialLink.opensInApp(URL(string: "https://www.instagram.com/p/abc/")!))
+        XCTAssertTrue(SocialLink.opensInApp(URL(string: "https://www.instagram.com/reel/abc/")!))
+        XCTAssertFalse(SocialLink.isVideo(URL(string: "https://www.instagram.com/p/abc/")!))
+        XCTAssertFalse(SocialLink.opensInApp(URL(string: "https://evilinstagram.com/p/abc/")!))
+        XCTAssertFalse(SocialLink.opensInApp(URL(string: "https://instagram.com.example.com/p/abc/")!))
+    }
+
     func testNoteWithMultipleTagsLinksAndFilesSurvivesBackupAndReopen() throws {
         let directory = try root()
         let container = try LinkStore.container(at: directory)

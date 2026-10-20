@@ -16,6 +16,7 @@ struct LibraryBackup: Codable, Sendable {
         let id: UUID
         let name: String
         let createdAt: Date
+        var modifiedAt: Date? = nil
     }
 
     struct Item: Codable, Sendable {
@@ -37,6 +38,7 @@ struct LibraryBackup: Codable, Sendable {
         var imageFraming: ImageFraming? = nil
         var noteVersion: Int? = nil
         var trashedAt: Date? = nil
+        var modifiedAt: Date? = nil
 
         var fingerprint: String? {
             guard noteVersion == nil else { return nil }
@@ -63,6 +65,7 @@ struct LibraryBackup: Codable, Sendable {
             guard total <= Self.maximumPayloadBytes else { throw BackupError.tooLarge }
         }
         for collection in collections {
+            guard collection.modifiedAt?.timeIntervalSince1970.isFinite ?? true else { throw BackupError.invalid }
             guard !collection.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                   collection.name.utf8.count <= 1_024,
                   collection.createdAt.timeIntervalSince1970.isFinite else { throw BackupError.invalid }
@@ -74,6 +77,7 @@ struct LibraryBackup: Codable, Sendable {
                   item.collectionID.map({ ids.contains($0) }) ?? true else { throw BackupError.invalid }
             guard (item.tagIDs ?? []).allSatisfy({ ids.contains($0) }),
                   (item.noteLinks?.count ?? 0) + (item.noteFiles?.count ?? 0) <= 10 else { throw BackupError.invalid }
+            guard item.modifiedAt?.timeIntervalSince1970.isFinite ?? true else { throw BackupError.invalid }
             guard item.trashedAt?.timeIntervalSince1970.isFinite ?? true else { throw BackupError.invalid }
             guard item.imageFraming?.isValid ?? true else { throw BackupError.invalid }
             guard item.noteVersion == nil || item.noteVersion == 1 else { throw BackupError.unsupportedVersion }

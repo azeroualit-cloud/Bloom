@@ -25,7 +25,6 @@ struct LibraryView: View {
     @State private var guide = false
     @State private var contentRoute: ArchiveContentRoute?
     @State private var opened: CapturedLink?
-    @State private var savedID: UUID?
     @State private var notice: String?
     @State private var error: String?
     @State private var editingTags = false
@@ -50,13 +49,19 @@ struct LibraryView: View {
     private var library: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                header.padding(.horizontal, 16)
                 if showingTags {
                     let homeItems = visible
+                    Button { filter = .unfiled; allNotes = true } label: {
+                        HStack {
+                            Label("Da specificare", systemImage: "tag")
+                            Spacer()
+                            Text("\(homeItems.filter { $0.tagIDs.isEmpty }.count)").foregroundStyle(.secondary)
+                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
+                        }.frame(minHeight: 44).contentShape(Rectangle())
+                    }.buttonStyle(.plain).padding(.horizontal, 16).accessibilityIdentifier("category-Da specificare")
                     LazyVGrid(columns: categoryColumns, spacing: 20) {
                         category("Tutti", symbol: "square.grid.2x2", value: .all, members: homeItems)
-                        category("Da specificare", symbol: "tag", value: .unfiled, members: homeItems.filter { $0.tagIDs.isEmpty })
-                        ForEach(tags) { tag in
+                        ForEach(recentTags) { tag in
                             category(tag.name, symbol: "tag.fill", value: .collection(tag.id), members: homeItems.filter { $0.tagIDs.contains(tag.id) })
                         }
                     }.padding(.horizontal, 16).frame(maxWidth: 760).frame(maxWidth: .infinity)
@@ -107,7 +112,7 @@ struct LibraryView: View {
             .sheet(isPresented: $guide) { CaptureGuideView() }
             .sheet(isPresented: $editingTags) { bulkTagEditor }
             .sheet(item: $tagNote) { NoteTagEditor(item: $0) }
-            .safeAreaInset(edge: .bottom) { if selecting { selectionBar } }
+            .safeAreaInset(edge: .bottom) { if selecting { selectionBar }; feedback }
             .onChange(of: visible.map(\.id)) { _, ids in
                 selection.formIntersection(ids)
                 if opened?.modelContext == nil || opened?.isArchived != archived { opened = nil }
@@ -134,7 +139,6 @@ struct LibraryView: View {
                             notice = archived ? "Nota eliminata definitivamente" : "Nota nel cestino"
                             if !archived { archiveUndo = ArchiveUndo(ids: [id], wasArchived: false) }
                             selection.remove(id)
-                            if savedID == id { savedID = nil }
                             revealed = nil
                         }
                         catch { self.error = error.localizedDescription }
@@ -148,17 +152,34 @@ struct LibraryView: View {
             } message: { Text(error ?? "") }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if !showingTags {
-                Button { allNotes = false; archived = false; filter = .all; kind = nil; search = ""; selecting = false; selection = [] } label: {
-                    Label("Tag", systemImage: "chevron.left").frame(minHeight: 44)
-                }.accessibilityIdentifier("library-back-tags")
+    private var recentTags: [LinkCollection] {
+        let activity = items.reduce(into: [UUID: Date]()) { result, item in
+            guard !item.isArchived else { return }
+            for id in item.tagIDs { result[id] = max(result[id] ?? .distantPast, item.modifiedAt ?? item.capturedAt) }
+        }
+        return tags.sorted {
+            let left = max($0.modifiedAt ?? $0.createdAt, activity[$0.id] ?? .distantPast)
+            let right = max($1.modifiedAt ?? $1.createdAt, activity[$1.id] ?? .distantPast)
+            return left == right ? $0.name.localizedStandardCompare($1.name) == .orderedAscending : left > right
+        }
+    }
+    private func backToCategories() {
+        allNotes = false; archived = false; filter = .all; kind = nil; search = ""; selecting = false; selection = []
+    }
+    private var feedback: some View {
+        Group {
+            if let notice {
+                HStack {
+                    Text(notice).font(.subheadline)
+                    Spacer()
+                    if archiveUndo != nil { Button("Annulla", action: undoArchive).accessibilityIdentifier("archive-undo") }
+                    Button { self.notice = nil } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }.accessibilityLabel("Chiudi messaggio")
+                }.padding(.horizontal, 16).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)).padding(12)
             }
-            if archived { Text("Le note vengono eliminate definitivamente dopo 30 giorni. Puoi ripristinarle prima della scadenza.").font(.caption).foregroundStyle(.secondary) }
-            if let notice { Text(notice).font(.subheadline).foregroundStyle(.secondary) }
-            if archiveUndo != nil { Button("Annulla spostamento", action: undoArchive).accessibilityIdentifier("archive-undo") }
-
+        }.task(id: notice) {
+            guard notice != nil else { return }
+            do { try await Task.sleep(for: .seconds(6)); notice = nil }
+            catch { }
         }
     }
     private func card(_ item: CapturedLink) -> some View {
@@ -184,6 +205,11 @@ struct LibraryView: View {
             }
         }
         ToolbarItem(placement: .topBarLeading) {
+            if !showingTags {
+                Button(action: backToCategories) { Label("Indietro", systemImage: "chevron.left") }.accessibilityIdentifier("library-back-tags")
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button(archived ? "Torna alla libreria" : "Cestino", systemImage: "trash") { archived.toggle(); filter = .all; allNotes = true; search = ""; kind = nil }.accessibilityIdentifier("settings-archive")
                 Button("Gestisci tag", systemImage: "tag") { managingTags = true }.accessibilityIdentifier("library-manage-tags")
@@ -192,22 +218,21 @@ struct LibraryView: View {
                     ForEach(ContentKind.allCases, id: \.self) { Text($0.label).tag(Optional($0)) }
                 }
                 Picker("Ordina", selection: $sort) { ForEach(LibrarySort.allCases) { Text($0.label).tag($0) } }
+                Button("Aggiungi foto e video", systemImage: "photo.badge.plus") { addingPhoto = true }.accessibilityIdentifier("capture-photo")
                 Button("Backup locale", systemImage: "externaldrive") { backup = true }
                 Button("Come salvare dai social") { guide = true }
             } label: { Label("Impostazioni", systemImage: "gearshape") }.accessibilityIdentifier("library-settings")
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Button(selecting ? "Fine" : "Seleziona") { if showingTags { allNotes = true }; selecting.toggle(); selection.removeAll(); revealed = nil }.accessibilityIdentifier("library-select")
+            Button(selecting ? "Fine" : "Seleziona", systemImage: selecting ? "checkmark.circle.fill" : "checkmark.circle") { if showingTags { allNotes = true }; selecting.toggle(); selection.removeAll(); revealed = nil }.labelStyle(.iconOnly).accessibilityIdentifier("library-select")
         }
         ToolbarItem(placement: .primaryAction) {
             Button { adding = true } label: { Label("Aggiungi nota", systemImage: "plus") }.accessibilityIdentifier("capture-add").disabled(selecting)
         }
-        ToolbarItem(placement: .topBarTrailing) {
-            Button { addingPhoto = true } label: { Label("Aggiungi foto", systemImage: "photo.badge.plus") }.accessibilityIdentifier("capture-photo").disabled(selecting)
-        }
+
     }
     private func captured(_ receipt: CaptureReceipt) {
-        savedID = receipt.id; filter = .all; kind = nil; search = ""; archived = false
+        filter = .all; kind = nil; search = ""; archived = false
         notice = receipt.inserted ? "Nota salvata" : "Link già presente: nota esistente conservata."
     }
     private var selectionBar: some View {

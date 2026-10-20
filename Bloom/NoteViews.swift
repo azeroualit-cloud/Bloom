@@ -16,7 +16,6 @@ struct MarkdownExcerpt: View {
 
 @MainActor
 struct NoteLinkButton: View {
-    private static let previewHeight: CGFloat = 200
     let item: CapturedLink
     let url: URL
     @State private var fallback = false
@@ -26,21 +25,23 @@ struct NoteLinkButton: View {
     private var isVideo: Bool { SocialLink.isVideo(url) }
     var body: some View {
         Button(action: open) {
-            ZStack {
-                if let data = poster {
-                    CachedPreviewImage(data: data, label: item.displayTitle, maxPixel: 1000)
-                        .frame(maxWidth: .infinity, maxHeight: Self.previewHeight)
-                } else {
-                    RoundedRectangle(cornerRadius: 14).fill(Color.accentColor.opacity(0.08)).frame(height: Self.previewHeight)
-                    VStack(spacing: 8) {
-                        Image(systemName: isVideo ? "video" : "link").font(.title2)
-                        Text(url.host ?? "Link").font(.subheadline).lineLimit(1)
-                    }
-                }
-                if isVideo { Image(systemName: "play.circle.fill").font(.largeTitle).symbolRenderingMode(.palette).foregroundStyle(.white, .black.opacity(0.6)) }
-                if opening { ProgressView().padding().background(.regularMaterial, in: Capsule()) }
-            }.frame(maxWidth: .infinity).frame(height: Self.previewHeight)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+            GeometryReader { proxy in
+                Color(uiColor: .secondarySystemGroupedBackground).overlay {
+                    ZStack {
+                        if let data = poster {
+                            CachedPreviewImage(data: data, label: item.displayTitle, maxPixel: 1000, contentMode: .fill)
+                                .frame(width: proxy.size.width, height: proxy.size.height).clipped()
+                        } else {
+                            VStack(spacing: 8) {
+                                Image(systemName: isVideo ? "video" : "link").font(.title2)
+                                Text(url.host ?? "Link").font(.subheadline).lineLimit(1)
+                            }
+                        }
+                        if isVideo { Image(systemName: "play.circle.fill").font(.largeTitle).symbolRenderingMode(.palette).foregroundStyle(.white, .black.opacity(0.6)) }
+                        if opening { ProgressView().padding().background(.regularMaterial, in: Capsule()) }
+                    }.frame(width: proxy.size.width, height: proxy.size.height).clipped()
+                }.contentShape(Rectangle())
+            }.contentShape(Rectangle())
         }.buttonStyle(.plain).disabled(opening)
             .accessibilityLabel(isVideo ? "Apri video in \(url.host ?? "app")" : "Apri \(url.host ?? "link")")
             .accessibilityIdentifier("note-link-open")
@@ -53,7 +54,8 @@ struct NoteLinkButton: View {
             .navigationDestination(isPresented: $fallback) { WebContentView(item: item, url: url) }
     }
     private func open() {
-        guard isVideo else { fallback = true; return }
+        guard item.modelContext != nil, !item.isDeleted else { return }
+        guard SocialLink.opensInApp(url) else { fallback = true; return }
         opening = true
         UIApplication.shared.open(url, options: [.universalLinksOnly: true]) { success in
             Task { @MainActor in opening = false; if !success { fallback = true } }
@@ -71,22 +73,11 @@ struct NoteDetailView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
-                if !item.noteBody.isEmpty { MarkdownDocumentView(text: item.noteBody) }
-                ForEach(item.allLinks, id: \.absoluteString) { url in NoteLinkButton(item: item, url: url) }
-                if item.kind == .image || item.kind == .file {
-                    NavigationLink { PrimaryContentView(item: item) } label: {
-                        if item.kind == .image { AttachmentThumbnail(item: item, maximumPixelSize: 1400).frame(maxHeight: 420) }
-                        else { Label(item.fileName ?? "Apri documento", systemImage: "doc.text") }
-                    }
-                }
+                NoteCarousel(item: item)
+                // Direct document shortcuts preserve quick editing without paging through media.
                 ForEach(item.noteFiles) { file in
                     NavigationLink { NoteAttachmentView(item: item, fileID: file.id) } label: {
-                        VStack(alignment: .leading, spacing: 8) {
-                            if UTType(file.type)?.conforms(to: .image) == true {
-                                FramedImage(data: file.data, framing: file.framing ?? ImageFraming()).frame(maxHeight: 360)
-                            }
-                            Label(file.name, systemImage: "paperclip").font(.subheadline)
-                        }
+                        Label(file.name, systemImage: "paperclip").font(.subheadline).frame(minHeight: 44)
                     }.accessibilityIdentifier("note-file-\(file.name)")
                 }
                 Text(tagNames).font(.caption).foregroundStyle(.secondary)

@@ -10,6 +10,7 @@ final class CapturedLink {
     var notes: String?
     var isArchived: Bool = false
     var trashedAt: Date?
+    var modifiedAt: Date?
     var collection: LinkCollection?
     var contentKind: String?
     var textContent: String?

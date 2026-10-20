@@ -4,6 +4,12 @@ import UniformTypeIdentifiers
 
 @MainActor
 enum LinkStore {
+    private static func touch(_ item: CapturedLink, previousTags: Set<UUID> = [], in context: ModelContext) throws {
+        let now = Date()
+        item.modifiedAt = now
+        let ids = item.tagIDs.union(previousTags)
+        for tag in try context.fetch(FetchDescriptor<LinkCollection>()) where ids.contains(tag.id) { tag.modifiedAt = now }
+    }
     static func deleteNote(_ item: CapturedLink, in context: ModelContext) throws {
         context.delete(item)
         try save(context)
@@ -23,11 +29,13 @@ enum LinkStore {
         let clean = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard clean.utf8.count <= 1_024 * 1_024 else { throw ImportError.tooLarge }
         item.title = clean.isEmpty ? nil : clean
+        try touch(item, in: context)
         try save(context)
     }
     static func setImageFraming(_ value: ImageFraming, for item: CapturedLink, in context: ModelContext) throws {
         guard value.isValid else { throw ImportError.invalidFile }
         item.imageFramingData = try JSONEncoder().encode(value)
+        try touch(item, in: context)
         try save(context)
     }
     static func updateNoteFile(_ file: NoteFile, for item: CapturedLink, in context: ModelContext) throws {
@@ -38,6 +46,7 @@ enum LinkStore {
         guard item.noteBody.utf8.count + primary + files.reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
         item.noteFilesData = try JSONEncoder().encode(files)
         item.noteFileCount = files.count
+        try touch(item, in: context)
         try save(context)
     }
     static func initializeTags(in context: ModelContext) throws {
@@ -100,7 +109,9 @@ enum LinkStore {
         item.noteFilesData = filesData
         item.noteFileCount = storedFiles.count
         item.noteVersion = 1
+        let oldTags = item.tagIDs
         item.tagIDs = tags
+        try touch(item, previousTags: oldTags, in: context)
         if previousURL != item.allLinks.first {
             item.previewImageData = nil; item.previewSourceURL = nil; item.previewAttemptedAt = nil
         }
@@ -118,11 +129,13 @@ enum LinkStore {
     static func setTags(_ tags: Set<UUID>, for items: [CapturedLink], mode: TagChange = .replace, in context: ModelContext) throws {
         for id in tags { _ = try resolveCollection(id, in: context) }
         for item in items {
+            let oldTags = item.tagIDs
             switch mode {
             case .add: item.tagIDs = item.tagIDs.union(tags)
             case .remove: item.tagIDs = item.tagIDs.subtracting(tags)
             case .replace: item.tagIDs = tags
             }
+            try touch(item, previousTags: oldTags, in: context)
         }
         try save(context)
     }
@@ -232,6 +245,7 @@ enum LinkStore {
         var collection: LinkCollection?
         if case .collection(let id) = change { collection = try resolveCollection(id, in: context) }
         for item in items {
+            let previousTags = item.tagIDs
             switch change {
             case .archived(let value):
                 if value && !item.isArchived { item.trashedAt = .now }
@@ -240,6 +254,7 @@ enum LinkStore {
             case .collection: item.collection = collection
                 if item.tagIDsJSON != nil { item.tagIDs = Set(collection.map { [$0.id] } ?? []) }
             }
+            try touch(item, previousTags: previousTags, in: context)
         }
         try save(context)
         return items.count
@@ -257,6 +272,7 @@ enum LinkStore {
 
     static func update(_ link: CapturedLink, title: String, notes: String,
                        collection: LinkCollection?, in context: ModelContext) throws {
+        try touch(link, in: context)
         link.title = title.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         link.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         link.collection = collection
@@ -273,6 +289,7 @@ enum LinkStore {
         if let existing = try fingerprintItem(key, in: context), existing.id != link.id { throw LibraryError.duplicateContent }
         link.textContent = text
         link.contentFingerprint = key
+        try touch(link, in: context)
         try save(context)
     }
 
@@ -283,6 +300,7 @@ enum LinkStore {
         guard data.count + link.noteBody.utf8.count + link.noteFiles.reduce(0, { $0 + $1.data.count }) <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
         let key = ContentFingerprint.make(data, kind: .file)
         if let existing = try fingerprintItem(key, in: context), existing.id != link.id { throw LibraryError.duplicateContent }
+        try touch(link, in: context)
         link.attachmentData = data
         link.attachmentByteCount = data.count
         link.contentFingerprint = key
@@ -299,6 +317,7 @@ enum LinkStore {
         if archived && !link.isArchived { link.trashedAt = .now }
         if !archived { link.trashedAt = nil }
         link.isArchived = archived
+        try touch(link, in: context)
         try save(context)
     }
 
@@ -316,6 +335,7 @@ enum LinkStore {
         let result: LinkCollection
         if let collection { collection.name = clean; result = collection }
         else { result = LinkCollection(name: clean); context.insert(result) }
+        result.modifiedAt = .now
         try save(context)
         return result
     }
@@ -358,6 +378,13 @@ enum LocalLibrary {
                 note.noteFilesData = try JSONEncoder().encode([file]); note.noteFileCount = 1
                 container.mainContext.insert(note)
                 try container.mainContext.save()
+            }
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-carousel") {
+                let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAAFCAIAAADg0arLAAAAFUlEQVR4nGPUK37NwMDAxMDAgIsCADMhAZaUqgUxAAAAAElFTkSuQmCC")!
+                _ = try LinkStore.saveNote(title: "Carousel fixture", body: "Carousel text", urls: [], files: [
+                    NoteFile(name: "first.png", type: "public.png", data: png),
+                    NoteFile(name: "second.png", type: "public.png", data: png)
+                ], tags: [], in: container.mainContext)
             }
             if ProcessInfo.processInfo.arguments.contains("--ui-test-browser") {
                 let note = CapturedLink(kind: .link)
