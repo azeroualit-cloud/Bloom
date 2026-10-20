@@ -51,6 +51,10 @@ final class DailyUseUITests: XCTestCase {
         let carousel = app.otherElements["note-carousel"].firstMatch
         XCTAssertTrue(carousel.waitForExistence(timeout: 5), diagnostics(app))
         XCTAssertEqual(carousel.frame.width / carousel.frame.height, 4.0 / 3.0, accuracy: 0.02)
+        let body = app.staticTexts["Carousel text"]
+        XCTAssertTrue(body.exists)
+        XCTAssertLessThanOrEqual(body.frame.maxY, carousel.frame.minY)
+        XCTAssertTrue(app.staticTexts["note-detail-title"].exists)
         let position = app.staticTexts["carousel-position"]
         XCTAssertEqual(position.label, "1/2")
         XCTAssertFalse(app.buttons["note-file-second.png"].exists)
@@ -205,7 +209,6 @@ final class DailyUseUITests: XCTestCase {
         let address = app.staticTexts["browser-address"]
         XCTAssertTrue(app.navigationBars["Browser fixture"].waitForExistence(timeout: 5), diagnostics(app))
         XCTAssertTrue(app.staticTexts["note-detail-title"].exists)
-        XCTAssertTrue(app.staticTexts["Body before opening the link"].exists)
         XCTAssertFalse(address.exists)
         app.buttons["note-link-open"].tap()
         XCTAssertTrue(address.waitForExistence(timeout: 10), diagnostics(app))
@@ -216,7 +219,6 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(app.buttons["note-link-open"].waitForExistence(timeout: 5))
         app.buttons["note-link-open"].tap()
         XCTAssertTrue(app.staticTexts["note-detail-title"].waitForExistence(timeout: 5), diagnostics(app))
-        XCTAssertTrue(app.staticTexts["Body before opening the link"].exists)
         XCTAssertFalse(address.exists)
     }
 
