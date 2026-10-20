@@ -4,6 +4,10 @@ import SwiftUI
 struct PKMSView: View {
     @ObservedObject var store: PKMSStore
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var manualSync = false
+    @State private var syncSuccess = 0
+    @State private var syncFailure = 0
     @State private var expanded = Set<String>()
     @State private var search = ""
     @State private var settings = false
@@ -57,14 +61,18 @@ struct PKMSView: View {
                     ForEach(rows) { row in
                         if row.entry.isFolder {
                             Button {
-                                if !expanded.insert(row.entry.pathLower).inserted { expanded.remove(row.entry.pathLower) }
+                                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) {
+                                    if !expanded.insert(row.entry.pathLower).inserted { expanded.remove(row.entry.pathLower) }
+                                }
                             } label: {
                                 HStack(spacing: 8) {
-                                    Image(systemName: expanded.contains(row.entry.pathLower) ? "chevron.down" : "chevron.right").font(.caption).frame(width: 16).foregroundStyle(.secondary)
+                                    Image(systemName: "chevron.right").font(.caption).frame(width: 16).foregroundStyle(.secondary)
+                                        .rotationEffect(.degrees(expanded.contains(row.entry.pathLower) ? 90 : 0))
                                     Text(row.entry.title).foregroundStyle(Color.bloomText).lineLimit(2)
                                     Spacer(minLength: 0)
                                 }.padding(.leading, CGFloat(min(row.depth, 12)) * 16).frame(minHeight: 44).contentShape(Rectangle())
-                            }.buttonStyle(.plain).accessibilityValue(expanded.contains(row.entry.pathLower) ? "Espansa" : "Chiusa")
+                            }.buttonStyle(.plain).sensoryFeedback(.selection, trigger: expanded.contains(row.entry.pathLower))
+                                .accessibilityValue(expanded.contains(row.entry.pathLower) ? "Espansa" : "Chiusa")
                         } else {
                             NavigationLink {
                                 PKMSEditorView(store: store, entry: row.entry)
@@ -78,6 +86,7 @@ struct PKMSView: View {
                             }.accessibilityIdentifier("pkms-note-\(row.entry.title)")
                         }
                     }.listRowSeparator(.hidden).listRowBackground(Color.bloomBackground)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                     let recovered = store.documents.values.filter { $0.remoteDeleted }
                     if !recovered.isEmpty {
                         Section("Copie locali · file non più nella cartella Dropbox") {
@@ -90,15 +99,24 @@ struct PKMSView: View {
                     }
                 }
             }
-            .listStyle(.plain).bloomCanvas()
+            .listStyle(.plain).environment(\.defaultMinListRowHeight, 44).bloomCanvas()
+            .sensoryFeedback(.success, trigger: syncSuccess)
+            .sensoryFeedback(.error, trigger: syncFailure)
             .navigationTitle("PKMS").navigationBarTitleDisplayMode(.inline)
             .searchable(text: $search, prompt: "Cerca documenti")
             .refreshable { await store.sync() }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { Task { await store.sync() } } label: {
-                        if store.syncing { ProgressView() } else { Image(systemName: "arrow.triangle.2.circlepath") }
-                    }.disabled(!store.connected || store.index.root == nil || store.syncing).accessibilityLabel("Sincronizza PKMS")
+                    Button {
+                        manualSync = true
+                        Task {
+                            await store.sync()
+                            manualSync = false
+                            if store.error == nil && store.storageError == nil { syncSuccess += 1 } else { syncFailure += 1 }
+                        }
+                    } label: {
+                        if store.syncing || manualSync { ProgressView().accessibilityLabel("Sincronizzazione in corso") } else { Image(systemName: "arrow.triangle.2.circlepath") }
+                    }.disabled(!store.connected || store.index.root == nil || store.syncing || manualSync).accessibilityLabel("Sincronizza PKMS")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { settings = true } label: { Image(systemName: "gearshape") }.accessibilityLabel("Impostazioni PKMS")

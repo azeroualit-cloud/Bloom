@@ -80,14 +80,31 @@ actor DropboxClient: DropboxServing {
         guard data.count <= 8 * 1024 * 1024 else { throw DropboxFailure.tooLarge }
         guard let metadata = response.value(forHTTPHeaderField: "Dropbox-API-Result")?.data(using: .utf8),
               let text = String(data: data, encoding: .utf8) else { throw DropboxFailure.unsupportedText }
-        return DropboxDownload(text: text, metadata: try JSONDecoder().decode(DropboxEntry.self, from: metadata))
+        return DropboxDownload(text: text, metadata: try JSONDecoder().decode(FileMetadata.self, from: metadata).entry)
     }
     func upload(path: String, revision: String, text: String) async throws -> DropboxEntry {
         guard text.utf8.count <= 8 * 1024 * 1024 else { throw DropboxFailure.tooLarge }
         let args: [String: Any] = ["path": path, "mode": [".tag": "update", "update": revision], "autorename": false, "mute": true, "strict_conflict": true]
         let (data, _) = try await perform(host: "content.dropboxapi.com", endpoint: "files/upload", body: Data(text.utf8),
                                          headers: ["Dropbox-API-Arg": try Self.headerJSON(args), "Content-Type": "application/octet-stream"])
-        return try JSONDecoder().decode(DropboxEntry.self, from: data)
+        return try JSONDecoder().decode(FileMetadata.self, from: data).entry
+    }
+    // Content endpoints return a concrete FileMetadata, without the list union's `.tag`.
+    private struct FileMetadata: Decodable {
+        let name: String
+        let id: String
+        let pathLower: String
+        let pathDisplay: String?
+        let rev: String
+        let size: Int
+        enum CodingKeys: String, CodingKey {
+            case name, id, rev, size
+            case pathLower = "path_lower", pathDisplay = "path_display"
+        }
+        var entry: DropboxEntry {
+            DropboxEntry(tag: "file", name: name, id: id, pathLower: pathLower,
+                         pathDisplay: pathDisplay, rev: rev, size: size)
+        }
     }
     private func rpc(_ endpoint: String, _ body: [String: Any]) async throws -> Data {
         try await perform(host: "api.dropboxapi.com", endpoint: endpoint, body: JSONSerialization.data(withJSONObject: body),

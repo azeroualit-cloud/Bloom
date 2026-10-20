@@ -54,10 +54,11 @@ final class DropboxClientTests: XCTestCase {
                 data = body
             }
             XCTAssertEqual(data, Data(markdown.utf8))
-            return (200, [:], Data(#"{".tag":"file","name":"Nota.md","id":"id:original","path_lower":"/pkms/nota.md","rev":"new-revision","size":42}"#.utf8))
+            return (200, [:], Data(#"{"name":"Nota.md","id":"id:original","path_lower":"/pkms/nota.md","rev":"new-revision","size":42}"#.utf8))
         }
         let result = try await api.upload(path: "id:original", revision: "revision-from-download", text: markdown)
         XCTAssertEqual(result.rev, "new-revision")
+        XCTAssertEqual(result.tag, "file")
     }
     func testProviderRevisionConflictDoesNotBecomeSuccessfulUpload() async throws {
         let api = client { _ in (409, [:], Data(#"{"error_summary":"path/conflict/file/"}"#.utf8)) }
@@ -82,11 +83,38 @@ final class DropboxClientTests: XCTestCase {
         let markdown = "---\nunknown: true\n---\n[[Untouched]]\n"
         let api = client { request in
             XCTAssertEqual(request.url?.path, "/2/files/download")
-            let header = #"{".tag":"file","name":"Nota.md","id":"id:original","path_lower":"/pkms/nota.md","rev":"base","size":42}"#
+            let header = #"{"name":"Nota.md","id":"id:original","path_lower":"/pkms/nota.md","rev":"base","size":42}"#
             return (200, ["Dropbox-API-Result": header], Data(markdown.utf8))
         }
         let result = try await api.download(id: "id:original")
         XCTAssertEqual(result.text, markdown)
         XCTAssertEqual(result.metadata.rev, "base")
+        XCTAssertEqual(result.metadata.tag, "file")
+        XCTAssertEqual(result.metadata.identity, "id:original")
     }
+    @MainActor
+    func testFirstOpenWithConcreteDropboxMetadataPersistsAnOfflineDocument() async throws {
+        let markdown = "# Ipertrofia\nContenuto originale\n"
+        let metadata = #"{"name":"Ipertrofia.md","id":"id:open","path_lower":"/pkms/ipertrofia.md","rev":"r1","size":40}"#
+        let api = client { request in
+            XCTAssertEqual(request.url?.path, "/2/files/download")
+            return (200, ["Dropbox-API-Result": metadata], Data(markdown.utf8))
+        }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let disk = try PKMSDisk(root: root)
+        let entry = DropboxEntry(tag: "file", name: "Ipertrofia.md", id: "id:open",
+                                 pathLower: "/pkms/ipertrofia.md", pathDisplay: nil, rev: "r1", size: 40)
+        let store = PKMSStore(api: api, disk: disk, connected: true)
+        store.error = "Previous opening failed"
+        await store.open(entry)
+        XCTAssertNil(store.error)
+        XCTAssertTrue(store.loading.isEmpty)
+        XCTAssertEqual(store.documents[entry.identity]?.text, markdown)
+        let offline = PKMSStore(api: api, disk: disk, connected: false)
+        XCTAssertEqual(offline.documents[entry.identity]?.text, markdown)
+        XCTAssertEqual(offline.documents[entry.identity]?.revision, "r1")
+        XCTAssertEqual(offline.pendingCount, 0)
+    }
+
 }

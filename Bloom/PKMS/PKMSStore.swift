@@ -129,7 +129,10 @@ final class PKMSStore: ObservableObject {
         if let cached = documents[entry.identity], cached.revision == entry.rev { return }
         loading.insert(entry.identity)
         defer { loading.remove(entry.identity) }
-        do { try await receive(entry) }
+        do {
+            try await receive(entry)
+            error = nil
+        }
         catch { report(error) }
     }
     /// View/debounce cancellation must never cancel an in-flight document upload.

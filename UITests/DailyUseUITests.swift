@@ -30,8 +30,14 @@ final class DailyUseUITests: XCTestCase {
         app.launchArguments = ["--ui-test-in-memory", "--ui-test-pkms=" + token]
         app.launch()
         tapWhenReady(app.tabBars.buttons["PKMS"], in: app)
-        tapWhenReady(app.buttons["Lavoro"], in: app)
-        tapWhenReady(app.buttons["pkms-note-Contatti"], in: app)
+        let folder = app.buttons["Lavoro"]
+        tapWhenReady(folder, in: app)
+        let note = app.buttons["pkms-note-Contatti"]
+        XCTAssertTrue(note.waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertLessThanOrEqual(folder.frame.height, 52, diagnostics(app))
+        XCTAssertLessThanOrEqual(note.frame.height, 52, diagnostics(app))
+        XCTAssertLessThanOrEqual(note.frame.minY - folder.frame.maxY, 8, diagnostics(app))
+        tapWhenReady(note, in: app)
         let editor = app.textViews["pkms-editor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 10), diagnostics(app))
         XCTAssertFalse(app.buttons["Modifica"].exists)

@@ -28,3 +28,9 @@ Pins are per note/category, not global favorites. A pinned note becomes a full-w
 Automated tests use a Dropbox protocol fixture: offline draft persistence/restart, successful conditional upload, concurrent remote edit and explicit conflict resolution, remote deletion, acknowledgment while typing, Unicode HTTP headers, corrupt-cache reporting, category pin scoping and backup roundtrip. Native UI tests cover category pins as compact rows and live Markdown editing against an isolated local cache, with no user account/network. These do not replace a live OAuth/Dropbox smoke test: authorization, two-device edits, offline resume, revoked token and conflict must be checked with a configured Dropbox app/account before claiming stable end-to-end sync.
 
 Future web UI can authorize against the same Dropbox files. No web app is included in this change. File attachments/images are not fetched or rendered as embedded media in the initial native Markdown editor; Markdown source is retained.
+
+## Build 28 corrections
+
+Content API download/upload responses are concrete FileMetadata objects, unlike list_folder's tagged Metadata union. The client decodes them separately; missing union tags no longer prevent opening a document or acknowledging an upload. HTTP fixtures omit `.tag` and cover first download through the store into an offline disk cache.
+
+Tree rows remove default vertical list insets, retaining a 44-point minimum touch target and Dynamic Type expansion. Folder chevrons animate with Reduce Motion respected; selection, explicit sync completion/failure, and confirmed cloud saves provide system sensory feedback. Opening shows progress before reporting failure, and an online API error is no longer described as an offline document.

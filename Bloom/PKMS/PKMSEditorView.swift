@@ -23,6 +23,7 @@ struct PKMSEditorView: View {
     @State private var exporting = false
     @State private var history = false
     @State private var exportError: String?
+    @State private var attemptedOpening = false
     private var document: PKMSDocument? { store.documents[entry.identity] }
     var body: some View {
         VStack(spacing: 0) {
@@ -47,10 +48,10 @@ struct PKMSEditorView: View {
                     Text(saveStatus(document)).font(.caption)
                     Spacer()
                 }.foregroundStyle(.secondary).padding(.horizontal, 16).padding(.vertical, 6)
-            } else if store.loading.contains(entry.identity) {
+            } else if !attemptedOpening || store.loading.contains(entry.identity) {
                 Spacer(); ProgressView("Apertura documento…"); Spacer()
             } else {
-                ContentUnavailableView("Documento non disponibile offline", systemImage: "doc.text", description: Text(store.error ?? "Aprilo con una connessione per conservarne una copia sul dispositivo."))
+                ContentUnavailableView(store.connected ? "Apertura non riuscita" : "Documento non disponibile offline", systemImage: "doc.text", description: Text(store.error ?? "Aprilo con una connessione per conservarne una copia sul dispositivo."))
                 Button("Riprova apertura") { Task { await store.open(entry) } }.padding()
             }
         }
@@ -69,7 +70,14 @@ struct PKMSEditorView: View {
                 } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Azioni documento")
             }
         }
-        .task { await store.open(entry) }
+        .task { await store.open(entry); attemptedOpening = true }
+        .sensoryFeedback(.selection, trigger: searching)
+        .sensoryFeedback(trigger: attemptedOpening && document == nil && !store.loading.contains(entry.identity)) { _, failed in
+            failed ? .error : nil
+        }
+        .sensoryFeedback(trigger: document?.dirty) { old, new in
+            old == true && new == false ? .success : nil
+        }
         .onDisappear { store.scheduleSync() }
         .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await store.sync() } } }
         .sheet(isPresented: $history) { PKMSHistoryView(store: store, id: entry.identity) }
