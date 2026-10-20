@@ -367,7 +367,7 @@ final class DailyUseUITests: XCTestCase {
             defer { lastFrame = frame }
             return !frame.isEmpty && frame == lastFrame
         }, object: editTags)
-        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 10), .completed, diagnostics(app))
+        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 10), .completed, "Menu action: \(editTags.debugDescription); last frame: \(lastFrame); \(diagnostics(app))")
         editTags.tap()
         let salute = app.buttons["tag-Salute"]
         XCTAssertTrue(salute.waitForExistence(timeout: 5), diagnostics(app))
