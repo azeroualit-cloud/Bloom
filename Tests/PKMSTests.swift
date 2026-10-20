@@ -98,6 +98,7 @@ final class PKMSTests: XCTestCase {
         let document = try XCTUnwrap(store.documents[entry.identity])
         XCTAssertEqual(document.text, "Da recuperare")
         XCTAssertTrue(document.remoteDeleted)
+        XCTAssertEqual(store.pendingCount, 0) // Preserved recovery copies are not uploadable drafts.
         let uploads = await api.uploadedCount()
         XCTAssertEqual(uploads, 0)
         XCTAssertTrue(store.index.entries.isEmpty)

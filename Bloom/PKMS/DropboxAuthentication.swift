@@ -35,7 +35,7 @@ final class DropboxAuthentication: NSObject, ASWebAuthenticationPresentationCont
                 else { continuation.resume(throwing: error ?? DropboxAuthError.cancelled) }
             }
             session.presentationContextProvider = self
-            session.prefersEphemeralWebBrowserSession = true
+            session.prefersEphemeralWebBrowserSession = false
             self.session = session
             if !session.start() { continuation.resume(throwing: DropboxAuthError.invalidCallback) }
         }

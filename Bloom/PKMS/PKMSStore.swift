@@ -53,7 +53,7 @@ final class PKMSStore: ObservableObject {
             return store
         } catch { preconditionFailure("Cannot create isolated PKMS test workspace: \(error)") }
     }
-    var pendingCount: Int { documents.values.filter { $0.dirty }.count }
+    var pendingCount: Int { documents.values.filter { $0.dirty && !$0.remoteDeleted }.count }
     var conflictCount: Int { documents.values.filter { $0.hasConflict }.count }
     func refreshConnection() async {
         guard allowsConnectionRefresh, !authorizationRejected, !loadFailed else { return }

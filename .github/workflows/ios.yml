@@ -5,23 +5,16 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: ios-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 jobs:
-  test-and-package:
-    runs-on: macos-15
-    timeout-minutes: 40
+  cancel-superseded:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       actions: write
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
-      - uses: actions/checkout@v4
       - name: Cancel superseded push builds
-        continue-on-error: true
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -36,6 +29,18 @@ jobs:
             gh api --silent --method POST "repos/$GH_REPO/actions/runs/$STALE_RUN/force-cancel" || \
               echo "Run $STALE_RUN already completed or cancellation unavailable."
           done < /tmp/bloom-superseded-runs
+  test-and-package:
+    needs: cancel-superseded
+    if: always() && !cancelled()
+    runs-on: macos-15
+    timeout-minutes: 40
+    concurrency:
+      group: ios-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
       - name: Toolchain
         run: |
           xcodebuild -version
