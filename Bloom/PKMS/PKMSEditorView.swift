@@ -27,6 +27,21 @@ struct PKMSEditorView: View {
     private var document: PKMSDocument? { store.documents[entry.identity] }
     private var openingFailed: Bool { attemptedOpening && document == nil && !store.loading.contains(entry.identity) }
     var body: some View {
+        presentedEditor
+            .alert("Esportazione non riuscita", isPresented: Binding(get: { exportError != nil }, set: { if !$0 { exportError = nil } })) {
+                Button("Chiudi", role: .cancel) { }
+            } message: { Text(exportError ?? "") }
+    }
+    private var presentedEditor: some View {
+        activeEditor
+            .sheet(isPresented: $history) { PKMSHistoryView(store: store, id: entry.identity) }
+            .sheet(isPresented: $conflict) { PKMSConflictView(store: store, id: entry.identity) }
+            .fileExporter(isPresented: $exporting, document: PKMSMarkdownFile(text: document?.text ?? ""), contentType: .plainText,
+                          defaultFilename: entry.title + ".md") { result in
+                if case .failure(let error) = result { exportError = error.localizedDescription }
+            }
+    }
+    private var activeEditor: some View {
         editorContent
             .background(Color.bloomBackground)
             .navigationTitle(entry.title).navigationBarTitleDisplayMode(.inline)
@@ -34,18 +49,7 @@ struct PKMSEditorView: View {
             .task { await store.open(entry); attemptedOpening = true }
             .onDisappear { store.scheduleSync() }
             .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await store.sync() } } }
-            .sensoryFeedback(.selection, trigger: searching)
-            .sensoryFeedback(.error, trigger: openingFailed) { _, failed in failed }
-            .sensoryFeedback(.success, trigger: document?.dirty) { old, new in old == true && new == false }
-            .sheet(isPresented: $history) { PKMSHistoryView(store: store, id: entry.identity) }
-            .sheet(isPresented: $conflict) { PKMSConflictView(store: store, id: entry.identity) }
-            .fileExporter(isPresented: $exporting, document: PKMSMarkdownFile(text: document?.text ?? ""), contentType: .plainText,
-                          defaultFilename: entry.title + ".md") { result in
-                if case .failure(let error) = result { exportError = error.localizedDescription }
-            }
-            .alert("Esportazione non riuscita", isPresented: Binding(get: { exportError != nil }, set: { if !$0 { exportError = nil } })) {
-                Button("Chiudi", role: .cancel) { }
-            } message: { Text(exportError ?? "") }
+            .modifier(PKMSEditorFeedback(searching: searching, openingFailed: openingFailed, dirty: document?.dirty))
     }
     private var editorContent: some View {
         VStack(spacing: 0) {
@@ -106,6 +110,27 @@ struct PKMSEditorView: View {
         Button(action: action) {
             Label(text, systemImage: symbol).font(.caption).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).padding(.horizontal, 16)
         }.background(Color.bloomSurface)
+    }
+}
+
+/// Keep feedback state outside the document/export view's generic modifier chain.
+private struct PKMSEditorFeedback: ViewModifier {
+    let searching: Bool
+    let openingFailed: Bool
+    let dirty: Bool?
+    @State private var saves = 0
+    @State private var failures = 0
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: dirty) { old, new in
+                if old == true && new == false { saves += 1 }
+            }
+            .onChange(of: openingFailed) { _, failed in
+                if failed { failures += 1 }
+            }
+            .sensoryFeedback(.selection, trigger: searching)
+            .sensoryFeedback(.success, trigger: saves)
+            .sensoryFeedback(.error, trigger: failures)
     }
 }
 
