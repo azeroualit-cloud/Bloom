@@ -36,7 +36,7 @@ struct CollectionsView: View {
                     }
                 }
             }
-            .navigationTitle("Tag")
+            .bloomCanvas().navigationTitle("Tag")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Fine") { dismiss() }.accessibilityIdentifier("tags-done") }
                 ToolbarItem(placement: .primaryAction) {
@@ -83,7 +83,7 @@ struct CollectionNameEditor: View {
                 TextField("Tag · una parola", text: $name).autocorrectionDisabled().accessibilityIdentifier("collection-name")
                 if let error { Text(error).foregroundStyle(.red) }
             }
-            .navigationTitle(collection == nil ? "Nuovo tag" : "Rinomina tag")
+            .bloomCanvas().navigationTitle(collection == nil ? "Nuovo tag" : "Rinomina tag")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }

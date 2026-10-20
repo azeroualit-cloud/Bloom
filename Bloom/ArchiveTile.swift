@@ -85,7 +85,7 @@ struct ArchiveTile: View {
         HStack(alignment: .bottom, spacing: 0) {
                 Button { if selecting { select() } else { openNote() } } label: {
                     Text(item.displayTitle).font(.subheadline.weight(.semibold)).lineLimit(1)
-                        .foregroundStyle(Color.primary)
+                        .foregroundStyle(Color.bloomText)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 }.buttonStyle(.plain).accessibilityIdentifier("note-title-\(item.id)")
                 if !selecting {
@@ -95,11 +95,11 @@ struct ArchiveTile: View {
                         Button("Apri nota", action: openNote)
                         if item.isArchived { Button("Ripristina", systemImage: "arrow.uturn.backward", action: archive) }
                         Button("Elimina", systemImage: "trash", role: .destructive, action: delete)
-                    } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(Color.primary) }
+                    } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(Color.bloomText) }
                         .accessibilityLabel("Azioni nota").accessibilityIdentifier("note-actions-\(item.id)")
                 }
             }.padding(.horizontal, 12)
-                .background(Color(uiColor: .systemGroupedBackground))
+                .background(Color.bloomBackground)
     }
 
     private var actions: some View {
@@ -112,14 +112,14 @@ struct ArchiveTile: View {
             Button(role: .destructive, action: { revealed = nil; delete() }) {
                 Label(item.isArchived ? "Elimina definitivamente" : "Elimina", systemImage: "trash").font(.caption).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-        }.background(Color(uiColor: .tertiarySystemGroupedBackground)).accessibilityHidden(!isRevealed)
+        }.background(Color.bloomRaised).accessibilityHidden(!isRevealed)
     }
 
     private var surface: some View {
         ZStack(alignment: .bottomLeading) {
             Button(action: open) {
                 GeometryReader { proxy in
-                    Color(uiColor: .secondarySystemGroupedBackground)
+                    Color.bloomSurface
                         .overlay {
                             preview.frame(width: proxy.size.width, height: proxy.size.height).clipped()
                         }

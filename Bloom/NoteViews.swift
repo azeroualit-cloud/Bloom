@@ -10,7 +10,7 @@ struct MarkdownExcerpt: View {
     var body: some View {
         let excerpt = String(text.prefix(350))
         Text((try? AttributedString(markdown: excerpt, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(excerpt))
-            .font(font)
+            .font(font).foregroundStyle(Color.bloomText)
     }
 }
 
@@ -26,7 +26,7 @@ struct NoteLinkButton: View {
     var body: some View {
         Button(action: open) {
             GeometryReader { proxy in
-                Color(uiColor: .secondarySystemGroupedBackground).overlay {
+                Color.bloomSurface.overlay {
                     ZStack {
                         if let data = poster {
                             CachedPreviewImage(data: data, label: item.displayTitle, maxPixel: 1000, contentMode: .fill)
@@ -80,7 +80,7 @@ struct NoteDetailView: View {
                 Text(tagNames).font(.caption).foregroundStyle(.secondary)
             }.padding(20).frame(maxWidth: 740, alignment: .leading).frame(maxWidth: .infinity)
         }
-        .navigationTitle(item.displayTitle).navigationBarTitleDisplayMode(.inline)
+        .bloomCanvas().navigationTitle(item.displayTitle).navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) { Button("Modifica") { editing = true } }
             ToolbarItem(placement: .topBarTrailing) { Button("Dettagli") { details = true } }
@@ -125,7 +125,7 @@ struct NoteFileView: View {
                 }
                 if let error { Text(error).foregroundStyle(.red) }
             }.padding()
-        }.navigationTitle(file.name).navigationBarTitleDisplayMode(.inline)
+        }.bloomCanvas().navigationTitle(file.name).navigationBarTitleDisplayMode(.inline)
             .quickLookPreview($preview)
             .task {
                 guard staged == nil else { return }
@@ -161,7 +161,7 @@ struct MarkdownDocumentView: View {
             ForEach(Array(MarkdownBlock.parse(text).enumerated()), id: \.offset) { _, block in
                 blockView(block).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
             }
-        }.accessibilityIdentifier("detail-content-text")
+        }.foregroundStyle(Color.bloomText).accessibilityIdentifier("detail-content-text")
     }
     @ViewBuilder private func blockView(_ block: MarkdownBlock) -> some View {
         let rich = (try? AttributedString(markdown: block.text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(block.text)

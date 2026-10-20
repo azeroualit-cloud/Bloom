@@ -77,7 +77,7 @@ struct BackupView: View {
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("Backup locale")
+            .bloomCanvas().navigationTitle("Backup locale")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fine") { cancel(); dismiss() } } }
             .sheet(isPresented: $importing) {

@@ -12,6 +12,6 @@ struct BloomHomeView: View {
                 .tabItem { Label("Mappa", systemImage: "map") }.tag(Tab.map)
             RediscoveryView { selection = .library }
                 .tabItem { Label("Riscopri", systemImage: "sparkles") }.tag(Tab.rediscover)
-        }
+        }.background(Color.bloomBackground.ignoresSafeArea())
     }
 }

@@ -70,8 +70,8 @@ struct LibraryView: View {
                 }
             }.padding(.vertical, 16).frame(maxWidth: .infinity)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
-        .navigationTitle(archived ? "Cestino" : showingTags ? "Bloom" : categoryTitle)
+        .background(Color.bloomBackground)
+        .bloomCanvas().navigationTitle(archived ? "Cestino" : showingTags ? "Bloom" : categoryTitle)
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Cerca note, testi e tag")
         .navigationDestination(item: $opened) { ContentViewer(item: $0) }
@@ -271,7 +271,7 @@ struct LibraryView: View {
                 Text(bulkMode == .replace ? "Sostituisce tutti i tag delle note selezionate." : "Gli altri tag delle note restano invariati.").font(.subheadline).foregroundStyle(.secondary)
                 TagSelection(selected: $bulkTags)
             }
-                .navigationTitle("Tag della selezione")
+                .bloomCanvas().navigationTitle("Tag della selezione")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Annulla") { editingTags = false } }
                     ToolbarItem(placement: .confirmationAction) {

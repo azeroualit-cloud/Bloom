@@ -37,7 +37,7 @@ struct PlacePicker: View {
                     }
                 }
                 Section { Text("La ricerca usa Apple Maps e richiede una connessione. Non serve accedere alla tua posizione.").font(.caption).foregroundStyle(.secondary) }
-            }.navigationTitle("Scegli luogo").navigationBarTitleDisplayMode(.inline)
+            }.bloomCanvas().navigationTitle("Scegli luogo").navigationBarTitleDisplayMode(.inline)
                 .onChange(of: query) { _, _ in
                     generation = UUID(); search?.cancel(); search = nil
                     results = []; loading = false; attempted = false; error = nil

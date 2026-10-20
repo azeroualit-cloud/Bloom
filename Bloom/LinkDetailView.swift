@@ -44,7 +44,7 @@ struct LinkDetailView: View {
             }
         }
         .onDisappear { titles.cancel() }
-        .navigationTitle(link.displayTitle)
+        .bloomCanvas().navigationTitle(link.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { Button("Modifica") { editing = true } }
         .sheet(isPresented: $editing) { NoteComposer(item: link) { _ in } }

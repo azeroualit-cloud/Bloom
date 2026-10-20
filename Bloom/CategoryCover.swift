@@ -13,7 +13,7 @@ struct CategoryCover: View {
         VStack(alignment: .leading, spacing: 8) {
             GeometryReader { proxy in
                 // The image is an overlay, so its intrinsic aspect ratio cannot move the title.
-                Color(uiColor: .secondarySystemGroupedBackground)
+                Color.bloomSurface
                     .overlay {
                         cover.frame(width: proxy.size.width, height: proxy.size.height).clipped()
                     }
@@ -21,7 +21,7 @@ struct CategoryCover: View {
             .aspectRatio(1, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 3) {
-                Text(name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(2)
+                Text(name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.bloomText).lineLimit(2)
                 Text("\(count) note").font(.caption).foregroundStyle(.secondary)
             }.frame(maxWidth: .infinity, minHeight: 42, alignment: .topLeading)
         }

@@ -83,7 +83,7 @@ struct RediscoveryView: View {
                 .onChange(of: collectionFilter) { _, _ in proxy.scrollTo("feed-start", anchor: .top) }
                 .onChange(of: kindFilter) { _, _ in proxy.scrollTo("feed-start", anchor: .top) }
             }
-            .navigationTitle("Riscopri")
+            .bloomCanvas().navigationTitle("Riscopri")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(item: $opened) { ContentViewer(item: $0) }
         .navigationDestination(item: $contentRoute) { ArchiveContentDestination(route: $0) }

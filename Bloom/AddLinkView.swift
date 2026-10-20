@@ -28,7 +28,7 @@ struct CaptureGuideView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("Salva dai social")
+            .bloomCanvas().navigationTitle("Salva dai social")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fine") { dismiss() } } }
         }

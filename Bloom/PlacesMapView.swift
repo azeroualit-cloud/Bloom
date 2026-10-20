@@ -28,7 +28,7 @@ struct PlacesMapView: View {
     var body: some View {
         NavigationStack {
             mapContent
-                .navigationTitle("Mappa").navigationBarTitleDisplayMode(.inline)
+                .bloomCanvas().navigationTitle("Mappa").navigationBarTitleDisplayMode(.inline)
                 .navigationDestination(item: $opened) { ContentViewer(item: $0) }
                 .toolbar { toolbar }
                 .sheet(isPresented: $showingList) { placesList }
@@ -95,7 +95,7 @@ struct PlacesMapView: View {
                         }
                     }
                 }
-            }.navigationTitle("Luoghi salvati").navigationBarTitleDisplayMode(.inline)
+            }.bloomCanvas().navigationTitle("Luoghi salvati").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fine") { showingList = false } } }
         }
     }

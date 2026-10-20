@@ -78,10 +78,10 @@ struct NoteComposer: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Titolo") { TextField("Titolo facoltativo", text: $title).accessibilityIdentifier("capture-title").focused($focused, equals: .title) }
+                Section("Titolo") { TextField("Titolo facoltativo", text: $title).foregroundStyle(Color.bloomText).accessibilityIdentifier("capture-title").focused($focused, equals: .title) }
                 if startsWithLink { linkSection }
                 Section("Testo · Markdown") {
-                    TextEditor(text: $bodyText).frame(minHeight: 130).focused($focused, equals: .body)
+                    TextEditor(text: $bodyText).foregroundStyle(Color.bloomText).frame(minHeight: 130).focused($focused, equals: .body)
                         .accessibilityLabel("Testo della nota").accessibilityIdentifier("capture-body")
                 }
                 if !startsWithLink { linkSection }
@@ -98,7 +98,7 @@ struct NoteComposer: View {
                 if let error { Text(error).foregroundStyle(.red) }
             }
             .disabled(!loaded)
-            .navigationTitle(item == nil ? "Nuova nota" : "Modifica nota").navigationBarTitleDisplayMode(.inline)
+            .bloomCanvas().navigationTitle(item == nil ? "Nuova nota" : "Modifica nota").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { if isDirty { confirmingClose = true } else { dismiss() } }.disabled(!loaded || loading).accessibilityIdentifier("capture-close").accessibilityValue(clipboardTestStatus) }
                 ToolbarItem(placement: .confirmationAction) {
@@ -123,7 +123,7 @@ struct NoteComposer: View {
                         Text("e salva un link").font(.subheadline).foregroundStyle(.secondary)
                         Spacer(minLength: 0)
                     }.padding(.horizontal, 16).padding(.vertical, 8)
-                        .background(Color(uiColor: .systemGroupedBackground))
+                        .background(Color.bloomBackground)
                 }
             }
             .safeAreaInset(edge: .bottom) { if item == nil && focused == nil { captureActions } }

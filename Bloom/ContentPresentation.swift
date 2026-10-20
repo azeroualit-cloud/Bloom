@@ -118,13 +118,13 @@ struct ImageContentView: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color.bloomBackground.ignoresSafeArea()
                 FramedImage(data: item.attachmentData, framing: ImageFraming(), zoomable: true)
                     .padding(cleanEdges ? 12 : 0)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
-        .navigationTitle(item.displayTitle)
+        .bloomCanvas().navigationTitle(item.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) { Button("Dettagli") { showingDetails = true } }
@@ -166,7 +166,7 @@ struct TextContentView: View {
             if editing { editor }
             else { reader }
         }
-        .navigationTitle(item.displayTitle)
+        .bloomCanvas().navigationTitle(item.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
         .sheet(isPresented: $showingDetails) {

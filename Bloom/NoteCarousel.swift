@@ -27,7 +27,7 @@ struct NoteCarousel: View {
                 }
                 if !item.noteBody.isEmpty {
                     ScrollView { MarkdownDocumentView(text: item.noteBody).padding(20).padding(.bottom, 30) }
-                        .tag(count - 1).background(Color(uiColor: .secondarySystemGroupedBackground))
+                        .tag(count - 1).background(Color.bloomSurface)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: count > 1 ? .always : .never))
@@ -48,7 +48,7 @@ struct NoteCarousel: View {
                 else { NoteAttachmentView(item: item, fileID: file.id) }
             } label: {
                 GeometryReader { proxy in
-                    Color(uiColor: .secondarySystemGroupedBackground).overlay {
+                    Color.bloomSurface.overlay {
                         if UTType(file.type)?.conforms(to: .image) == true {
                             FramedImage(data: file.data, framing: file.framing ?? ImageFraming(), maximumPixel: 1200, contentMode: .fill)
                                 .frame(width: proxy.size.width, height: proxy.size.height).clipped()
