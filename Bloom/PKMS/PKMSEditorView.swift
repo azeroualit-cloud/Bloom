@@ -25,29 +25,36 @@ struct PKMSEditorView: View {
     @State private var exportError: String?
     @State private var attemptedOpening = false
     private var document: PKMSDocument? { store.documents[entry.identity] }
+    private var openingFailed: Bool { attemptedOpening && document == nil && !store.loading.contains(entry.identity) }
     var body: some View {
+        editorContent
+            .background(Color.bloomBackground)
+            .navigationTitle(entry.title).navigationBarTitleDisplayMode(.inline)
+            .toolbar { editorToolbar }
+            .task { await store.open(entry); attemptedOpening = true }
+            .onDisappear { store.scheduleSync() }
+            .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await store.sync() } } }
+            .sensoryFeedback(.selection, trigger: searching)
+            .sensoryFeedback(.error, trigger: openingFailed) { _, failed in failed }
+            .sensoryFeedback(.success, trigger: document?.dirty) { old, new in old == true && new == false }
+            .sheet(isPresented: $history) { PKMSHistoryView(store: store, id: entry.identity) }
+            .sheet(isPresented: $conflict) { PKMSConflictView(store: store, id: entry.identity) }
+            .fileExporter(isPresented: $exporting, document: PKMSMarkdownFile(text: document?.text ?? ""), contentType: .plainText,
+                          defaultFilename: entry.title + ".md") { result in
+                if case .failure(let error) = result { exportError = error.localizedDescription }
+            }
+            .alert("Esportazione non riuscita", isPresented: Binding(get: { exportError != nil }, set: { if !$0 { exportError = nil } })) {
+                Button("Chiudi", role: .cancel) { }
+            } message: { Text(exportError ?? "") }
+    }
+    private var editorContent: some View {
         VStack(spacing: 0) {
             if searching {
                 TextField("Cerca nel documento", text: $query).textFieldStyle(.roundedBorder).padding(.horizontal, 16).padding(.vertical, 8)
                     .accessibilityIdentifier("pkms-search-document")
             }
             if let document {
-                if let storageError = store.storageError {
-                    statusRow(storageError, symbol: "exclamationmark.triangle") { store.retryLocalSave() }
-                } else if document.remoteDeleted {
-                    statusRow("File non più nella cartella Dropbox · copia locale conservata", symbol: "exclamationmark.triangle") { exporting = true }
-                } else if document.hasConflict {
-                    statusRow("Modifica anche su Dropbox · confronta le versioni", symbol: "exclamationmark.triangle") { conflict = true }
-                } else if let error = store.error {
-                    statusRow(error, symbol: "icloud.slash") { Task { await store.sync() } }
-                }
-                LiveMarkdownEditor(text: Binding(get: { store.documents[entry.identity]?.text ?? "" },
-                                                set: { store.update(id: entry.identity, text: $0) }), query: query)
-                HStack(spacing: 6) {
-                    Image(systemName: store.storageError != nil ? "exclamationmark.triangle" : document.dirty ? "icloud.and.arrow.up" : "checkmark")
-                    Text(saveStatus(document)).font(.caption)
-                    Spacer()
-                }.foregroundStyle(.secondary).padding(.horizontal, 16).padding(.vertical, 6)
+                documentContent(document)
             } else if !attemptedOpening || store.loading.contains(entry.identity) {
                 Spacer(); ProgressView("Apertura documento…"); Spacer()
             } else {
@@ -55,38 +62,39 @@ struct PKMSEditorView: View {
                 Button("Riprova apertura") { Task { await store.open(entry) } }.padding()
             }
         }
-        .background(Color.bloomBackground)
-        .navigationTitle(entry.title).navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { searching.toggle(); if !searching { query = "" } } label: { Image(systemName: "magnifyingglass") }.accessibilityLabel("Cerca nel documento")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button("Sincronizza ora", systemImage: "arrow.triangle.2.circlepath") { Task { await store.sync() } }.disabled(store.syncing || !store.connected)
-                    Button("Versioni locali", systemImage: "clock.arrow.circlepath") { history = true }.disabled(document == nil)
-                    Button("Esporta Markdown", systemImage: "square.and.arrow.up") { exporting = true }.disabled(document == nil)
-                    if document?.hasConflict == true { Button("Confronta versioni") { conflict = true } }
-                } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Azioni documento")
-            }
+    }
+    @ViewBuilder
+    private func documentContent(_ document: PKMSDocument) -> some View {
+        if let storageError = store.storageError {
+            statusRow(storageError, symbol: "exclamationmark.triangle") { store.retryLocalSave() }
+        } else if document.remoteDeleted {
+            statusRow("File non più nella cartella Dropbox · copia locale conservata", symbol: "exclamationmark.triangle") { exporting = true }
+        } else if document.hasConflict {
+            statusRow("Modifica anche su Dropbox · confronta le versioni", symbol: "exclamationmark.triangle") { conflict = true }
+        } else if let error = store.error {
+            statusRow(error, symbol: "icloud.slash") { Task { await store.sync() } }
         }
-        .task { await store.open(entry); attemptedOpening = true }
-        .sensoryFeedback(.selection, trigger: searching)
-        .sensoryFeedback(trigger: attemptedOpening && document == nil && !store.loading.contains(entry.identity)) { _, failed in
-            failed ? .error : nil
+        LiveMarkdownEditor(text: Binding(get: { store.documents[entry.identity]?.text ?? "" },
+                                        set: { store.update(id: entry.identity, text: $0) }), query: query)
+        HStack(spacing: 6) {
+            Image(systemName: store.storageError != nil ? "exclamationmark.triangle" : document.dirty ? "icloud.and.arrow.up" : "checkmark")
+            Text(saveStatus(document)).font(.caption)
+            Spacer()
+        }.foregroundStyle(.secondary).padding(.horizontal, 16).padding(.vertical, 6)
+    }
+    @ToolbarContentBuilder
+    private var editorToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button { searching.toggle(); if !searching { query = "" } } label: { Image(systemName: "magnifyingglass") }.accessibilityLabel("Cerca nel documento")
         }
-        .sensoryFeedback(trigger: document?.dirty) { old, new in
-            old == true && new == false ? .success : nil
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button("Sincronizza ora", systemImage: "arrow.triangle.2.circlepath") { Task { await store.sync() } }.disabled(store.syncing || !store.connected)
+                Button("Versioni locali", systemImage: "clock.arrow.circlepath") { history = true }.disabled(document == nil)
+                Button("Esporta Markdown", systemImage: "square.and.arrow.up") { exporting = true }.disabled(document == nil)
+                if document?.hasConflict == true { Button("Confronta versioni") { conflict = true } }
+            } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Azioni documento")
         }
-        .onDisappear { store.scheduleSync() }
-        .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await store.sync() } } }
-        .sheet(isPresented: $history) { PKMSHistoryView(store: store, id: entry.identity) }
-        .sheet(isPresented: $conflict) { PKMSConflictView(store: store, id: entry.identity) }
-        .fileExporter(isPresented: $exporting, document: PKMSMarkdownFile(text: document?.text ?? ""), contentType: .plainText,
-                      defaultFilename: entry.title + ".md") { result in if case .failure(let error) = result { exportError = error.localizedDescription } }
-        .alert("Esportazione non riuscita", isPresented: Binding(get: { exportError != nil }, set: { if !$0 { exportError = nil } })) {
-            Button("Chiudi", role: .cancel) { }
-        } message: { Text(exportError ?? "") }
     }
     private func saveStatus(_ document: PKMSDocument) -> String {
         if store.storageError != nil { return "Modifiche in memoria · salvataggio locale da riprovare" }
