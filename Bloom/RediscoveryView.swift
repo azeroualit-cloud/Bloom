@@ -13,7 +13,6 @@ struct RediscoveryView: View {
     @State private var round = 0
     @State private var day = Self.currentDay
     @State private var error: String?
-    @State private var contentRoute: ArchiveContentRoute?
     @State private var opened: CapturedLink?
     @State private var tagNote: CapturedLink?
     @State private var deleting: CapturedLink?
@@ -62,7 +61,7 @@ struct RediscoveryView: View {
                         }
                         LazyVStack(spacing: 16) {
                             ForEach(contents) { item in
-                                ArchiveTile(item: item, revealed: $revealed, openNote: { opened = item }, openContent: { contentRoute = $0 }, editTags: { tagNote = item }, select: { opened = item }, archive: {
+                                ArchiveTile(item: item, revealed: $revealed, openNote: { opened = item }, editTags: { tagNote = item }, select: { opened = item }, archive: {
                                     do { try LinkStore.setArchived(true, for: item, in: context) }
                                     catch { self.error = error.localizedDescription }
                                 }, delete: { deleting = item; deletePrompt = true })
@@ -86,10 +85,8 @@ struct RediscoveryView: View {
             .bloomCanvas().navigationTitle("Riscopri")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(item: $opened) { ContentViewer(item: $0) }
-        .navigationDestination(item: $contentRoute) { ArchiveContentDestination(route: $0) }
             .onChange(of: contents.map(\.id)) { _, _ in
                 if opened?.modelContext == nil || opened?.isArchived == true { opened = nil }
-                if contentRoute?.item.modelContext == nil || contentRoute?.item.isArchived == true { contentRoute = nil }
                 if tagNote?.modelContext == nil { tagNote = nil }
             }
             .sheet(item: $tagNote) { NoteTagEditor(item: $0) }

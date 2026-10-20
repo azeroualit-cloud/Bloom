@@ -18,6 +18,7 @@ struct MarkdownExcerpt: View {
 struct NoteLinkButton: View {
     let item: CapturedLink
     let url: URL
+    var onOpenNote: (() -> Void)? = nil
     @State private var fallback = false
     @State private var opening = false
     @State private var secondaryPoster: Data?
@@ -43,7 +44,7 @@ struct NoteLinkButton: View {
                 }.contentShape(Rectangle())
             }.contentShape(Rectangle())
         }.buttonStyle(.plain).disabled(opening)
-            .accessibilityLabel(SocialLink.instagramPostURL(url) != nil ? "Visualizza post Instagram in Bloom" : isVideo ? "Apri video in \(url.host ?? "app")" : "Apri \(url.host ?? "link")")
+            .accessibilityLabel(onOpenNote != nil ? "Apri nota: \(item.displayTitle)" : SocialLink.instagramPostURL(url) != nil ? "Visualizza post Instagram in Bloom" : isVideo ? "Apri video in \(url.host ?? "app")" : "Apri \(url.host ?? "link")")
             .accessibilityIdentifier("note-link-open")
             .task(id: url) {
                 guard item.allLinks.first != url else { return }
@@ -55,6 +56,7 @@ struct NoteLinkButton: View {
     }
     private func open() {
         guard item.modelContext != nil, !item.isDeleted else { return }
+        if let onOpenNote { onOpenNote(); return }
         guard SocialLink.opensInApp(url) else { fallback = true; return }
         opening = true
         UIApplication.shared.open(url, options: [.universalLinksOnly: true]) { success in
@@ -75,7 +77,13 @@ struct NoteDetailView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
-                NoteCarousel(item: item)
+                Text(item.displayTitle).font(.title2.bold()).foregroundStyle(Color.bloomText).textSelection(.enabled).accessibilityIdentifier("note-detail-title")
+                if !item.noteBody.isEmpty {
+                    MarkdownDocumentView(text: item.noteBody).accessibilityIdentifier("note-detail-body")
+                }
+                if item.carouselPageCount > (item.noteBody.isEmpty ? 0 : 1) {
+                    NoteCarousel(item: item, showsBody: false)
+                }
                 Button { choosingPlace = true } label: { Label(item.place?.name ?? "Aggiungi luogo", systemImage: "mappin.and.ellipse") }.frame(minHeight: 44).accessibilityIdentifier("note-edit-place")
                 Text(tagNames).font(.caption).foregroundStyle(.secondary)
             }.padding(20).frame(maxWidth: 740, alignment: .leading).frame(maxWidth: .infinity)

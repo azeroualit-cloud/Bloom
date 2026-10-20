@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import UIKit
 
 /// Square archive cells with swipe actions; rediscovery uses a portrait post and a separate header.
 @MainActor
@@ -12,13 +11,11 @@ struct ArchiveTile: View {
     var selecting = false
     @Binding var revealed: UUID?
     let openNote: () -> Void
-    let openContent: (ArchiveContentRoute) -> Void
     let editTags: () -> Void
     let select: () -> Void
     let archive: () -> Void
     let delete: () -> Void
     @State private var suppressTapUntil = Date.distantPast
-    @State private var opening = false
     @State private var renaming = false
     @State private var draftTitle = ""
     @State private var renameError: String?
@@ -51,7 +48,7 @@ struct ArchiveTile: View {
     private var feedTile: some View {
         VStack(spacing: 0) {
             footer
-            NoteCarousel(item: item, aspectRatio: 3.0 / 4.0)
+            NoteCarousel(item: item, aspectRatio: 3.0 / 4.0, onOpenNote: open)
         }
         .accessibilityElement(children: .contain).accessibilityIdentifier("rediscovery-post")
         .task(id: item.allLinks.first) { LinkPreviewController.shared.prepare(for: item, in: context) }
@@ -128,7 +125,6 @@ struct ArchiveTile: View {
                 }.contentShape(Rectangle())
             }.buttonStyle(.plain)
                 .accessibilityIdentifier("note-open-\(item.id)").accessibilityLabel(item.displayTitle)
-                .disabled(opening)
                 .highPriorityGesture(LongPressGesture(minimumDuration: 0.45).onEnded { _ in suppressTapUntil = Date().addingTimeInterval(0.5); select() }, including: compact ? .subviews : .all)
             if hasImage && !compact {
                 LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom).allowsHitTesting(false)
@@ -171,36 +167,6 @@ struct ArchiveTile: View {
         guard Date() > suppressTapUntil else { return }
         guard !selecting else { select(); return }
         guard !isRevealed else { revealed = nil; return }
-        let count = item.carouselPageCount
-        if count > 1 { openNote(); return }
-        if let url = item.allLinks.first, SocialLink.instagramPostURL(url) != nil {
-            openContent(ArchiveContentRoute(item: item, browser: true))
-        } else if let url = item.allLinks.first, SocialLink.opensInApp(url) {
-            opening = true
-            UIApplication.shared.open(url, options: [.universalLinksOnly: true]) { success in
-                Task { @MainActor in
-                    opening = false
-                    guard item.modelContext != nil && !item.isDeleted else { return }
-                    if !success { openContent(ArchiveContentRoute(item: item, browser: true)) }
-                }
-            }
-        } else if item.allLinks.first != nil { openContent(ArchiveContentRoute(item: item, browser: true)) }
-        else if item.kind == .image || item.kind == .file { openContent(ArchiveContentRoute(item: item, browser: false)) }
-        else { openNote() }
-    }
-}
-
-struct ArchiveContentRoute: Hashable {
-    let item: CapturedLink
-    let browser: Bool
-}
-
-struct ArchiveContentDestination: View {
-    let route: ArchiveContentRoute
-    var body: some View {
-        if route.item.modelContext != nil && !route.item.isDeleted {
-            if route.browser, let url = route.item.allLinks.first { WebContentView(item: route.item, url: url) }
-            else { PrimaryContentView(item: route.item) }
-        }
+        openNote()
     }
 }

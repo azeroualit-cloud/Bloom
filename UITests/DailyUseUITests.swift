@@ -40,7 +40,7 @@ final class DailyUseUITests: XCTestCase {
     }
 
     @MainActor
-    func testMixedCarouselSwipesBetweenPhotosAndText() {
+    func testNoteShowsBodyAndCarouselSwipesBetweenPhotos() {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-in-memory", "--ui-test-carousel"]
@@ -52,7 +52,7 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(carousel.waitForExistence(timeout: 5), diagnostics(app))
         XCTAssertEqual(carousel.frame.width / carousel.frame.height, 4.0 / 3.0, accuracy: 0.02)
         let position = app.staticTexts["carousel-position"]
-        XCTAssertEqual(position.label, "1/3")
+        XCTAssertEqual(position.label, "1/2")
         XCTAssertFalse(app.buttons["note-file-second.png"].exists)
         let photo = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'carousel-file-'")).firstMatch
         XCTAssertTrue(photo.exists)
@@ -68,12 +68,10 @@ final class DailyUseUITests: XCTestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(position.waitForExistence(timeout: 5))
         carousel.swipeLeft()
-        XCTAssertEqual(position.label, "2/3")
-        carousel.swipeLeft()
-        XCTAssertEqual(position.label, "3/3")
+        XCTAssertEqual(position.label, "2/2")
         XCTAssertTrue(app.staticTexts["Carousel text"].exists)
         carousel.swipeRight()
-        XCTAssertEqual(position.label, "2/3")
+        XCTAssertEqual(position.label, "1/2")
     }
 
     @MainActor
@@ -194,7 +192,7 @@ final class DailyUseUITests: XCTestCase {
     }
 
     @MainActor
-    func testLinkPreviewOpensBrowserDirectly() {
+    func testLinkPreviewOpensNoteBeforeExplicitLinkTap() {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-in-memory", "--ui-test-browser"]
@@ -205,8 +203,21 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(note.waitForExistence(timeout: 5), diagnostics(app))
         note.tap()
         let address = app.staticTexts["browser-address"]
+        XCTAssertTrue(app.navigationBars["Browser fixture"].waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertTrue(app.staticTexts["note-detail-title"].exists)
+        XCTAssertTrue(app.staticTexts["Body before opening the link"].exists)
+        XCTAssertFalse(address.exists)
+        app.buttons["note-link-open"].tap()
         XCTAssertTrue(address.waitForExistence(timeout: 10), diagnostics(app))
         XCTAssertEqual(address.label, "https://example.invalid/saved")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.tabBars.buttons["Riscopri"].tap()
+        XCTAssertTrue(app.buttons["note-link-open"].waitForExistence(timeout: 5))
+        app.buttons["note-link-open"].tap()
+        XCTAssertTrue(app.staticTexts["note-detail-title"].waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertTrue(app.staticTexts["Body before opening the link"].exists)
+        XCTAssertFalse(address.exists)
     }
 
     @MainActor

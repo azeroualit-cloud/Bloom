@@ -23,7 +23,6 @@ struct LibraryView: View {
     @State private var managingTags = false
     @State private var backup = false
     @State private var guide = false
-    @State private var contentRoute: ArchiveContentRoute?
     @State private var opened: CapturedLink?
     @State private var notice: String?
     @State private var error: String?
@@ -75,7 +74,6 @@ struct LibraryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Cerca note, testi e tag")
         .navigationDestination(item: $opened) { ContentViewer(item: $0) }
-        .navigationDestination(item: $contentRoute) { ArchiveContentDestination(route: $0) }
         .toolbar { toolbar }
         .onChange(of: filter) { _, _ in revealed = nil }
         .onChange(of: archived) { _, _ in revealed = nil }
@@ -122,7 +120,6 @@ struct LibraryView: View {
             .onChange(of: visible.map(\.id)) { _, ids in
                 selection.formIntersection(ids)
                 if opened?.modelContext == nil || opened?.isArchived != archived { opened = nil }
-                if contentRoute?.item.modelContext == nil || contentRoute?.item.isArchived != archived { contentRoute = nil }
                 if tagNote?.modelContext == nil { tagNote = nil }
             }
             .onChange(of: tags.map(\.id)) { _, ids in
@@ -190,7 +187,7 @@ struct LibraryView: View {
     }
     private func card(_ item: CapturedLink) -> some View {
         ArchiveTile(item: item, compact: true, selected: selection.contains(item.id), selecting: selecting, revealed: $revealed,
-                    openNote: { if !selecting { opened = item } }, openContent: { if !selecting { contentRoute = $0 } }, editTags: { tagNote = item }, select: {
+                    openNote: { if !selecting { opened = item } }, editTags: { tagNote = item }, select: {
                         if selecting { if selection.contains(item.id) { selection.remove(item.id) } else { selection.insert(item.id) } }
                         else { selecting = true; selection = [item.id]; revealed = nil }
                     }, archive: { archive(item) }, delete: { deleting = item; deletePrompt = true })
