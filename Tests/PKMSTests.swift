@@ -152,5 +152,10 @@ final class PKMSTests: XCTestCase {
         let restored = try LinkStore.container(at: restoredRoot)
         _ = try BackupStore.restore(backup, into: restored)
         XCTAssertEqual(try restored.mainContext.fetch(FetchDescriptor<CapturedLink>()).first?.pinnedCategoryIDs, [first.id])
+        let merged = try LinkStore.container(at: root.appendingPathComponent("merge"))
+        let sameName = try LinkStore.saveCollection(nil, name: "Studio", in: merged.mainContext)
+        _ = try BackupStore.restore(backup, into: merged)
+        XCTAssertEqual(try merged.mainContext.fetch(FetchDescriptor<CapturedLink>()).first?.pinnedCategoryIDs, [sameName.id])
+        _ = try BackupStore.snapshot(from: merged).validated()
     }
 }

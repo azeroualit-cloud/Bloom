@@ -88,7 +88,7 @@ enum BackupStore {
                 item.attachmentByteCount = record.data?.count
                 item.contentFingerprint = fingerprint
                 if let tags = record.tagIDs { item.tagIDs = Set(tags.compactMap { mapping[$0]?.id }) }
-                item.pinnedCategoryIDs = Set(record.pinnedCategoryIDs ?? [])
+                item.pinnedCategoryIDs = Set((record.pinnedCategoryIDs ?? []).compactMap { mapping[$0]?.id }).intersection(item.tagIDs)
                 item.noteLinksJSON = record.noteLinks.flatMap { try? JSONEncoder().encode($0) }.flatMap { String(data: $0, encoding: .utf8) }
                 item.noteFilesData = record.noteFiles.flatMap { try? JSONEncoder().encode($0) }
                 item.noteFileCount = record.noteFiles?.count ?? 0
