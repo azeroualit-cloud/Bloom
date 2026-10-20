@@ -36,6 +36,7 @@ struct LibraryBackup: Codable, Sendable {
         var noteFiles: [NoteFile]? = nil
         var imageFraming: ImageFraming? = nil
         var noteVersion: Int? = nil
+        var trashedAt: Date? = nil
 
         var fingerprint: String? {
             guard noteVersion == nil else { return nil }

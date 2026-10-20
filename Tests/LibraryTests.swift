@@ -11,6 +11,34 @@ final class LibraryTests: XCTestCase {
     }
 
     @MainActor
+    func testTrashRetentionRestoreLegacyAndRenamePreserveContent() throws {
+        let container = try LinkStore.container(at: temporaryRoot())
+        let context = container.mainContext
+        let now = Date()
+        let expired = CapturedLink(kind: .text)
+        expired.textContent = "Expired"; expired.isArchived = true
+        expired.trashedAt = now.addingTimeInterval(-30 * 86_400)
+        let retained = CapturedLink(kind: .text)
+        retained.textContent = "Keep this body"; retained.isArchived = true
+        retained.trashedAt = now.addingTimeInterval(-29 * 86_400)
+        let legacy = CapturedLink(kind: .text)
+        legacy.textContent = "Legacy archive"; legacy.isArchived = true
+        context.insert(expired); context.insert(retained); context.insert(legacy)
+        try context.save()
+        try LinkStore.maintainTrash(in: context, now: now)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<CapturedLink>()), 2)
+        XCTAssertEqual(legacy.trashedAt, now)
+        try LinkStore.setArchived(false, for: retained, in: context)
+        XCTAssertNil(retained.trashedAt)
+        try LinkStore.rename(retained, title: "  New title  ", in: context)
+        XCTAssertEqual(retained.title, "New title")
+        XCTAssertEqual(retained.textContent, "Keep this body")
+        try LinkStore.maintainTrash(in: context, now: now.addingTimeInterval(31 * 86_400))
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<CapturedLink>()), 1)
+        XCTAssertFalse(retained.isArchived)
+    }
+
+    @MainActor
     func testMetadataCollectionAndArchivePersistAcrossReopen() throws {
         let root = try temporaryRoot()
         do {

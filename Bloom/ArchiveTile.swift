@@ -19,6 +19,9 @@ struct ArchiveTile: View {
     let delete: () -> Void
     @State private var suppressTapUntil = Date.distantPast
     @State private var opening = false
+    @State private var renaming = false
+    @State private var draftTitle = ""
+    @State private var renameError: String?
     private var isRevealed: Bool { revealed == item.id }
 
     var body: some View {
@@ -28,6 +31,21 @@ struct ArchiveTile: View {
                 else { tile }
             }
         }
+        .alert("Modifica titolo", isPresented: $renaming) {
+            TextField("Titolo facoltativo", text: $draftTitle)
+            Button("Salva") {
+                do { try LinkStore.rename(item, title: draftTitle, in: context) }
+                catch { renameError = error.localizedDescription }
+            }
+            Button("Annulla", role: .cancel) { }
+        }
+        .alert("Modifica non riuscita", isPresented: Binding(get: { renameError != nil }, set: { if !$0 { renameError = nil } })) {
+            Button("OK", role: .cancel) { }
+        } message: { Text(renameError ?? "") }
+    }
+    private var renameButton: some View {
+        Button("Modifica titolo", systemImage: "pencil") { draftTitle = item.title ?? ""; renaming = true }
+            .accessibilityIdentifier("note-rename")
     }
 
     private var tile: some View {
@@ -48,9 +66,10 @@ struct ArchiveTile: View {
     @ViewBuilder private var compactActions: some View {
         Button("Apri nota", systemImage: "note.text", action: openNote)
             .disabled(selecting).accessibilityIdentifier("note-context-open")
+        renameButton
         Button("Modifica tag", systemImage: "tag", action: editTags).accessibilityIdentifier("note-context-tags")
         Button(selected ? "Deseleziona" : "Seleziona", systemImage: "checkmark.circle", action: select).accessibilityIdentifier("note-context-select")
-        Button(item.isArchived ? "Ripristina" : "Archivia", systemImage: "archivebox", action: archive)
+        if item.isArchived { Button("Ripristina", systemImage: "arrow.uturn.backward", action: archive) }
         Button("Elimina", systemImage: "trash", role: .destructive, action: delete)
     }
 
@@ -64,8 +83,9 @@ struct ArchiveTile: View {
                 if !selecting {
                     Menu {
                         Button("Apri nota", action: openNote)
+                        renameButton
                         Button("Modifica tag", action: editTags)
-                        Button(item.isArchived ? "Ripristina" : "Archivia", systemImage: "archivebox", action: archive)
+                        if item.isArchived { Button("Ripristina", systemImage: "arrow.uturn.backward", action: archive) }
                         Button("Elimina", systemImage: "trash", role: .destructive, action: delete)
                     } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(Color.primary) }
                         .accessibilityLabel("Azioni nota").accessibilityIdentifier("note-actions-\(item.id)")
@@ -77,12 +97,13 @@ struct ArchiveTile: View {
 
     private var actions: some View {
         VStack(spacing: 0) {
-            Button(action: { revealed = nil; archive() }) {
-                Label(item.isArchived ? "Ripristina" : "Archivia", systemImage: "archivebox")
-                    .font(.caption).frame(maxWidth: .infinity, maxHeight: .infinity)
-            }.tint(.orange)
+            if item.isArchived {
+                Button(action: { revealed = nil; archive() }) {
+                    Label("Ripristina", systemImage: "arrow.uturn.backward").font(.caption).frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
             Button(role: .destructive, action: { revealed = nil; delete() }) {
-                Label("Elimina", systemImage: "trash").font(.caption).frame(maxWidth: .infinity, maxHeight: .infinity)
+                Label(item.isArchived ? "Elimina definitivamente" : "Elimina", systemImage: "trash").font(.caption).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }.background(Color(uiColor: .tertiarySystemGroupedBackground)).accessibilityHidden(!isRevealed)
     }

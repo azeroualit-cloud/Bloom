@@ -4,6 +4,7 @@ import SwiftData
 @MainActor
 struct LibraryView: View {
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \CapturedLink.capturedAt, order: .reverse) private var items: [CapturedLink]
     @Query(sort: \LinkCollection.name) private var tags: [LinkCollection]
     @State private var search = ""
@@ -69,8 +70,9 @@ struct LibraryView: View {
             }.padding(.vertical, 16).frame(maxWidth: .infinity)
         }
         .background(Color(uiColor: .systemGroupedBackground))
-        .navigationTitle(archived ? "Archivio" : showingTags ? "Bloom" : categoryTitle)
-        .searchable(text: $search, prompt: "Cerca note, testi e tag")
+        .navigationTitle(archived ? "Cestino" : showingTags ? "Bloom" : categoryTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Cerca note, testi e tag")
         .navigationDestination(item: $opened) { ContentViewer(item: $0) }
         .navigationDestination(item: $contentRoute) { ArchiveContentDestination(route: $0) }
         .toolbar { toolbar }
@@ -108,8 +110,8 @@ struct LibraryView: View {
             .safeAreaInset(edge: .bottom) { if selecting { selectionBar } }
             .onChange(of: visible.map(\.id)) { _, ids in
                 selection.formIntersection(ids)
-                if opened?.modelContext == nil { opened = nil }
-                if contentRoute?.item.modelContext == nil { contentRoute = nil }
+                if opened?.modelContext == nil || opened?.isArchived != archived { opened = nil }
+                if contentRoute?.item.modelContext == nil || contentRoute?.item.isArchived != archived { contentRoute = nil }
                 if tagNote?.modelContext == nil { tagNote = nil }
             }
             .onChange(of: tags.map(\.id)) { _, ids in
@@ -118,15 +120,20 @@ struct LibraryView: View {
 
             .onChange(of: sort) { _, value in UserDefaults.standard.set(value.rawValue, forKey: "library.sort") }
             .onAppear {
+                maintainTrash()
                 sort = UserDefaults.standard.string(forKey: "library.sort").flatMap(LibrarySort.init(rawValue:)) ?? .newest
             }
-            .alert("Eliminare definitivamente la nota e i suoi allegati?", isPresented: $deletePrompt) {
-                Button("Elimina definitivamente", role: .destructive) {
+            .onChange(of: scenePhase) { _, phase in if phase == .active { maintainTrash() } }
+            .alert(archived ? "Eliminare definitivamente la nota e i suoi allegati?" : "Spostare la nota nel cestino?", isPresented: $deletePrompt) {
+                Button(archived ? "Elimina definitivamente" : "Sposta nel cestino", role: .destructive) {
                     if let deleting {
                         let id = deleting.id
                         do {
-                            try LinkStore.deleteNote(deleting, in: context)
-                            notice = "Nota eliminata"; selection.remove(id)
+                            if archived { try LinkStore.deleteNote(deleting, in: context) }
+                            else { try LinkStore.setArchived(true, for: deleting, in: context) }
+                            notice = archived ? "Nota eliminata definitivamente" : "Nota nel cestino"
+                            if !archived { archiveUndo = ArchiveUndo(ids: [id], wasArchived: false) }
+                            selection.remove(id)
                             if savedID == id { savedID = nil }
                             revealed = nil
                         }
@@ -148,14 +155,10 @@ struct LibraryView: View {
                     Label("Tag", systemImage: "chevron.left").frame(minHeight: 44)
                 }.accessibilityIdentifier("library-back-tags")
             }
-            Text("\(visible.count) contenuti").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("library-count")
-            if showingTags {
-                Button("Gestisci tag", systemImage: "tag") { managingTags = true }
-                    .frame(minHeight: 44).accessibilityIdentifier("library-manage-tags")
-            }
+            if archived { Text("Le note vengono eliminate definitivamente dopo 30 giorni. Puoi ripristinarle prima della scadenza.").font(.caption).foregroundStyle(.secondary) }
             if let notice { Text(notice).font(.subheadline).foregroundStyle(.secondary) }
             if archiveUndo != nil { Button("Annulla spostamento", action: undoArchive).accessibilityIdentifier("archive-undo") }
-            if let id = savedID, items.contains(where: { $0.id == id }) { Button("Apri contenuto salvato") { opened = items.first { $0.id == id } }.accessibilityIdentifier("library-open-saved") }
+
         }
     }
     private func card(_ item: CapturedLink) -> some View {
@@ -170,14 +173,20 @@ struct LibraryView: View {
             let previous = item.isArchived
             try LinkStore.setArchived(!previous, for: item, in: context)
             archiveUndo = ArchiveUndo(ids: [item.id], wasArchived: previous)
-            notice = previous ? "Nota ripristinata" : "Nota archiviata"
+            notice = previous ? "Nota ripristinata" : "Nota nel cestino"
         } catch { self.error = error.localizedDescription }
     }
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            VStack(spacing: 1) {
+                Text(archived ? "Cestino" : showingTags ? "Bloom" : categoryTitle).font(.headline)
+                Text("\(visible.count) contenuti").font(.caption2).foregroundStyle(.secondary).accessibilityIdentifier("library-count")
+            }
+        }
         ToolbarItem(placement: .topBarLeading) {
             Menu {
-                Button(archived ? "Torna alla libreria" : "Archivio", systemImage: "archivebox") { archived.toggle(); filter = .all; allNotes = true; search = ""; kind = nil }.accessibilityIdentifier("settings-archive")
-                Button("Gestisci tag", systemImage: "tag") { managingTags = true }
+                Button(archived ? "Torna alla libreria" : "Cestino", systemImage: "trash") { archived.toggle(); filter = .all; allNotes = true; search = ""; kind = nil }.accessibilityIdentifier("settings-archive")
+                Button("Gestisci tag", systemImage: "tag") { managingTags = true }.accessibilityIdentifier("library-manage-tags")
                 Picker("Formato", selection: $kind) {
                     Text("Tutti").tag(Optional<ContentKind>.none)
                     ForEach(ContentKind.allCases, id: \.self) { Text($0.label).tag(Optional($0)) }
@@ -211,7 +220,7 @@ struct LibraryView: View {
             HStack {
                 Button("Tag", systemImage: "tag") { bulkTags = []; bulkMode = .add; editingTags = true }.disabled(selection.isEmpty)
                 Spacer()
-                Button(archived ? "Ripristina" : "Archivia", systemImage: "archivebox") {
+                Button(archived ? "Ripristina" : "Elimina", systemImage: archived ? "arrow.uturn.backward" : "trash") {
                     do {
                         let ids = selection
                         _ = try LinkStore.apply(.archived(!archived), to: ids, in: context)
@@ -245,6 +254,10 @@ struct LibraryView: View {
                     }
                 }
         }
+    }
+    private func maintainTrash() {
+        do { try LinkStore.maintainTrash(in: context) }
+        catch { self.error = error.localizedDescription }
     }
     private func undoArchive() {
         guard let action = archiveUndo else { return }

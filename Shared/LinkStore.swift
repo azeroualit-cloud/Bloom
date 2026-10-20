@@ -8,6 +8,23 @@ enum LinkStore {
         context.delete(item)
         try save(context)
     }
+    /// Legacy archive flags are retained for store compatibility; the UI now treats them as trash.
+    static func maintainTrash(in context: ModelContext, now: Date = .now) throws {
+        let cutoff = now.addingTimeInterval(-30 * 86_400)
+        for item in try context.fetch(FetchDescriptor<CapturedLink>()) where item.isArchived {
+            if let date = item.trashedAt {
+                if date <= cutoff { context.delete(item) }
+            } else { item.trashedAt = now }
+        }
+        try save(context)
+    }
+    static func rename(_ item: CapturedLink, title: String, in context: ModelContext) throws {
+        guard item.modelContext != nil, !item.isDeleted else { throw LibraryError.selectionMissing }
+        let clean = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard clean.utf8.count <= 1_024 * 1_024 else { throw ImportError.tooLarge }
+        item.title = clean.isEmpty ? nil : clean
+        try save(context)
+    }
     static func setImageFraming(_ value: ImageFraming, for item: CapturedLink, in context: ModelContext) throws {
         guard value.isValid else { throw ImportError.invalidFile }
         item.imageFramingData = try JSONEncoder().encode(value)
@@ -53,6 +70,7 @@ enum LinkStore {
         if existing == nil, validated.count == 1, files.isEmpty, body.isEmpty, cleanTitle.isEmpty {
             let value = validated[0].absoluteString
             if let duplicate = try context.fetch(FetchDescriptor<CapturedLink>(predicate: #Predicate { $0.urlString == value })).first {
+                if duplicate.isArchived { try setArchived(false, for: duplicate, in: context) }
                 return CaptureReceipt(id: duplicate.id, inserted: false)
             }
         }
@@ -127,7 +145,10 @@ enum LinkStore {
                             into context: ModelContext) throws -> CaptureReceipt {
         let value = try LinkValidation.validate(url).absoluteString
         let request = FetchDescriptor<CapturedLink>(predicate: #Predicate { $0.urlString == value })
-        if let existing = try context.fetch(request).first { return CaptureReceipt(id: existing.id, inserted: false) }
+        if let existing = try context.fetch(request).first {
+            if existing.isArchived { try setArchived(false, for: existing, in: context) }
+            return CaptureReceipt(id: existing.id, inserted: false)
+        }
         let collection = try resolveCollection(collectionID, in: context)
         let item = CapturedLink(url: url)
         item.title = title.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
@@ -148,7 +169,10 @@ enum LinkStore {
         let data = Data(text.utf8)
         guard data.count <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
         let key = ContentFingerprint.make(data, kind: .text)
-        if let existing = try fingerprintItem(key, in: context) { return CaptureReceipt(id: existing.id, inserted: false) }
+        if let existing = try fingerprintItem(key, in: context) {
+            if existing.isArchived { try setArchived(false, for: existing, in: context) }
+            return CaptureReceipt(id: existing.id, inserted: false)
+        }
         let collection = try resolveCollection(collectionID, in: context)
         let item = CapturedLink(kind: .text)
         item.textContent = text
@@ -171,7 +195,10 @@ enum LinkStore {
         guard payload.data.count <= AttachmentLoader.maximumBytes else { throw ImportError.tooLarge }
         guard payload.kind == .image || payload.kind == .file else { throw ImportError.invalidFile }
         let key = payload.fingerprint
-        if let existing = try fingerprintItem(key, in: context) { return CaptureReceipt(id: existing.id, inserted: false) }
+        if let existing = try fingerprintItem(key, in: context) {
+            if existing.isArchived { try setArchived(false, for: existing, in: context) }
+            return CaptureReceipt(id: existing.id, inserted: false)
+        }
         let collection = try resolveCollection(collectionID, in: context)
         let item = CapturedLink(kind: payload.kind)
         item.fileName = payload.name
@@ -206,7 +233,10 @@ enum LinkStore {
         if case .collection(let id) = change { collection = try resolveCollection(id, in: context) }
         for item in items {
             switch change {
-            case .archived(let value): item.isArchived = value
+            case .archived(let value):
+                if value && !item.isArchived { item.trashedAt = .now }
+                if !value { item.trashedAt = nil }
+                item.isArchived = value
             case .collection: item.collection = collection
                 if item.tagIDsJSON != nil { item.tagIDs = Set(collection.map { [$0.id] } ?? []) }
             }
@@ -266,6 +296,8 @@ enum LinkStore {
     }
 
     static func setArchived(_ archived: Bool, for link: CapturedLink, in context: ModelContext) throws {
+        if archived && !link.isArchived { link.trashedAt = .now }
+        if !archived { link.trashedAt = nil }
         link.isArchived = archived
         try save(context)
     }

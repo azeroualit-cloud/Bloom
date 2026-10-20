@@ -33,11 +33,11 @@ struct LinkDetailView: View {
                     .accessibilityLabel("Tag")
                     .accessibilityValue(tagNames)
                     .accessibilityIdentifier("detail-collection")
-                LabeledContent("Stato", value: link.isArchived ? "Archiviato" : "Attivo")
+                LabeledContent("Stato", value: link.isArchived ? "Nel cestino" : "Attivo")
                 if let notes = link.notes { Text(notes).textSelection(.enabled) }
             }
             Section {
-                Button(link.isArchived ? "Ripristina nella libreria" : "Archivia", systemImage: "archivebox") {
+                Button(link.isArchived ? "Ripristina nella libreria" : "Sposta nel cestino", systemImage: "trash") {
                     do { try LinkStore.setArchived(!link.isArchived, for: link, in: context) }
                     catch { self.error = error.localizedDescription }
                 }

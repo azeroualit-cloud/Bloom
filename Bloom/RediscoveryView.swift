@@ -44,8 +44,7 @@ struct RediscoveryView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
-                        Text("Contenuti dalla tua libreria. Fino a 30 per giro, con anteprime e varietà di formati e tag.")
-                            .font(.subheadline).foregroundStyle(.secondary).id("feed-start")
+                        Color.clear.frame(height: 0).id("feed-start")
                         if collectionFilter != .all || kindFilter != nil {
                             Text("Filtri attivi: \(collectionName) · \(kindFilter?.label ?? "Tutti i formati")")
                                 .font(.subheadline)
@@ -54,14 +53,14 @@ struct RediscoveryView: View {
                             ContentUnavailableView {
                                 Label(eligible.isEmpty ? "Niente da riscoprire" : "Tutti i contenuti proposti", systemImage: "sparkles")
                             } description: {
-                                Text(eligible.isEmpty ? "Cambia filtri, aggiungi contenuti o ripristinali dall’Archivio."
+                                Text(eligible.isEmpty ? "Cambia filtri, aggiungi contenuti o ripristinali dal Cestino."
                                     : "Hai esaurito i contenuti disponibili per questi filtri. Puoi ricominciare il giro.")
                             } actions: {
                                 if !eligible.isEmpty { Button("Ricomincia") { resetRounds() }.accessibilityIdentifier("rediscovery-restart") }
                                 else { Button("Vai alla libreria", action: openLibrary) }
                             }
                         }
-                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                        LazyVStack(spacing: 24) {
                             ForEach(contents) { item in
                                 ArchiveTile(item: item, revealed: $revealed, openNote: { opened = item }, openContent: { contentRoute = $0 }, editTags: { tagNote = item }, select: { opened = item }, archive: {
                                     do { try LinkStore.setArchived(true, for: item, in: context) }
@@ -78,24 +77,25 @@ struct RediscoveryView: View {
                             }.frame(maxWidth: .infinity).padding(.vertical)
                         }
                     }
-                    .padding().frame(maxWidth: 680).frame(maxWidth: .infinity)
+                    .padding(.vertical, 8).frame(maxWidth: 680).frame(maxWidth: .infinity)
                 }
                 .onChange(of: round) { _, _ in proxy.scrollTo("feed-start", anchor: .top) }
                 .onChange(of: collectionFilter) { _, _ in proxy.scrollTo("feed-start", anchor: .top) }
                 .onChange(of: kindFilter) { _, _ in proxy.scrollTo("feed-start", anchor: .top) }
             }
             .navigationTitle("Riscopri")
+            .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(item: $opened) { ContentViewer(item: $0) }
         .navigationDestination(item: $contentRoute) { ArchiveContentDestination(route: $0) }
             .onChange(of: contents.map(\.id)) { _, _ in
-                if opened?.modelContext == nil { opened = nil }
-                if contentRoute?.item.modelContext == nil { contentRoute = nil }
+                if opened?.modelContext == nil || opened?.isArchived == true { opened = nil }
+                if contentRoute?.item.modelContext == nil || contentRoute?.item.isArchived == true { contentRoute = nil }
                 if tagNote?.modelContext == nil { tagNote = nil }
             }
             .sheet(item: $tagNote) { NoteTagEditor(item: $0) }
-            .alert("Eliminare definitivamente la nota?", isPresented: $deletePrompt) {
-                Button("Elimina definitivamente", role: .destructive) {
-                    if let deleting { do { try LinkStore.deleteNote(deleting, in: context) } catch { self.error = error.localizedDescription } }
+            .alert("Spostare la nota nel cestino?", isPresented: $deletePrompt) {
+                Button("Sposta nel cestino", role: .destructive) {
+                    if let deleting { do { try LinkStore.setArchived(true, for: deleting, in: context) } catch { self.error = error.localizedDescription } }
                     deleting = nil
                 }
                 Button("Annulla", role: .cancel) { deleting = nil }
@@ -124,7 +124,7 @@ struct RediscoveryView: View {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { day = Self.currentDay }
             }
-            .alert("Archiviazione non riuscita", isPresented: Binding(
+            .alert("Operazione non riuscita", isPresented: Binding(
                 get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("OK", role: .cancel) { }
             } message: { Text(error ?? "") }

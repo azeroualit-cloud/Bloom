@@ -45,6 +45,7 @@ enum LibraryFilter {
                         archived: Bool, collection: CollectionFilter, kind: ContentKind? = nil) -> Bool {
         if let kind, link.kind != kind { return false }
         guard link.isArchived == archived else { return false }
+        if archived, let date = link.trashedAt, date <= Date().addingTimeInterval(-30 * 86_400) { return false }
         switch collection {
         case .all: break
         case .unfiled: guard link.tagIDs.isEmpty else { return false }

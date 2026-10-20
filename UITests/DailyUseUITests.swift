@@ -48,7 +48,7 @@ final class DailyUseUITests: XCTestCase {
         note.swipeLeft()
         XCTAssertTrue(app.buttons["Elimina"].waitForExistence(timeout: 5))
         app.buttons["Elimina"].tap()
-        app.alerts.buttons["Elimina definitivamente"].tap()
+        app.alerts.buttons["Sposta nel cestino"].tap()
         app.tabBars.buttons["Libreria"].tap()
         XCTAssertTrue(app.staticTexts["Nessuna nota"].waitForExistence(timeout: 5), diagnostics(app))
         XCTAssertFalse(app.navigationBars["Browser fixture"].exists)
@@ -61,7 +61,9 @@ final class DailyUseUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-in-memory", "--ui-test-tags"]
         app.launch()
-        XCTAssertTrue(app.buttons["library-manage-tags"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["library-settings"].waitForExistence(timeout: 15))
+        app.buttons["library-settings"].tap()
+        XCTAssertTrue(app.buttons["library-manage-tags"].waitForExistence(timeout: 5))
         app.buttons["library-manage-tags"].tap()
         XCTAssertTrue(app.buttons["tag-rename-Alimentazione"].waitForExistence(timeout: 5), diagnostics(app))
         app.buttons["tag-rename-Alimentazione"].tap()
@@ -115,15 +117,15 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(note.waitForExistence(timeout: 5))
         XCTAssertEqual(note.frame.width, note.frame.height, accuracy: 2)
         note.swipeLeft()
-        XCTAssertTrue(app.buttons["Archivia"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Elimina"].waitForExistence(timeout: 5))
         app.buttons["Elimina"].tap()
         XCTAssertTrue(app.alerts.buttons["Annulla"].waitForExistence(timeout: 5), diagnostics(app))
         app.alerts.buttons["Annulla"].tap()
         XCTAssertTrue(note.exists)
         note.swipeLeft()
         app.buttons["Elimina"].tap()
-        XCTAssertTrue(app.alerts.buttons["Elimina definitivamente"].waitForExistence(timeout: 5), diagnostics(app))
-        app.alerts.buttons["Elimina definitivamente"].tap()
+        XCTAssertTrue(app.alerts.buttons["Sposta nel cestino"].waitForExistence(timeout: 5), diagnostics(app))
+        app.alerts.buttons["Sposta nel cestino"].tap()
         XCTAssertTrue(app.staticTexts["Nessuna nota"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
     }
@@ -207,7 +209,7 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertFalse(save.isEnabled)
         XCTAssertGreaterThanOrEqual(paste.frame.minY, save.frame.maxY - 1, diagnostics(app))
         paste.tap()
-        XCTAssertTrue(app.buttons["library-open-saved"].waitForExistence(timeout: 10), diagnostics(app))
+        XCTAssertTrue(app.buttons["category-Tutti"].waitForExistence(timeout: 10), diagnostics(app))
         XCTAssertFalse(app.navigationBars["Nuova nota"].exists)
         XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
     }
@@ -220,7 +222,8 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Tutte le note"].waitForExistence(timeout: 5), diagnostics(app))
         let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
         note.swipeLeft()
-        app.buttons["Archivia"].tap()
+        app.buttons["Elimina"].tap()
+        app.alerts.buttons["Sposta nel cestino"].tap()
         XCTAssertTrue(app.staticTexts["library-count"].waitForExistence(timeout: 5), diagnostics(app))
         XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
         app.buttons["archive-undo"].tap()
@@ -346,9 +349,10 @@ final class DailyUseUITests: XCTestCase {
         }
         XCTAssertTrue(app.buttons["capture-save"].waitForExistence(timeout: 5))
         app.buttons["capture-save"].tap()
-        XCTAssertTrue(app.buttons["library-open-saved"].waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertTrue(app.buttons["category-Tutti"].waitForExistence(timeout: 5), diagnostics(app))
         XCTAssertFalse(app.navigationBars["Nuova nota"].exists, diagnostics(app))
-        app.buttons["library-open-saved"].tap()
+        app.buttons["category-Tutti"].tap()
+        openGridNote(app)
         XCTAssertTrue(app.navigationBars[enteredTitle].waitForExistence(timeout: 10), diagnostics(app))
         return (app, enteredTitle)
     }
@@ -357,6 +361,7 @@ final class DailyUseUITests: XCTestCase {
     private func returnToLibrary(_ app: XCUIApplication) {
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5), diagnostics(app))
+        if app.buttons["library-back-tags"].exists { app.buttons["library-back-tags"].tap() }
     }
 
     @MainActor
