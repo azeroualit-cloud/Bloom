@@ -8,8 +8,8 @@ Original Markdown lives on Dropbox. Bloom caches opened documents, not every doc
 
 1. In https://www.dropbox.com/developers/apps create a Scoped access app with Full Dropbox access so existing PKMS folders can be selected. App-folder access would only expose an isolated /Apps folder, requiring migration.
 2. Enable files.metadata.read, files.content.read, files.content.write.
-3. Register exact redirect URI `bloom-dropbox://oauth`.
-4. The public App key is preconfigured in Info.plist (editable in Bloom > PKMS > Settings); authorize Dropbox and choose the root folder. No App secret or password is bundled. Development apps may require enabling additional users; public distribution is subject to Dropbox review/production requirements.
+3. The native return URL follows the official SwiftyDropbox convention: `db-<APP_KEY>://2/token`. Its URL scheme is registered in Info.plist for the configured key; no custom web callback/backend is used.
+4. The public App key is preconfigured in Info.plist; authorize Dropbox in Bloom > PKMS > Settings and choose the root folder. No App secret or password is bundled. Development apps may require enabling additional users; public distribution is subject to Dropbox review/production requirements.
 
 Authentication uses ASWebAuthenticationSession, random state, SHA256 PKCE, short-lived access tokens and a refresh token kept in the iOS Keychain. A cached workspace is bound to its first account. Disconnect retains local content; reconnecting a different account is rejected. OAuth callbacks are not treated as captured links. Re-signing may change Keychain access: reauthorization may be necessary, but document cache is separate.
 

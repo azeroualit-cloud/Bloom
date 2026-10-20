@@ -40,7 +40,7 @@ struct DropboxCredentialVault {
 
 actor DropboxClient: DropboxServing {
     static let shared = DropboxClient()
-    static let redirect = "bloom-dropbox://oauth"
+    static func redirect(for appKey: String) -> String { "db-\(appKey)://2/token" }
     private let session: URLSession
     private let accessTokenProvider: (@Sendable () async throws -> String)?
     private let vault = DropboxCredentialVault()
@@ -57,7 +57,7 @@ actor DropboxClient: DropboxServing {
 
     func connect(code: String, verifier: String, appKey: String, expectedAccount: String?) async throws -> String {
         let response = try await tokenRequest(["grant_type": "authorization_code", "code": code,
-                                              "code_verifier": verifier, "client_id": appKey, "redirect_uri": Self.redirect])
+                                              "code_verifier": verifier, "client_id": appKey, "redirect_uri": Self.redirect(for: appKey)])
         guard let refresh = response.refreshToken, let account = response.accountID else { throw DropboxFailure.invalidResponse }
         if let expectedAccount, expectedAccount != account { throw DropboxAuthError.differentAccount }
         credentialGeneration = UUID()

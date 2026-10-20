@@ -141,7 +141,7 @@ struct PKMSView: View {
 struct PKMSSettingsView: View {
     @ObservedObject var store: PKMSStore
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("pkms.dropbox.appKey") private var appKey = Bundle.main.object(forInfoDictionaryKey: "DropboxAppKey") as? String ?? ""
+    private let appKey = Bundle.main.object(forInfoDictionaryKey: "DropboxAppKey") as? String ?? ""
     @State private var auth = DropboxAuthentication()
     @State private var connecting = false
     @State private var choosingRoot = false
@@ -152,7 +152,6 @@ struct PKMSSettingsView: View {
                 Section("Dropbox") {
                     Text(store.connected ? "Account collegato" : "Account non collegato")
                     if !store.connected {
-                        TextField("Dropbox App key pubblica", text: $appKey).textInputAutocapitalization(.never).autocorrectionDisabled()
                         Button(connecting ? "Collegamento…" : "Collega Dropbox") { connect() }.disabled(connecting || appKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     } else {
                         Button("Scegli cartella PKMS") { choosingRoot = true }.disabled(store.syncing || store.pendingCount > 0)
@@ -165,9 +164,9 @@ struct PKMSSettingsView: View {
                 if !store.connected {
                     Section("Configurazione iniziale") {
                         Link("Dropbox App Console", destination: URL(string: "https://www.dropbox.com/developers/apps")!)
-                        Text("Crea una app Scoped access / Full Dropbox. Abilita files.metadata.read, files.content.read e files.content.write. Registra questo Redirect URI:")
-                        Text(DropboxClient.redirect).font(.caption.monospaced()).textSelection(.enabled)
-                        Text("Inserisci solo l’App key pubblica. Bloom usa OAuth con PKCE: nessuna password o App secret nell’app.").font(.caption)
+                        Text("Crea una app Scoped access / Full Dropbox. Abilita files.metadata.read, files.content.read e files.content.write. Il ritorno nativo è già registrato in Bloom:")
+                        Text(DropboxClient.redirect(for: appKey)).font(.caption.monospaced()).textSelection(.enabled)
+                        Text("L’App key pubblica è già configurata. Bloom usa OAuth con PKCE: nessuna password o App secret nell’app.").font(.caption)
                     }
                 }
                 Section("Documenti") {

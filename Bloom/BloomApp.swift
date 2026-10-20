@@ -46,7 +46,7 @@ private struct StorageRootView: View {
         }
         .onOpenURL { route in
             // OAuth callbacks are consumed by ASWebAuthenticationSession, never by link capture.
-            guard route.scheme != "bloom-dropbox" else { return }
+            guard route.scheme != "bloom-dropbox", !(route.scheme?.hasPrefix("db-") ?? false) else { return }
             do {
                 pendingURL = try CaptureRoute.link(from: route)
                 if attempt == nil { attempt = StorageAttempt.load() }

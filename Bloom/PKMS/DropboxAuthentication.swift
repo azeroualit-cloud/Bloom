@@ -24,13 +24,14 @@ final class DropboxAuthentication: NSObject, ASWebAuthenticationPresentationCont
         let key = appKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty, key.range(of: "^[A-Za-z0-9]+$", options: .regularExpression) != nil else { throw DropboxAuthError.invalidKey }
         let verifier = try Self.random(), state = try Self.random()
+        let callbackScheme = "db-\(key)"
         let challenge = Self.base64(Data(SHA256.hash(data: Data(verifier.utf8))))
         var url = URLComponents(string: "https://www.dropbox.com/oauth2/authorize")!
-        url.queryItems = ["client_id": key, "response_type": "code", "token_access_type": "offline", "redirect_uri": DropboxClient.redirect,
+        url.queryItems = ["client_id": key, "response_type": "code", "token_access_type": "offline", "redirect_uri": DropboxClient.redirect(for: key),
                           "code_challenge": challenge, "code_challenge_method": "S256", "state": state,
                           "scope": "files.metadata.read files.content.read files.content.write"].map { URLQueryItem(name: $0.key, value: $0.value) }
         let callback: URL = try await withCheckedThrowingContinuation { continuation in
-            let session = ASWebAuthenticationSession(url: url.url!, callbackURLScheme: "bloom-dropbox") { callback, error in
+            let session = ASWebAuthenticationSession(url: url.url!, callbackURLScheme: callbackScheme) { callback, error in
                 if let callback { continuation.resume(returning: callback) }
                 else { continuation.resume(throwing: error ?? DropboxAuthError.cancelled) }
             }
@@ -41,7 +42,7 @@ final class DropboxAuthentication: NSObject, ASWebAuthenticationPresentationCont
         }
         let components = URLComponents(url: callback, resolvingAgainstBaseURL: false)
         let values = components?.queryItems ?? []
-        guard callback.scheme == "bloom-dropbox", callback.host == "oauth",
+        guard callback.scheme == callbackScheme, callback.host == "2", callback.path == "/token",
               values.first(where: { $0.name == "state" })?.value == state,
               let code = values.first(where: { $0.name == "code" })?.value else { throw DropboxAuthError.invalidCallback }
         return try await DropboxClient.shared.connect(code: code, verifier: verifier, appKey: key, expectedAccount: expectedAccount)
