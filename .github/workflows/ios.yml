@@ -55,7 +55,7 @@ jobs:
         run: |
           set -euo pipefail
           DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys,re; d=json.load(sys.stdin); keys=sorted((k for k in d["devices"] if "iOS" in k), key=lambda k: tuple(map(int,re.findall(r"\d+",k))), reverse=True); print(next(x["udid"] for key in keys for x in d["devices"][key] if x["name"].startswith("iPhone")))')
-          xcodebuild -project Bloom.xcodeproj -scheme Bloom -destination "platform=iOS Simulator,id=$DEVICE_ID" -only-testing:BloomUITests/DailyUseUITests/testMapListsSavedPlaceAndOpensItsNote -only-testing:BloomUITests/DailyUseUITests/testBulkArchiveAndRestore -resultBundlePath build/NavigationPreflight.xcresult CODE_SIGNING_ALLOWED=NO test 2>&1 | tee build-xcodebuild.log
+          xcodebuild -project Bloom.xcodeproj -scheme Bloom -destination "platform=iOS Simulator,id=$DEVICE_ID" -only-testing:BloomTests/PKMSTests -only-testing:BloomTests/DropboxClientTests -only-testing:BloomUITests/DailyUseUITests/testCategoryPinBecomesTitleOnlyRowAndLeavesTheGrid -only-testing:BloomUITests/DailyUseUITests/testPKMSFolderTreeEditsLiveAndRestoresOfflineDraftAfterRestart -only-testing:BloomUITests/DailyUseUITests/testMapListsSavedPlaceAndOpensItsNote -only-testing:BloomUITests/DailyUseUITests/testBulkArchiveAndRestore -resultBundlePath build/NavigationPreflight.xcresult CODE_SIGNING_ALLOWED=NO test 2>&1 | tee build-xcodebuild.log
           xcodebuild -project Bloom.xcodeproj -scheme Bloom -destination "platform=iOS Simulator,id=$DEVICE_ID" -resultBundlePath build/Tests.xcresult CODE_SIGNING_ALLOWED=NO test 2>&1 | tee build-xcodebuild.log
       - name: Build diagnostics summary
         if: always()

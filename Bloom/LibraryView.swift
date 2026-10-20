@@ -97,7 +97,7 @@ struct LibraryView: View {
                                     }
                                 Divider()
                             }
-                        }.padding(.horizontal, 16).accessibilityIdentifier("pinned-notes")
+                        }.padding(.horizontal, 16)
                     }
                     LazyVGrid(columns: contentColumns, spacing: 0) { ForEach(gridNotes) { item in card(item) } }
                         .accessibilityIdentifier("content-grid")

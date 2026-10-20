@@ -230,7 +230,9 @@ final class PKMSStore: ObservableObject {
                 if entry.tag == "deleted" {
                     all.removeAll { Self.inside($0.pathLower, root: entry.pathLower) }
                 } else {
-                    all.removeAll { $0.identity == entry.identity || $0.pathLower == entry.pathLower }
+                    // A file replacing a folder also removes that folder’s descendants.
+                    all.removeAll { $0.identity == entry.identity || $0.pathLower == entry.pathLower ||
+                        (!entry.isFolder && $0.pathLower.hasPrefix(entry.pathLower + "/")) }
                     if entry.isFolder || entry.isMarkdown { all.append(entry) }
                 }
             }

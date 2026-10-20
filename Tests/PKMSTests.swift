@@ -9,12 +9,13 @@ private actor PKMSDropboxFixture: DropboxServing {
     private var missing = false
     private var uploads = 0
     private var loseNextReply = false
+    private var listingOverride: [DropboxEntry]?
     func entry() -> DropboxEntry {
         DropboxEntry(tag: missing ? "deleted" : "file", name: "Nota.md", id: missing ? nil : "id:note", pathLower: "/pkms/nota.md", pathDisplay: "/PKMS/Nota.md", rev: missing ? nil : revision, size: text.utf8.count)
     }
     func list(path: String, recursive: Bool, cursor: String?) async throws -> DropboxListing {
         if offline { throw URLError(.notConnectedToInternet) }
-        return DropboxListing(entries: [entry()], cursor: "cursor", hasMore: false)
+        return DropboxListing(entries: listingOverride ?? [entry()], cursor: "cursor", hasMore: false)
     }
     func download(id: String) async throws -> DropboxDownload {
         if offline { throw URLError(.notConnectedToInternet) }
@@ -33,6 +34,7 @@ private actor PKMSDropboxFixture: DropboxServing {
     func setOffline(_ value: Bool) { offline = value }
     func deleteRemotely() { missing = true }
     func loseUploadReplyOnce() { loseNextReply = true }
+    func setListing(_ entries: [DropboxEntry]) { listingOverride = entries }
     func uploadedCount() -> Int { uploads }
     func remoteText() -> String { text }
 }
@@ -124,6 +126,19 @@ final class PKMSTests: XCTestCase {
         XCTAssertEqual(uploads, 0)
         XCTAssertTrue(store.index.entries.isEmpty)
         XCTAssertEqual(try disk.loadDocuments()[entry.identity]?.text, "Da recuperare")
+    }
+    func testFileReplacingFolderRemovesOldDescendantsFromTheIndex() async throws {
+        let api = PKMSDropboxFixture(), disk = try disk()
+        let folder = DropboxEntry(tag: "folder", name: "Lavoro", id: "id:folder", pathLower: "/pkms/lavoro", pathDisplay: nil, rev: nil, size: nil)
+        let child = DropboxEntry(tag: "file", name: "Child.md", id: "id:child", pathLower: "/pkms/lavoro/child.md", pathDisplay: nil, rev: "r1", size: 5)
+        await api.setListing([folder, child])
+        let store = PKMSStore(api: api, disk: disk, connected: true)
+        await store.selectRoot("/pkms")
+        XCTAssertEqual(store.index.entries.count, 2)
+        let replacement = DropboxEntry(tag: "file", name: "Lavoro", id: "id:replacement", pathLower: folder.pathLower, pathDisplay: nil, rev: "r2", size: 5)
+        await api.setListing([replacement])
+        await store.sync()
+        XCTAssertTrue(store.index.entries.isEmpty)
     }
     func testAcknowledgingUploadRetainsNewerTypingAndRemoteEchoIsNotConflict() {
         var document = PKMSDocument(id: "id:note", path: "/nota.md", text: "Draft 2", revision: "r1", syncedText: "Original")
