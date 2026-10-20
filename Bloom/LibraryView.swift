@@ -40,6 +40,18 @@ struct LibraryView: View {
             return matchesBase && (LibraryFilter.matches(item, search: search, archived: archived, collection: filter, kind: kind) || !item.tagIDs.isDisjoint(with: matchingTagIDs))
         })
     }
+    private var currentCategoryID: UUID? {
+        if case .collection(let id) = filter, !archived { return id }
+        return nil
+    }
+    private var pinnedNotes: [CapturedLink] {
+        guard let id = currentCategoryID else { return [] }
+        return visible.filter { $0.pinnedCategoryIDs.contains(id) }
+    }
+    private var gridNotes: [CapturedLink] {
+        guard let id = currentCategoryID else { return visible }
+        return visible.filter { !$0.pinnedCategoryIDs.contains(id) }
+    }
     private var showingTags: Bool { !allNotes && search.isEmpty && kind == nil && !selecting }
     private let categoryColumns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
     private let contentColumns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 3)
@@ -64,7 +76,30 @@ struct LibraryView: View {
                 } else if visible.isEmpty {
                     ContentUnavailableView("Nessuna nota", systemImage: "note.text", description: Text("Aggiungi una nota o cambia i filtri."))
                 } else {
-                    LazyVGrid(columns: contentColumns, spacing: 0) { ForEach(visible) { item in card(item) } }
+                    if !pinnedNotes.isEmpty {
+                        VStack(spacing: 0) {
+                            ForEach(pinnedNotes) { item in
+                                Button {
+                                    if selecting { if selection.contains(item.id) { selection.remove(item.id) } else { selection.insert(item.id) } }
+                                    else { opened = item }
+                                } label: {
+                                    HStack {
+                                        if selecting { Image(systemName: selection.contains(item.id) ? "checkmark.circle.fill" : "circle") }
+                                        Text(item.displayTitle).lineLimit(1).foregroundStyle(Color.bloomText)
+                                        Spacer(minLength: 8)
+                                        Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
+                                    }.frame(minHeight: 48).contentShape(Rectangle())
+                                }.buttonStyle(.plain).accessibilityIdentifier("pinned-note-\(item.id)")
+                                    .contextMenu {
+                                        Button("Modifica tag", systemImage: "tag") { tagNote = item }
+                                        Button("Rimuovi dai fissati", systemImage: "pin.slash") { togglePin(item) }
+                                        Button("Elimina", systemImage: "trash", role: .destructive) { deleting = item; deletePrompt = true }
+                                    }
+                                Divider()
+                            }
+                        }.padding(.horizontal, 16).accessibilityIdentifier("pinned-notes")
+                    }
+                    LazyVGrid(columns: contentColumns, spacing: 0) { ForEach(gridNotes) { item in card(item) } }
                         .accessibilityIdentifier("content-grid")
                 }
             }.padding(.vertical, 16).frame(maxWidth: .infinity)
@@ -186,11 +221,16 @@ struct LibraryView: View {
         }
     }
     private func card(_ item: CapturedLink) -> some View {
-        ArchiveTile(item: item, compact: true, selected: selection.contains(item.id), selecting: selecting, revealed: $revealed,
+        ArchiveTile(item: item, compact: true, pinAction: currentCategoryID == nil ? nil : { togglePin(item) }, pinnedInCategory: currentCategoryID.map { item.pinnedCategoryIDs.contains($0) } ?? false, selected: selection.contains(item.id), selecting: selecting, revealed: $revealed,
                     openNote: { if !selecting { opened = item } }, editTags: { tagNote = item }, select: {
                         if selecting { if selection.contains(item.id) { selection.remove(item.id) } else { selection.insert(item.id) } }
                         else { selecting = true; selection = [item.id]; revealed = nil }
                     }, archive: { archive(item) }, delete: { deleting = item; deletePrompt = true })
+    }
+    private func togglePin(_ item: CapturedLink) {
+        guard let id = currentCategoryID else { return }
+        do { try LinkStore.setPinned(!item.pinnedCategoryIDs.contains(id), note: item, categoryID: id, in: context) }
+        catch { self.error = error.localizedDescription }
     }
     private func archive(_ item: CapturedLink) {
         do {

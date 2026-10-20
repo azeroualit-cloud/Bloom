@@ -155,6 +155,14 @@ enum LinkStore {
         }
         try save(context)
     }
+    static func setPinned(_ pinned: Bool, note: CapturedLink, categoryID: UUID, in context: ModelContext) throws {
+        guard note.modelContext === context, !note.isDeleted, !note.isArchived, note.tagIDs.contains(categoryID) else { throw LibraryError.selectionMissing }
+        _ = try resolveCollection(categoryID, in: context)
+        if pinned { note.pinnedCategoryIDs.insert(categoryID) }
+        else { note.pinnedCategoryIDs.remove(categoryID) }
+        try touch(note, previousTags: note.tagIDs, in: context)
+        try save(context)
+    }
     static func container(at directory: URL) throws -> ModelContainer {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let schema = Schema([CapturedLink.self, LinkCollection.self])

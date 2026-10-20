@@ -1,6 +1,35 @@
 import XCTest
 
 final class DailyUseUITests: XCTestCase {
+
+    @MainActor
+    func testPKMSFolderTreeEditsLiveAndRestoresOfflineDraftAfterRestart() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        let token = UUID().uuidString
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-pkms=" + token]
+        app.launch()
+        tapWhenReady(app.tabBars.buttons["PKMS"], in: app)
+        tapWhenReady(app.buttons["Lavoro"], in: app)
+        tapWhenReady(app.buttons["pkms-note-Contatti"], in: app)
+        let editor = app.textViews["pkms-editor"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 10), diagnostics(app))
+        XCTAssertFalse(app.buttons["Modifica"].exists)
+        tapWhenReady(editor, in: app)
+        editor.typeText("\nNota aggiunta dal telefono")
+        let saved = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            (editor.value as? String ?? "").contains("Nota aggiunta dal telefono")
+        }, object: editor)
+        XCTAssertEqual(XCTWaiter.wait(for: [saved], timeout: 5), .completed, diagnostics(app))
+        app.terminate()
+        app.launch()
+        tapWhenReady(app.tabBars.buttons["PKMS"], in: app)
+        tapWhenReady(app.buttons["Lavoro"], in: app)
+        tapWhenReady(app.buttons["pkms-note-Contatti"], in: app)
+        let restored = app.textViews["pkms-editor"]
+        XCTAssertTrue(restored.waitForExistence(timeout: 10), diagnostics(app))
+        XCTAssertTrue((restored.value as? String ?? "").contains("Nota aggiunta dal telefono"), diagnostics(app))
+    }
     @MainActor
     func testNoteOrganizesCategoriesInlineAndRemovesPlace() {
         continueAfterFailure = false

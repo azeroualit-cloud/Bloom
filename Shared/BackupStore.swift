@@ -26,7 +26,7 @@ enum BackupStore {
                 urlString: item.urlString, title: item.title, notes: item.notes, archived: item.isArchived,
                 collectionID: item.collection?.id, text: item.textContent, fileName: item.fileName,
                 contentType: item.contentType, data: data, tagIDs: Array(item.tagIDs),
-                noteLinks: item.noteLinks.map(\.absoluteString), noteFiles: item.noteFiles, imageFraming: item.imageFraming, noteVersion: item.noteVersion, trashedAt: item.trashedAt, modifiedAt: item.modifiedAt, place: item.place))
+                noteLinks: item.noteLinks.map(\.absoluteString), noteFiles: item.noteFiles, imageFraming: item.imageFraming, noteVersion: item.noteVersion, trashedAt: item.trashedAt, modifiedAt: item.modifiedAt, place: item.place, pinnedCategoryIDs: Array(item.pinnedCategoryIDs)))
         }
         return LibraryBackup(collections: collections.map {
             .init(id: $0.id, name: $0.name, createdAt: $0.createdAt, modifiedAt: $0.modifiedAt)
@@ -88,6 +88,7 @@ enum BackupStore {
                 item.attachmentByteCount = record.data?.count
                 item.contentFingerprint = fingerprint
                 if let tags = record.tagIDs { item.tagIDs = Set(tags.compactMap { mapping[$0]?.id }) }
+                item.pinnedCategoryIDs = Set(record.pinnedCategoryIDs ?? [])
                 item.noteLinksJSON = record.noteLinks.flatMap { try? JSONEncoder().encode($0) }.flatMap { String(data: $0, encoding: .utf8) }
                 item.noteFilesData = record.noteFiles.flatMap { try? JSONEncoder().encode($0) }
                 item.noteFileCount = record.noteFiles?.count ?? 0

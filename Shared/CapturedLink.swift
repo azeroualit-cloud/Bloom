@@ -29,6 +29,15 @@ final class CapturedLink {
     @Attribute(.externalStorage) var attachmentData: Data?
     @Attribute(.externalStorage) var previewImageData: Data?
     var previewSourceURL: String?
+    var pinnedCategoryIDsJSON: String?
+    var pinnedCategoryIDs: Set<UUID> {
+        get {
+            guard let raw = pinnedCategoryIDsJSON, let data = raw.data(using: .utf8),
+                  let ids = try? JSONDecoder().decode([UUID].self, from: data) else { return [] }
+            return Set(ids)
+        }
+        set { pinnedCategoryIDsJSON = String(data: (try? JSONEncoder().encode(newValue.sorted { $0.uuidString < $1.uuidString })) ?? Data("[]".utf8), encoding: .utf8) }
+    }
     var tagIDsJSON: String?
     var noteLinksJSON: String?
     @Attribute(.externalStorage) var noteFilesData: Data?
@@ -47,7 +56,10 @@ final class CapturedLink {
                let ids = try? JSONDecoder().decode([UUID].self, from: data) { return Set(ids) }
             return Set(collection.map { [$0.id] } ?? [])
         }
-        set { tagIDsJSON = String(data: (try? JSONEncoder().encode(newValue.sorted { $0.uuidString < $1.uuidString })) ?? Data("[]".utf8), encoding: .utf8) }
+        set {
+            tagIDsJSON = String(data: (try? JSONEncoder().encode(newValue.sorted { $0.uuidString < $1.uuidString })) ?? Data("[]".utf8), encoding: .utf8)
+            pinnedCategoryIDs = pinnedCategoryIDs.intersection(newValue)
+        }
     }
     var noteLinks: [URL] {
         guard let raw = noteLinksJSON, let data = raw.data(using: .utf8),

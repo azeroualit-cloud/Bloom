@@ -40,6 +40,7 @@ struct LibraryBackup: Codable, Sendable {
         var trashedAt: Date? = nil
         var modifiedAt: Date? = nil
         var place: NotePlace? = nil
+        var pinnedCategoryIDs: [UUID]? = nil
 
         var fingerprint: String? {
             guard noteVersion == nil else { return nil }
@@ -76,7 +77,8 @@ struct LibraryBackup: Codable, Sendable {
             guard let kind = ContentKind(rawValue: item.kind),
                   item.capturedAt.timeIntervalSince1970.isFinite,
                   item.collectionID.map({ ids.contains($0) }) ?? true else { throw BackupError.invalid }
-            guard (item.tagIDs ?? []).allSatisfy({ ids.contains($0) }),
+            guard (item.pinnedCategoryIDs ?? []).allSatisfy({ (item.tagIDs ?? item.collectionID.map { [$0] } ?? []).contains($0) }),
+                  (item.tagIDs ?? []).allSatisfy({ ids.contains($0) }),
                   (item.noteLinks?.count ?? 0) + (item.noteFiles?.count ?? 0) <= 10 else { throw BackupError.invalid }
             guard item.place?.isValid ?? true else { throw BackupError.invalid }
             if let place = item.place { try count(place.name.utf8.count) }

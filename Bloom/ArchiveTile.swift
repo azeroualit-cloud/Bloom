@@ -7,6 +7,8 @@ struct ArchiveTile: View {
     @Environment(\.modelContext) private var context
     let item: CapturedLink
     var compact = false
+    var pinAction: (() -> Void)? = nil
+    var pinnedInCategory = false
     var selected = false
     var selecting = false
     @Binding var revealed: UUID?
@@ -70,6 +72,7 @@ struct ArchiveTile: View {
 
     @ViewBuilder private var compactActions: some View {
         Button("Modifica tag", systemImage: "tag", action: editTags).accessibilityIdentifier("note-context-tags")
+        if let pinAction { Button(pinnedInCategory ? "Rimuovi dai fissati" : "Fissa nella categoria", systemImage: pinnedInCategory ? "pin.slash" : "pin", action: pinAction) }
         renameButton
         Button("Apri nota", systemImage: "note.text", action: openNote)
             .disabled(selecting).accessibilityIdentifier("note-context-open")
