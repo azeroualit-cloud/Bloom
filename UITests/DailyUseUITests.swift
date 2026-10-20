@@ -306,11 +306,15 @@ final class DailyUseUITests: XCTestCase {
         app.terminate(); app.launch()
         XCTAssertTrue(app.buttons["capture-add"].waitForExistence(timeout: 15))
         app.buttons["capture-add"].tap()
-        XCTAssertTrue(body.waitForExistence(timeout: 5))
+        let restoredBody = app.textViews["capture-body"]
+        XCTAssertTrue(restoredBody.waitForExistence(timeout: 5))
         let reloaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: app.buttons["capture-close"])
         XCTAssertEqual(XCTWaiter.wait(for: [reloaded], timeout: 10), .completed, diagnostics(app))
-        let restored = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '111222333'"), object: body)
-        XCTAssertEqual(XCTWaiter.wait(for: [restored], timeout: 5), .completed, diagnostics(app))
+        let restored = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            restoredBody.value as? String == "111222333"
+        }, object: restoredBody)
+        XCTAssertEqual(XCTWaiter.wait(for: [restored], timeout: 10), .completed, diagnostics(app))
+        XCTAssertEqual(restoredBody.value as? String, "111222333", diagnostics(app))
         app.buttons["capture-close"].tap()
         app.buttons["Scarta modifiche"].tap()
     }
@@ -356,7 +360,9 @@ final class DailyUseUITests: XCTestCase {
         note.press(forDuration: 1.1)
         XCTAssertTrue(app.buttons["note-context-tags"].waitForExistence(timeout: 5), diagnostics(app))
         app.buttons["note-context-tags"].tap()
-        app.buttons["tag-Salute"].tap()
+        let salute = app.buttons["tag-Salute"]
+        XCTAssertTrue(salute.waitForExistence(timeout: 5), diagnostics(app))
+        salute.tap()
         app.buttons["quick-tags-save"].tap()
         XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5))
         app.buttons["library-back-tags"].tap()
