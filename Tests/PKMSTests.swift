@@ -121,12 +121,14 @@ final class PKMSTests: XCTestCase {
         let decoded = try JSONSerialization.jsonObject(with: Data(header.utf8)) as? [String: String]
         XCTAssertEqual(decoded?["path"], path)
     }
-    func testCorruptCacheIsReportedAndNeverSilentlyReset() throws {
+    func testCorruptCacheIsReportedAndNeverSilentlyReset() async throws {
         let disk = try disk()
         let url = disk.root.appendingPathComponent("index.json")
         try Data("broken".utf8).write(to: url)
         let store = PKMSStore(api: PKMSDropboxFixture(), disk: disk)
         XCTAssertNotNil(store.storageError)
+        await store.selectRoot("/replacement")
+        await store.refreshConnection()
         store.retryLocalSave()
         XCTAssertNotNil(store.storageError)
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "broken")

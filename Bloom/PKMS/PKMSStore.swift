@@ -56,7 +56,7 @@ final class PKMSStore: ObservableObject {
     var pendingCount: Int { documents.values.filter { $0.dirty }.count }
     var conflictCount: Int { documents.values.filter { $0.hasConflict }.count }
     func refreshConnection() async {
-        guard allowsConnectionRefresh, !authorizationRejected else { return }
+        guard allowsConnectionRefresh, !authorizationRejected, !loadFailed else { return }
         do {
             connected = try await DropboxClient.shared.isConnected()
             if connected, let account = try await DropboxClient.shared.accountID() {
@@ -103,7 +103,7 @@ final class PKMSStore: ObservableObject {
     }
     func retryLocalSave() {
         do {
-            let disk = try requireDisk()
+            let disk = try requireDisk(allowRecovery: true)
             if loadFailed {
                 let loadedIndex = try disk.loadIndex()
                 let loadedDocuments = try disk.loadDocuments()
@@ -242,7 +242,8 @@ final class PKMSStore: ObservableObject {
         index = next; accountID = account
         UserDefaults.standard.set(account, forKey: "pkms.accountID")
     }
-    private func requireDisk() throws -> PKMSDisk {
+    private func requireDisk(allowRecovery: Bool = false) throws -> PKMSDisk {
+        guard !loadFailed || allowRecovery else { throw DropboxFailure.storage("Indice o documenti PKMS non leggibili. I file locali sono conservati e non verranno sostituiti con un archivio vuoto.") }
         guard let disk else { throw DropboxFailure.storage("Archivio PKMS non disponibile. Non verrà creato un archivio vuoto al suo posto.") }
         return disk
     }

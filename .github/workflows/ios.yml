@@ -12,10 +12,30 @@ jobs:
   test-and-package:
     runs-on: macos-15
     timeout-minutes: 40
+    permissions:
+      contents: read
+      actions: write
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
+      - name: Cancel superseded push builds
+        continue-on-error: true
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --method GET "repos/$GH_REPO/actions/workflows/ios.yml/runs" \
+            -f branch=main -f event=push -f per_page=30 \
+            --jq ".workflow_runs[] | select(.run_number < $GITHUB_RUN_NUMBER and .status != \"completed\") | .id" > /tmp/bloom-superseded-runs
+          while read -r STALE_RUN; do
+            # Force-cancel also releases runs stuck finishing an already-cancelled job.
+            gh api --silent --method POST "repos/$GH_REPO/actions/runs/$STALE_RUN/force-cancel" || \
+              echo "Run $STALE_RUN already completed or cancellation unavailable."
+          done < /tmp/bloom-superseded-runs
       - name: Toolchain
         run: |
           xcodebuild -version
@@ -88,6 +108,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          CURRENT_SHA=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
+          if [ "$CURRENT_SHA" != "$GITHUB_SHA" ]; then
+            echo "A newer commit exists; this verified build will not replace the latest release."
+            exit 0
+          fi
           cp build/Bloom-unsigned.ipa build/Bloom.ipa
           cat > build/release-notes.md <<'NOTES'
           Build automatica dopo il completamento dei test e dell'archivio iOS.
