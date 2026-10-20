@@ -25,15 +25,22 @@ struct PKMSDocument: Codable, Equatable {
     var text: String
     var revision: String
     var syncedText: String
+    var attemptedText: String?
     var conflictText: String?
     var conflictRevision: String?
     var remoteDeleted = false
     var modifiedAt = Date()
-    var dirty: Bool { text != syncedText }
+    var dirty: Bool { text != syncedText || attemptedText != nil }
     var hasConflict: Bool { conflictRevision != nil || remoteDeleted }
 
     mutating func receive(text remote: String, revision rev: String) {
         remoteDeleted = false
+        // Dropbox may accept an upload even when its HTTP reply is lost.
+        if remote == attemptedText {
+            syncedText = remote; revision = rev; attemptedText = nil
+            conflictText = nil; conflictRevision = nil
+            return
+        }
         if dirty && remote != syncedText && remote != text {
             conflictText = remote; conflictRevision = rev
         } else {
@@ -44,7 +51,7 @@ struct PKMSDocument: Codable, Equatable {
     }
     /// A successful upload may acknowledge an older draft while typing continues.
     mutating func acknowledge(uploaded: String, revision rev: String) {
-        syncedText = uploaded; revision = rev
+        syncedText = uploaded; revision = rev; attemptedText = nil
         conflictText = nil; conflictRevision = nil
     }
 }

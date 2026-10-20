@@ -17,6 +17,7 @@ final class PKMSStore: ObservableObject {
     private var allowsConnectionRefresh = true
     private var syncAgain = false
     private var scheduled: Task<Void, Never>?
+    private var activeSync: Task<Void, Never>?
     private(set) var accountID: String?
 
     init(api: any DropboxServing = DropboxClient.shared, disk: PKMSDisk? = nil, connected: Bool = false) {
@@ -131,7 +132,19 @@ final class PKMSStore: ObservableObject {
         do { try await receive(entry) }
         catch { report(error) }
     }
+    /// View/debounce cancellation must never cancel an in-flight document upload.
     func sync() async {
+        if let activeSync { if syncing { syncAgain = true }; await activeSync.value; return }
+        // Give the worker its own lifetime rather than inheriting a SwiftUI .task cancellation.
+        let worker = Task<Void, Never> { [weak self] in
+            guard let self else { return }
+            await self.performSync()
+        }
+        activeSync = worker
+        await worker.value
+        activeSync = nil
+    }
+    private func performSync() async {
         guard connected, index.root != nil, storageError == nil else { return }
         guard !syncing else { syncAgain = true; return }
         syncing = true
@@ -144,7 +157,7 @@ final class PKMSStore: ObservableObject {
             for entry in entries where !entry.isFolder {
                 guard var cached = documents[entry.identity] else { continue }
                 if cached.path != entry.pathLower { cached.path = entry.pathLower; try persist(cached) }
-                if cached.revision != entry.rev || cached.remoteDeleted { try await receive(entry) }
+                if cached.revision != entry.rev || cached.remoteDeleted || cached.attemptedText != nil { try await receive(entry) }
                 guard let draft = documents[entry.identity], draft.dirty, !draft.hasConflict else { continue }
                 try await upload(draft)
             }
@@ -161,6 +174,8 @@ final class PKMSStore: ObservableObject {
     }
     private func upload(_ draft: PKMSDocument) async throws {
         do {
+            var pending = draft; pending.attemptedText = draft.text
+            try persist(pending)
             let metadata = try await api.upload(path: draft.id, revision: draft.revision, text: draft.text)
             guard let rev = metadata.rev, var latest = documents[draft.id] else { throw DropboxFailure.invalidResponse }
             latest.acknowledge(uploaded: draft.text, revision: rev)
@@ -193,7 +208,7 @@ final class PKMSStore: ObservableObject {
             try requireDisk().preserve(document)
             if !keepLocal { document.text = remote }
             document.syncedText = remote; document.revision = revision
-            document.conflictText = nil; document.conflictRevision = nil
+            document.conflictText = nil; document.conflictRevision = nil; document.attemptedText = nil
             try persist(document)
             scheduleSync()
         } catch { self.error = error.localizedDescription }

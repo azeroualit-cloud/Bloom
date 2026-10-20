@@ -8,6 +8,7 @@ private actor PKMSDropboxFixture: DropboxServing {
     private var offline = false
     private var missing = false
     private var uploads = 0
+    private var loseNextReply = false
     func entry() -> DropboxEntry {
         DropboxEntry(tag: missing ? "deleted" : "file", name: "Nota.md", id: missing ? nil : "id:note", pathLower: "/pkms/nota.md", pathDisplay: "/PKMS/Nota.md", rev: missing ? nil : revision, size: text.utf8.count)
     }
@@ -25,11 +26,13 @@ private actor PKMSDropboxFixture: DropboxServing {
         if missing { throw DropboxFailure.remoteMissing }
         guard revision == self.revision else { throw DropboxFailure.conflict }
         self.text = text; self.revision += "u"; uploads += 1
+        if loseNextReply { loseNextReply = false; throw URLError(.networkConnectionLost) }
         return entry()
     }
     func modifyRemotely(_ text: String) { self.text = text; revision += "x" }
     func setOffline(_ value: Bool) { offline = value }
     func deleteRemotely() { missing = true }
+    func loseUploadReplyOnce() { loseNextReply = true }
     func uploadedCount() -> Int { uploads }
     func remoteText() -> String { text }
 }
@@ -62,6 +65,24 @@ final class PKMSTests: XCTestCase {
         XCTAssertEqual(restarted.pendingCount, 0)
         XCTAssertNil(restarted.error)
         XCTAssertEqual(try disk.loadDocuments()[entry.identity]?.syncedText, markdown)
+    }
+    func testLostUploadReplyAndMoreTypingDoNotCreateFalseConflict() async throws {
+        let api = PKMSDropboxFixture(), disk = try disk()
+        let store = PKMSStore(api: api, disk: disk, connected: true)
+        await store.selectRoot("/pkms")
+        let entry = await api.entry()
+        await store.open(entry)
+        store.update(id: entry.identity, text: "First draft")
+        await api.loseUploadReplyOnce()
+        await store.sync()
+        XCTAssertEqual(store.documents[entry.identity]?.attemptedText, "First draft")
+        let restarted = PKMSStore(api: api, disk: disk, connected: true)
+        restarted.update(id: entry.identity, text: "First draft with more typing")
+        await restarted.sync()
+        let remote = await api.remoteText()
+        XCTAssertEqual(remote, "First draft with more typing")
+        XCTAssertFalse(try XCTUnwrap(restarted.documents[entry.identity]).hasConflict)
+        XCTAssertEqual(restarted.pendingCount, 0)
     }
     func testConcurrentEditPreservesBothVersionsUntilExplicitChoice() async throws {
         let api = PKMSDropboxFixture(), disk = try disk()
