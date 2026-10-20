@@ -43,16 +43,21 @@ actor DropboxClient: DropboxServing {
     static let redirect = "bloom-dropbox://oauth"
     private let session: URLSession
     private let vault = DropboxCredentialVault()
+    private var credentialGeneration = UUID()
     private var refreshing: Task<DropboxCredentials, Error>?
     init(session: URLSession = .shared) { self.session = session }
     func isConnected() throws -> Bool { try vault.load() != nil }
-    func disconnect() throws { try vault.disconnect() }
+    func disconnect() throws {
+        credentialGeneration = UUID(); refreshing?.cancel(); refreshing = nil
+        try vault.disconnect()
+    }
 
     func connect(code: String, verifier: String, appKey: String, expectedAccount: String?) async throws -> String {
         let response = try await tokenRequest(["grant_type": "authorization_code", "code": code,
                                               "code_verifier": verifier, "client_id": appKey, "redirect_uri": Self.redirect])
         guard let refresh = response.refreshToken, let account = response.accountID else { throw DropboxFailure.invalidResponse }
         if let expectedAccount, expectedAccount != account { throw DropboxAuthError.differentAccount }
+        credentialGeneration = UUID()
         try vault.save(DropboxCredentials(accessToken: response.accessToken, refreshToken: refresh,
                                          expiresAt: Date().addingTimeInterval(response.expiresIn), accountID: account, appKey: appKey))
         return account
@@ -89,8 +94,11 @@ actor DropboxClient: DropboxServing {
         guard let credentials = try vault.load() else { throw DropboxFailure.notConnected }
         if credentials.expiresAt > Date().addingTimeInterval(90) { return credentials.accessToken }
         if let refreshing { return try await refreshing.value.accessToken }
+        let generation = credentialGeneration
         let task = Task<DropboxCredentials, Error> {
             let token = try await self.tokenRequest(["grant_type": "refresh_token", "refresh_token": credentials.refreshToken, "client_id": credentials.appKey])
+            try Task.checkCancellation()
+            guard generation == self.credentialGeneration else { throw DropboxFailure.notConnected }
             var updated = credentials
             updated.accessToken = token.accessToken
             updated.expiresAt = Date().addingTimeInterval(token.expiresIn)

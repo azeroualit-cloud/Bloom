@@ -127,6 +127,8 @@ final class PKMSTests: XCTestCase {
         try Data("broken".utf8).write(to: url)
         let store = PKMSStore(api: PKMSDropboxFixture(), disk: disk)
         XCTAssertNotNil(store.storageError)
+        store.retryLocalSave()
+        XCTAssertNotNil(store.storageError)
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "broken")
     }
     func testPinsAreCategoryScopedAndSurviveBackupWithoutPreviewDuplication() throws {

@@ -54,6 +54,7 @@ struct PKMSIndex: Codable {
     var entries: [DropboxEntry] = []
     var cursor: String?
     var lastSync: Date?
+    var accountID: String?
 }
 
 enum DropboxFailure: LocalizedError, Equatable {

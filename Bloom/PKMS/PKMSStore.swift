@@ -13,6 +13,7 @@ final class PKMSStore: ObservableObject {
     private let api: any DropboxServing
     private var disk: PKMSDisk?
     private var loadFailed = false
+    private var authorizationRejected = false
     private var allowsConnectionRefresh = true
     private var syncAgain = false
     private var scheduled: Task<Void, Never>?
@@ -26,10 +27,9 @@ final class PKMSStore: ObservableObject {
             self.disk = storage
             let loadedIndex = try storage.loadIndex()
             let loadedDocuments = try storage.loadDocuments()
-            self.disk = storage
             index = loadedIndex
             documents = loadedDocuments
-            accountID = UserDefaults.standard.string(forKey: "pkms.accountID")
+            accountID = loadedIndex.accountID ?? UserDefaults.standard.string(forKey: "pkms.accountID")
         } catch {
             loadFailed = true
             storageError = error.localizedDescription
@@ -56,13 +56,20 @@ final class PKMSStore: ObservableObject {
     var pendingCount: Int { documents.values.filter { $0.dirty }.count }
     var conflictCount: Int { documents.values.filter { $0.hasConflict }.count }
     func refreshConnection() async {
-        guard allowsConnectionRefresh else { return }
-        do { connected = try await DropboxClient.shared.isConnected() }
+        guard allowsConnectionRefresh, !authorizationRejected else { return }
+        do {
+            connected = try await DropboxClient.shared.isConnected()
+            if connected, let account = try await DropboxClient.shared.accountID() {
+                if let accountID, accountID != account { connected = false; throw DropboxAuthError.differentAccount }
+                try bindAccount(account)
+            }
+        }
         catch { self.error = error.localizedDescription }
     }
     func didConnect(account: String) async {
-        accountID = account
-        UserDefaults.standard.set(account, forKey: "pkms.accountID")
+        do { try bindAccount(account) }
+        catch { self.error = error.localizedDescription; return }
+        authorizationRejected = false
         connected = true
         await sync()
     }
@@ -72,9 +79,9 @@ final class PKMSStore: ObservableObject {
         catch { self.error = error.localizedDescription }
     }
     func selectRoot(_ path: String) async {
-        guard !syncing else { return }
+        guard !syncing else { error = "Attendi la sincronizzazione in corso prima di cambiare cartella."; return }
         guard pendingCount == 0 else { error = "Sincronizza o risolvi le note modificate prima di cambiare cartella."; return }
-        var next = PKMSIndex(); next.root = path
+        var next = PKMSIndex(); next.root = path; next.accountID = accountID
         do {
             try requireDisk().saveIndex(next)
             index = next
@@ -122,7 +129,7 @@ final class PKMSStore: ObservableObject {
         loading.insert(entry.identity)
         defer { loading.remove(entry.identity) }
         do { try await receive(entry) }
-        catch { self.error = error.localizedDescription }
+        catch { report(error) }
     }
     func sync() async {
         guard connected, index.root != nil, storageError == nil else { return }
@@ -150,7 +157,7 @@ final class PKMSStore: ObservableObject {
             var next = index; next.lastSync = .now
             try requireDisk().saveIndex(next); index = next
             error = nil
-        } catch { self.error = error.localizedDescription }
+        } catch { if !Task.isCancelled { report(error) } }
     }
     private func upload(_ draft: PKMSDocument) async throws {
         do {
@@ -221,6 +228,19 @@ final class PKMSStore: ObservableObject {
     private func persist(_ document: PKMSDocument) throws {
         try requireDisk().save(document)
         documents[document.id] = document
+    }
+    private func report(_ error: Error) {
+        if let failure = error as? DropboxFailure, failure == .unauthorized || failure == .notConnected {
+            connected = false; authorizationRejected = true
+        }
+        self.error = error.localizedDescription
+    }
+    private func bindAccount(_ account: String) throws {
+        if accountID == account, index.accountID == account { return }
+        var next = index; next.accountID = account
+        try requireDisk().saveIndex(next)
+        index = next; accountID = account
+        UserDefaults.standard.set(account, forKey: "pkms.accountID")
     }
     private func requireDisk() throws -> PKMSDisk {
         guard let disk else { throw DropboxFailure.storage("Archivio PKMS non disponibile. Non verrà creato un archivio vuoto al suo posto.") }

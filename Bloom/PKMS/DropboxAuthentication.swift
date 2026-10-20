@@ -20,6 +20,7 @@ enum DropboxAuthError: LocalizedError {
 final class DropboxAuthentication: NSObject, ASWebAuthenticationPresentationContextProviding {
     private var session: ASWebAuthenticationSession?
     func connect(appKey: String, expectedAccount: String?) async throws -> String {
+        defer { session = nil }
         let key = appKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty, key.range(of: "^[A-Za-z0-9]+$", options: .regularExpression) != nil else { throw DropboxAuthError.invalidKey }
         let verifier = try Self.random(), state = try Self.random()
@@ -38,7 +39,6 @@ final class DropboxAuthentication: NSObject, ASWebAuthenticationPresentationCont
             self.session = session
             if !session.start() { continuation.resume(throwing: DropboxAuthError.invalidCallback) }
         }
-        session = nil
         let components = URLComponents(url: callback, resolvingAgainstBaseURL: false)
         let values = components?.queryItems ?? []
         guard callback.scheme == "bloom-dropbox", callback.host == "oauth",

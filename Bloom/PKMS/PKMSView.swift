@@ -18,8 +18,9 @@ struct PKMSView: View {
             return entries.filter { !$0.isFolder && $0.title.localizedStandardContains(search) }
                 .sorted { $0.pathLower < $1.pathLower }.map { TreeRow(entry: $0, depth: 0) }
         }
+        let byParent = Dictionary(grouping: entries, by: \.parent)
         func children(_ path: String, depth: Int) -> [TreeRow] {
-            entries.filter { $0.parent == path }.sorted {
+            (byParent[path] ?? []).sorted {
                 if $0.isFolder != $1.isFolder { return $0.isFolder }
                 return $0.name.localizedStandardCompare($1.name) == .orderedAscending
             }.flatMap { entry -> [TreeRow] in
