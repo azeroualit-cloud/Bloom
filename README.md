@@ -52,7 +52,7 @@ Bloom espone l'azione App Intents **Salva link in Bloom**. In Comandi Rapidi:
 4. Aggiungere l'azione di Bloom **Salva link in Bloom** e collegare il suo parametro
    URL all'URL ottenuto. Se viene presentato un elenco, usare il primo elemento.
 5. In Safari aprire Condividi → Salva in Bloom. Consentire l'esecuzione se iOS lo
-   richiede. Il comando salva nell'archivio privato e apre Bloom.
+   richiede. Il comando salva nell'archivio privato senza aprire Bloom. Solo in caso di errore propone di proseguire nell'app per riprovare.
 
 La guida è anche nell'app. App Intents è un'integrazione pubblica nativa, senza
 container condivisi. La registrazione dell'azione dopo la firma e il percorso

@@ -1,6 +1,6 @@
-# Caroselli e consultazione — build 21
+# Caroselli e consultazione — build 24
 
-Formato 4:3 orizzontale per nota e feed, paginazione orizzontale nativa con contatore. Link social, allegato principale, ulteriori file e testo sono pagine della stessa nota. La griglia conserva una copertina e segnala gli allegati multipli; il tap apre la nota quando contiene più pagine. Il carosello è l’unico elenco visibile degli allegati: il tap sulla pagina del documento apre lettura e modifica. Le immagini vengono ritagliate solo nell’anteprima; il tap apre tutti i pixel dell’originale con zoom, anche se la copertina è stata inquadrata manualmente. I video locali usano AVPlayer soltanto nella pagina selezionata, senza autoplay; le risorse temporanee vengono rimosse all’uscita.
+Formato 4:3 orizzontale nella nota e 3:4 verticale in Riscopri, paginazione orizzontale nativa con contatore. Link social, allegato principale, ulteriori file e testo sono pagine della stessa nota. La griglia conserva una copertina e segnala gli allegati multipli; il tap apre la nota quando contiene più pagine. Il carosello è l’unico elenco visibile degli allegati: il tap sulla pagina del documento apre lettura e modifica. Le immagini vengono ritagliate solo nell’anteprima; il tap apre tutti i pixel dell’originale con zoom, anche se la copertina è stata inquadrata manualmente. I video locali usano AVPlayer soltanto nella pagina selezionata, senza autoplay; le risorse temporanee vengono rimosse all’uscita.
 
 Il selettore foto/video accetta una selezione ordinata multipla. Il caricamento è atomico: se un elemento fallisce o supera i limiti, nessun elemento di quel gruppo viene aggiunto. Restano i limiti di 10 allegati e 25 MB complessivi per nota.
 
@@ -14,9 +14,9 @@ Verifica documentazione ufficiale del 20 ottobre 2026:
 - [Instagram oEmbed](https://developers.facebook.com/docs/instagram-platform/oembed/) supporta post foto, caroselli e Reel come vista online. La documentazione vieta usare tale endpoint per estrarre o persistere il contenuto al di fuori dell’embed. Post privati, con restrizioni e con embed disabilitato non sono supportati.
 - [TikTok Embed Videos](https://developers.tiktok.com/doc/embed-videos/) documenta l’incorporamento del player; non garantisce una copia locale dei contenuti di ogni post.
 
-La build non aggiunge scraping, credenziali social né un servizio di download. I link social tentano l’apertura dell’app tramite universal link e ripiegano sul browser integrato se iOS non la apre. Il carosello locale funziona con i file che l’utente allega. Un futuro embed online va trattato come modalità distinta dall’archivio offline.
+La build non aggiunge scraping, credenziali social né un servizio di download. I post Instagram con percorso /p/ si aprono dentro Bloom attraverso la vista incorporata online; il menu Visualizzazione permette di passare alla pagina originale, sempre nel browser interno, se l’embed non è disponibile o richiede accesso. I Reel e gli altri link social conservano l’apertura dell’app tramite universal link e il browser integrato come ripiego. Nessuna apertura esterna automatica dai post /p/. Il carosello locale funziona con i file che l’utente allega; non rappresenta una copia offline delle slide Instagram.
 
-La disponibilità di una copertina non prova che siano disponibili tutti i media del post. oEmbed supporta il tipo carosello come contenuto incorporato, ma la possibilità di scorrere le slide nel rendering va verificata sul provider e sul post reale; non è garantita né implementata come carosello nativo in Bloom.
+La disponibilità di una copertina non prova che siano disponibili tutti i media del post. oEmbed supporta il tipo carosello come contenuto incorporato, ma la possibilità di scorrere le slide nel rendering va verificata sul provider e sul post reale; dipende da Instagram e non è implementata come carosello nativo in Bloom. L’integrazione usa il rendering /p/{shortcode}/embed/ del provider, senza token o estrazione dei media. I test coprono URL canonici, instradamento interno e recupero; non certificano lo scorrimento di ogni post Instagram reale.
 
 ## Salvataggio dai Comandi Rapidi
 

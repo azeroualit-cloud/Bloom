@@ -1,6 +1,6 @@
-# Mappa dei contenuti — build 22
+# Mappa dei contenuti — build 24
 
-Terza destinazione principale: Libreria, Mappa, Riscopri. Una nota può avere un luogo facoltativo con nome e coordinate. Le note nello stesso punto sono raggruppate: il pannello del segnaposto permette di aprirle tutte; l’elenco luoghi offre gli stessi collegamenti anche quando le tessere della mappa non sono disponibili. Le note nel cestino non compaiono e ricompaiono dopo il ripristino.
+Destinazione principale nella barra inferiore: Libreria, Mappa, Riscopri. Una nota può avere un luogo facoltativo con nome e coordinate. La mappa è navigabile con zoom e spostamento e presenta piccole copertine dei post, con un’alternativa testuale per le note senza immagine. Le note nello stesso punto sono raggruppate con un contatore: il pannello del segnaposto permette di aprirle tutte; l’elenco luoghi offre gli stessi collegamenti anche quando le tessere della mappa non sono disponibili. Le note nel cestino non compaiono e ricompaiono dopo il ripristino.
 
 Il luogo si può scegliere durante la creazione o successivamente dalla nota, cercando nome e città con Apple Maps. La ricerca parte soltanto su Cerca/invio, cancella le richieste superate e gestisce errori e risultati vuoti. Non viene chiesto accesso alla posizione del dispositivo. La ricerca e le tessere della mappa richiedono rete; note e coordinate restano locali. La posizione si rimuove da Modifica nota.
 

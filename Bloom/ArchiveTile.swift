@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import UIKit
 
-/// One square footprint for both archive and rediscovery, including revealed actions.
+/// Square archive cells with swipe actions; rediscovery uses a portrait post and a separate header.
 @MainActor
 struct ArchiveTile: View {
     @Environment(\.modelContext) private var context

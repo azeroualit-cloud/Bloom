@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import MapKit
+import UniformTypeIdentifiers
 
 @MainActor
 struct PlacesMapView: View {
@@ -132,7 +133,7 @@ private struct MapPostMarker: View {
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(selected ? AnyShapeStyle(BloomBrand.gradient) : AnyShapeStyle(Color.bloomText), lineWidth: selected ? 3 : 2) }
             if count > 1 {
-                Text("\(count)").font(.caption2.bold()).foregroundStyle(.white)
+                Text("\(count)").font(.caption2.bold()).foregroundStyle(Color.bloomBackground)
                     .padding(4).background(BloomBrand.gradient, in: Capsule()).offset(x: 6, y: -6)
             }
         }.padding(6).shadow(color: .black.opacity(0.25), radius: 3, y: 2)
@@ -148,7 +149,7 @@ private struct MapPostMarker: View {
             CachedPreviewImage(data: data, label: item.displayTitle, maxPixel: 192, contentMode: .fill)
         } else if item.kind == .image {
             AttachmentThumbnail(item: item, maximumPixelSize: 192, contentMode: .fill)
-        } else if let file = item.noteFiles.first(where: { $0.type.hasPrefix("public.png") || $0.type.hasPrefix("public.jpeg") || $0.type.hasPrefix("public.heic") || $0.type == "public.image" }) {
+        } else if let file = item.noteFiles.first(where: { UTType($0.type)?.conforms(to: .image) == true }) {
             FramedImage(data: file.data, framing: file.framing ?? ImageFraming(), maximumPixel: 192, contentMode: .fill)
         } else {
             VStack(spacing: 4) {
