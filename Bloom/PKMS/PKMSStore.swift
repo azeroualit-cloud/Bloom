@@ -174,7 +174,8 @@ final class PKMSStore: ObservableObject {
     }
     private func upload(_ draft: PKMSDocument) async throws {
         do {
-            var pending = draft; pending.attemptedText = draft.text
+            guard var pending = documents[draft.id] else { return }
+            pending.attemptedText = draft.text
             try persist(pending)
             let metadata = try await api.upload(path: draft.id, revision: draft.revision, text: draft.text)
             guard let rev = metadata.rev, var latest = documents[draft.id] else { throw DropboxFailure.invalidResponse }
