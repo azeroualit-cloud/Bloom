@@ -358,8 +358,17 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["library-back-tags"].tap()
         app.buttons["category-Da specificare"].tap()
         note.press(forDuration: 1.1)
-        XCTAssertTrue(app.buttons["note-context-tags"].waitForExistence(timeout: 5), diagnostics(app))
-        app.buttons["note-context-tags"].tap()
+        let editTags = app.buttons["note-context-tags"]
+        XCTAssertTrue(editTags.waitForExistence(timeout: 5), diagnostics(app))
+        var lastFrame = CGRect.null
+        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard editTags.exists, editTags.isHittable else { return false }
+            let frame = editTags.frame
+            defer { lastFrame = frame }
+            return !frame.isEmpty && frame == lastFrame
+        }, object: editTags)
+        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 10), .completed, diagnostics(app))
+        editTags.tap()
         let salute = app.buttons["tag-Salute"]
         XCTAssertTrue(salute.waitForExistence(timeout: 5), diagnostics(app))
         salute.tap()
