@@ -42,10 +42,13 @@ actor DropboxClient: DropboxServing {
     static let shared = DropboxClient()
     static let redirect = "bloom-dropbox://oauth"
     private let session: URLSession
+    private let accessTokenProvider: (@Sendable () async throws -> String)?
     private let vault = DropboxCredentialVault()
     private var credentialGeneration = UUID()
     private var refreshing: Task<DropboxCredentials, Error>?
-    init(session: URLSession = .shared) { self.session = session }
+    init(session: URLSession = .shared, accessTokenProvider: (@Sendable () async throws -> String)? = nil) {
+        self.session = session; self.accessTokenProvider = accessTokenProvider
+    }
     func isConnected() throws -> Bool { try vault.load() != nil }
     func disconnect() throws {
         credentialGeneration = UUID(); refreshing?.cancel(); refreshing = nil
@@ -91,6 +94,7 @@ actor DropboxClient: DropboxServing {
                           headers: ["Content-Type": "application/json"]).0
     }
     private func accessToken() async throws -> String {
+        if let accessTokenProvider { return try await accessTokenProvider() }
         guard let credentials = try vault.load() else { throw DropboxFailure.notConnected }
         if credentials.expiresAt > Date().addingTimeInterval(90) { return credentials.accessToken }
         if let refreshing { return try await refreshing.value.accessToken }
