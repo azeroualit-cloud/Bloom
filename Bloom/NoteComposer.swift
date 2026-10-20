@@ -103,6 +103,7 @@ struct NoteComposer: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { if isDirty { confirmingClose = true } else { dismiss() } }.disabled(!loaded || loading).accessibilityIdentifier("capture-close").accessibilityValue(clipboardTestStatus) }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salva") { save() }.fontWeight(.semibold)
+                        .foregroundStyle(!loaded || loading || isEmpty ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(BloomBrand.gradient))
                         .disabled(!loaded || loading || isEmpty).accessibilityIdentifier("capture-save")
                 }
                 ToolbarItemGroup(placement: .keyboard) {

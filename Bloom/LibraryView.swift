@@ -90,7 +90,7 @@ struct LibraryView: View {
     private func categoryRow(_ name: String, symbol: String, value: CollectionFilter, count: Int) -> some View {
         Button { filter = value; allNotes = true; revealed = nil } label: {
             HStack {
-                Label(name, systemImage: symbol)
+                Label { Text(name) } icon: { Image(systemName: symbol).foregroundStyle(BloomBrand.gradient) }
                 Spacer()
                 Text("\(count)").foregroundStyle(.secondary)
                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
@@ -233,7 +233,7 @@ struct LibraryView: View {
             Button(selecting ? "Fine" : "Seleziona", systemImage: selecting ? "checkmark.circle.fill" : "checkmark.circle") { if showingTags { allNotes = true }; selecting.toggle(); selection.removeAll(); revealed = nil }.labelStyle(.iconOnly).accessibilityIdentifier("library-select")
         }
         ToolbarItem(placement: .primaryAction) {
-            Button { adding = true } label: { Label("Aggiungi nota", systemImage: "plus") }.accessibilityIdentifier("capture-add").disabled(selecting)
+            Button { adding = true } label: { Label("Aggiungi nota", systemImage: "plus").foregroundStyle(selecting ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(BloomBrand.gradient)) }.accessibilityIdentifier("capture-add").disabled(selecting)
         }
 
     }

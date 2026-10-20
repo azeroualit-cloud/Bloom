@@ -9,11 +9,34 @@ final class DailyUseUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.tabBars.buttons["Mappa"].waitForExistence(timeout: 15))
         app.tabBars.buttons["Mappa"].tap()
+        let marker = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-marker-' ")).firstMatch
+        XCTAssertTrue(marker.waitForExistence(timeout: 10), diagnostics(app))
+        marker.tap()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-open-note-' ")).firstMatch.waitForExistence(timeout: 5), diagnostics(app))
         app.buttons["map-places-list"].tap()
         XCTAssertTrue(app.staticTexts["Colosseo"].waitForExistence(timeout: 5), diagnostics(app))
         app.buttons["Rome fixture"].tap()
         XCTAssertTrue(app.navigationBars["Rome fixture"].waitForExistence(timeout: 5), diagnostics(app))
         XCTAssertTrue(app.buttons["note-edit-place"].exists)
+    }
+
+    @MainActor
+    func testInstagramPhotoPostOpensInternalViewerWithRecoveryOptions() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-instagram"]
+        app.launch()
+        XCTAssertTrue(app.buttons["category-Tutti"].waitForExistence(timeout: 15))
+        app.buttons["category-Tutti"].tap()
+        openGridNote(app)
+        app.buttons["note-link-open"].tap()
+        XCTAssertTrue(app.buttons["instagram-view-options"].waitForExistence(timeout: 10), diagnostics(app))
+        XCTAssertEqual(app.state, .runningForeground)
+        app.buttons["instagram-view-options"].tap()
+        XCTAssertTrue(app.buttons["Pagina Instagram in Bloom"].waitForExistence(timeout: 5))
+        app.buttons["Pagina Instagram in Bloom"].tap()
+        XCTAssertTrue(app.staticTexts["browser-address"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.state, .runningForeground)
     }
 
     @MainActor
@@ -78,7 +101,7 @@ final class DailyUseUITests: XCTestCase {
         let carousel = app.otherElements["note-carousel"].firstMatch
         XCTAssertTrue(carousel.waitForExistence(timeout: 5))
         XCTAssertEqual(carousel.frame.width, app.frame.width, accuracy: 2)
-        XCTAssertEqual(carousel.frame.width / carousel.frame.height, 4.0 / 3.0, accuracy: 0.02)
+        XCTAssertEqual(carousel.frame.width / carousel.frame.height, 3.0 / 4.0, accuracy: 0.02)
         let image = XCTAttachment(screenshot: app.screenshot())
         image.name = "Full width rediscovery feed"; image.lifetime = .keepAlways; add(image)
     }

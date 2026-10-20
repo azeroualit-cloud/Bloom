@@ -50,8 +50,11 @@ struct PlacesMapView: View {
     private var mapCanvas: some View {
         Map(position: $camera, selection: $selectedID) {
             ForEach(groups) { group in
-                Marker(markerTitle(group), coordinate: CLLocationCoordinate2D(latitude: group.place.latitude, longitude: group.place.longitude))
-                    .tag(group.id)
+                Annotation(markerTitle(group), coordinate: CLLocationCoordinate2D(latitude: group.place.latitude, longitude: group.place.longitude)) {
+                    Button { selectedID = group.id } label: {
+                        MapPostMarker(item: group.notes[0], count: group.notes.count, selected: selectedID == group.id)
+                    }.buttonStyle(.plain).accessibilityIdentifier("map-marker-\(group.id)")
+                }.annotationTitles(.hidden).tag(group.id)
             }
         }.mapControls { MapCompass(); MapScaleView() }
     }
@@ -69,7 +72,15 @@ struct PlacesMapView: View {
                 ScrollView(.horizontal) {
                     HStack {
                         ForEach(selected.notes) { note in
-                            Button(note.displayTitle) { opened = note }.buttonStyle(.bordered).frame(minHeight: 44)
+                            Button { opened = note } label: {
+                                HStack(spacing: 8) {
+                                    MapPostMarker(item: note, count: 1, selected: false)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(note.displayTitle).font(.subheadline.weight(.semibold)).lineLimit(2)
+                                        Text("Apri nota").font(.caption).foregroundStyle(.secondary)
+                                    }
+                                }.padding(4)
+                            }.buttonStyle(.plain).frame(minHeight: 44).accessibilityIdentifier("map-open-note-\(note.id)")
                         }
                     }
                 }
@@ -103,5 +114,47 @@ struct PlacesMapView: View {
         let item = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude)))
         item.name = place.name
         item.openInMaps()
+    }
+}
+
+/// Bounded thumbnails reuse the local image decoders; originals are never loaded at full size on the map.
+@MainActor
+private struct MapPostMarker: View {
+    @Environment(\.modelContext) private var context
+    let item: CapturedLink
+    let count: Int
+    let selected: Bool
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.bloomSurface.overlay {
+                if item.modelContext != nil && !item.isDeleted { preview }
+            }.frame(width: 56, height: 56).clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(selected ? AnyShapeStyle(BloomBrand.gradient) : AnyShapeStyle(Color.bloomText), lineWidth: selected ? 3 : 2) }
+            if count > 1 {
+                Text("\(count)").font(.caption2.bold()).foregroundStyle(.white)
+                    .padding(4).background(BloomBrand.gradient, in: Capsule()).offset(x: 6, y: -6)
+            }
+        }.padding(6).shadow(color: .black.opacity(0.25), radius: 3, y: 2)
+            .accessibilityElement(children: .ignore).accessibilityLabel("\(item.displayTitle), \(count) note in questo luogo")
+            .accessibilityIdentifier("map-post-preview-\(item.id)")
+            .task(id: item.id) {
+                guard item.modelContext != nil, !item.isDeleted else { return }
+                LinkPreviewController.shared.prepare(for: item, in: context)
+            }
+    }
+    @ViewBuilder private var preview: some View {
+        if let data = item.previewImageData, item.previewSourceURL == item.allLinks.first?.absoluteString {
+            CachedPreviewImage(data: data, label: item.displayTitle, maxPixel: 192, contentMode: .fill)
+        } else if item.kind == .image {
+            AttachmentThumbnail(item: item, maximumPixelSize: 192, contentMode: .fill)
+        } else if let file = item.noteFiles.first(where: { $0.type.hasPrefix("public.png") || $0.type.hasPrefix("public.jpeg") || $0.type.hasPrefix("public.heic") || $0.type == "public.image" }) {
+            FramedImage(data: file.data, framing: file.framing ?? ImageFraming(), maximumPixel: 192, contentMode: .fill)
+        } else {
+            VStack(spacing: 4) {
+                Image(systemName: item.kind.symbol).foregroundStyle(BloomBrand.gradient)
+                Text(item.displayTitle).font(.system(size: 9, weight: .medium)).lineLimit(2).foregroundStyle(Color.bloomText)
+            }.padding(4)
+        }
     }
 }

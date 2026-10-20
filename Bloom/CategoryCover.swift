@@ -47,7 +47,7 @@ struct CategoryCover: View {
 
     private var placeholder: some View {
         Image(systemName: Self.symbols[name.lowercased()] ?? symbol)
-            .font(.system(size: 36, weight: .light)).foregroundStyle(Color.accentColor)
+            .font(.system(size: 36, weight: .light)).foregroundStyle(BloomBrand.gradient)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

@@ -399,6 +399,13 @@ enum LocalLibrary {
             if ProcessInfo.processInfo.arguments.contains("--ui-test-map") {
                 _ = try LinkStore.saveNote(title: "Rome fixture", body: "Place note", urls: [], files: [], tags: [], location: .set(NotePlace(name: "Colosseo", latitude: 41.8902, longitude: 12.4922)), in: container.mainContext)
             }
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-instagram") {
+                let note = CapturedLink(kind: .link)
+                note.urlString = "https://www.instagram.com/p/fA9uwTtkSN/"; note.title = "Instagram fixture"; note.noteVersion = 1
+                note.previewAttemptedAt = .now
+                container.mainContext.insert(note)
+                try container.mainContext.save()
+            }
             if ProcessInfo.processInfo.arguments.contains("--ui-test-carousel") {
                 let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAAFCAIAAADg0arLAAAAFUlEQVR4nGPUK37NwMDAxMDAgIsCADMhAZaUqgUxAAAAAElFTkSuQmCC")!
                 _ = try LinkStore.saveNote(title: "Carousel fixture", body: "Carousel text", urls: [], files: [

@@ -43,7 +43,7 @@ struct NoteLinkButton: View {
                 }.contentShape(Rectangle())
             }.contentShape(Rectangle())
         }.buttonStyle(.plain).disabled(opening)
-            .accessibilityLabel(isVideo ? "Apri video in \(url.host ?? "app")" : "Apri \(url.host ?? "link")")
+            .accessibilityLabel(SocialLink.instagramPostURL(url) != nil ? "Visualizza post Instagram in Bloom" : isVideo ? "Apri video in \(url.host ?? "app")" : "Apri \(url.host ?? "link")")
             .accessibilityIdentifier("note-link-open")
             .task(id: url) {
                 guard item.allLinks.first != url else { return }

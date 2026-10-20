@@ -40,7 +40,7 @@ final class NoteArchiveTests: XCTestCase {
     }
 
     func testAllSocialPostsUseAppOpeningWithoutHostSpoofing() {
-        XCTAssertTrue(SocialLink.opensInApp(URL(string: "https://www.instagram.com/p/abc/")!))
+        XCTAssertFalse(SocialLink.opensInApp(URL(string: "https://www.instagram.com/p/abc/")!))
         XCTAssertTrue(SocialLink.opensInApp(URL(string: "https://www.instagram.com/reel/abc/")!))
         XCTAssertFalse(SocialLink.isVideo(URL(string: "https://www.instagram.com/p/abc/")!))
         XCTAssertFalse(SocialLink.opensInApp(URL(string: "https://evilinstagram.com/p/abc/")!))

@@ -43,7 +43,27 @@ struct ImageFraming: Codable, Equatable, Sendable {
 }
 
 enum SocialLink {
+    /// Canonical public-post URLs only. Shared tracking and img_index never become embed markup.
+    static func instagramPostURL(_ url: URL) -> URL? {
+        guard BrowserPolicy.isWebURL(url), let host = url.host?.lowercased(),
+              ["instagram.com", "www.instagram.com", "m.instagram.com"].contains(host) else { return nil }
+        let path = url.path.split(separator: "/").map(String.init)
+        let index: Int
+        if path.count == 2 && path[0] == "p" { index = 1 }
+        else if path.count == 3 && path[1] == "p" { index = 2 }
+        else { return nil }
+        let code = path[index]
+        guard !code.isEmpty, code.utf8.count <= 128,
+              code.utf8.allSatisfy({ (65...90).contains($0) || (97...122).contains($0) || (48...57).contains($0) || $0 == 45 || $0 == 95 }) else { return nil }
+        return URL(string: "https://www.instagram.com/p/\(code)/")
+    }
+
+    static func instagramEmbedURL(_ url: URL) -> URL? {
+        instagramPostURL(url)?.appendingPathComponent("embed/")
+    }
+
     static func opensInApp(_ url: URL) -> Bool {
+        if instagramPostURL(url) != nil { return false }
         let host = (url.host ?? "").lowercased()
         return ["instagram.com", "tiktok.com", "youtube.com", "youtu.be", "pinterest.com", "pin.it"].contains {
             host == $0 || host.hasSuffix("." + $0)

@@ -36,10 +36,10 @@ struct WebContentView: View {
 
     var body: some View {
         Group {
-            if let browser { BrowserScreen(item: item, browser: browser) }
+            if let browser { BrowserScreen(item: item, browser: browser, sourceURL: url) }
             else { ProgressView("Apertura contenuto…") }
         }
-        .task { if browser == nil { browser = BrowserSession(url: url) } }
+        .task { if browser == nil { browser = BrowserSession(url: SocialLink.instagramEmbedURL(url) ?? url) } }
     }
 }
 
@@ -49,12 +49,25 @@ private struct BrowserScreen: View {
     @Environment(\.modelContext) private var context
     let item: CapturedLink
     let browser: BrowserSession
+    let sourceURL: URL
     @State private var showingDetails = false
     @State private var confirmClear = false
     @State private var externalError = false
 
     var body: some View {
         VStack(spacing: 0) {
+            if let embed = SocialLink.instagramEmbedURL(sourceURL), let post = SocialLink.instagramPostURL(sourceURL) {
+                HStack {
+                    Text("Post Instagram").font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Menu("Visualizzazione", systemImage: "rectangle.on.rectangle") {
+                        Button("Post incorporato") { browser.load(embed) }
+                        Button("Pagina Instagram in Bloom") { browser.load(post) }
+                    }.accessibilityIdentifier("instagram-view-options").frame(minHeight: 44)
+                }.padding(.horizontal)
+                Text("Contenuto online. Se Instagram limita il post, prova la pagina interna da Visualizzazione.")
+                    .font(.caption).foregroundStyle(.secondary).padding(.horizontal).padding(.bottom, 8)
+            }
             Text(browser.currentURL.absoluteString)
                 .accessibilityIdentifier("browser-address")
                 .font(.caption).foregroundStyle(.secondary).lineLimit(2)
@@ -83,7 +96,7 @@ private struct BrowserScreen: View {
             }
             BrowserSurface(session: browser)
         }
-        .navigationTitle(item.displayTitle)
+        .bloomCanvas().navigationTitle(item.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) { Button("Dettagli") { showingDetails = true } }

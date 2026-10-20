@@ -51,7 +51,7 @@ struct ArchiveTile: View {
     private var feedTile: some View {
         VStack(spacing: 0) {
             footer
-            NoteCarousel(item: item)
+            NoteCarousel(item: item, aspectRatio: 3.0 / 4.0)
         }
         .accessibilityElement(children: .contain).accessibilityIdentifier("rediscovery-post")
         .task(id: item.allLinks.first) { LinkPreviewController.shared.prepare(for: item, in: context) }
@@ -66,7 +66,7 @@ struct ArchiveTile: View {
                                  onDrag: { suppressTapUntil = Date().addingTimeInterval(0.8) })
                 .frame(width: width, height: width).clipShape(RoundedRectangle(cornerRadius: compact ? 0 : 16))
                 .overlay(alignment: .bottom) { if !compact && !isRevealed { footer } }
-                .overlay { if selected { RoundedRectangle(cornerRadius: compact ? 0 : 16).strokeBorder(Color.accentColor, lineWidth: 3) } }
+                .overlay { if selected { RoundedRectangle(cornerRadius: compact ? 0 : 16).strokeBorder(BloomBrand.gradient, lineWidth: 3) } }
         }.aspectRatio(1, contentMode: .fit)
         .task(id: item.allLinks.first) { LinkPreviewController.shared.prepare(for: item, in: context) }
     }
@@ -143,7 +143,7 @@ struct ArchiveTile: View {
             }
             if selecting {
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle").font(.title2)
-                    .foregroundStyle(Color.accentColor).padding(12).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing).allowsHitTesting(false)
+                    .foregroundStyle(BloomBrand.gradient).padding(12).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing).allowsHitTesting(false)
             }
         }
     }
@@ -154,7 +154,7 @@ struct ArchiveTile: View {
             AttachmentThumbnail(item: item, maximumPixelSize: compact ? 512 : 768, contentMode: .fill)
         } else {
             VStack(alignment: .leading, spacing: compact ? 6 : 12) {
-                Image(systemName: item.kind.symbol).font(compact ? .caption : .title2).foregroundStyle(Color.accentColor)
+                Image(systemName: item.kind.symbol).font(compact ? .caption : .title2).foregroundStyle(BloomBrand.gradient)
                 if compact, let title = item.title, !title.isEmpty {
                     Text(title).font(.caption.weight(.semibold)).lineLimit(2)
                 }
@@ -173,7 +173,9 @@ struct ArchiveTile: View {
         guard !isRevealed else { revealed = nil; return }
         let count = item.carouselPageCount
         if count > 1 { openNote(); return }
-        if let url = item.allLinks.first, SocialLink.opensInApp(url) {
+        if let url = item.allLinks.first, SocialLink.instagramPostURL(url) != nil {
+            openContent(ArchiveContentRoute(item: item, browser: true))
+        } else if let url = item.allLinks.first, SocialLink.opensInApp(url) {
             opening = true
             UIApplication.shared.open(url, options: [.universalLinksOnly: true]) { success in
                 Task { @MainActor in

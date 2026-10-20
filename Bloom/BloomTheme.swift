@@ -1,5 +1,11 @@
 import SwiftUI
 
+enum BloomBrand {
+    static var gradient: LinearGradient {
+        LinearGradient(colors: [Color("BrandBlue"), Color("AccentColor"), Color("BrandWine")], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+}
+
 extension Color {
     static let bloomBackground = Color("BloomBackground")
     static let bloomSurface = Color("BloomSurface")
