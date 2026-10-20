@@ -49,13 +49,15 @@ struct PlacesMapView: View {
         }
     }
     private var mapCanvas: some View {
-        Map(position: $camera, selection: $selectedID) {
+        // The annotation button owns selection. A Map selection binding can clear
+        // that same state while MapKit handles the annotation tap.
+        Map(position: $camera) {
             ForEach(groups) { group in
                 Annotation(markerTitle(group), coordinate: CLLocationCoordinate2D(latitude: group.place.latitude, longitude: group.place.longitude)) {
                     Button { selectedID = group.id } label: {
                         MapPostMarker(item: group.notes[0], count: group.notes.count, selected: selectedID == group.id)
                     }.buttonStyle(.plain).accessibilityIdentifier("map-marker-\(group.id)")
-                }.annotationTitles(.hidden).tag(group.id)
+                }.annotationTitles(.hidden)
             }
         }.mapControls { MapCompass(); MapScaleView() }
     }
