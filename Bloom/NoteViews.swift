@@ -74,12 +74,6 @@ struct NoteDetailView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
                 NoteCarousel(item: item)
-                // Direct document shortcuts preserve quick editing without paging through media.
-                ForEach(item.noteFiles) { file in
-                    NavigationLink { NoteAttachmentView(item: item, fileID: file.id) } label: {
-                        Label(file.name, systemImage: "paperclip").font(.subheadline).frame(minHeight: 44)
-                    }.accessibilityIdentifier("note-file-\(file.name)")
-                }
                 Text(tagNames).font(.caption).foregroundStyle(.secondary)
             }.padding(20).frame(maxWidth: 740, alignment: .leading).frame(maxWidth: .infinity)
         }

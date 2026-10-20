@@ -51,16 +51,12 @@ struct LibraryView: View {
             VStack(alignment: .leading, spacing: 16) {
                 if showingTags {
                     let homeItems = visible
-                    Button { filter = .unfiled; allNotes = true } label: {
-                        HStack {
-                            Label("Da specificare", systemImage: "tag")
-                            Spacer()
-                            Text("\(homeItems.filter { $0.tagIDs.isEmpty }.count)").foregroundStyle(.secondary)
-                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
-                        }.frame(minHeight: 44).contentShape(Rectangle())
-                    }.buttonStyle(.plain).padding(.horizontal, 16).accessibilityIdentifier("category-Da specificare")
+                    VStack(spacing: 0) {
+                        categoryRow("Tutti", symbol: "square.grid.2x2", value: .all, count: homeItems.count)
+                        Divider()
+                        categoryRow("Da specificare", symbol: "tag", value: .unfiled, count: homeItems.filter { $0.tagIDs.isEmpty }.count)
+                    }.padding(.horizontal, 16)
                     LazyVGrid(columns: categoryColumns, spacing: 20) {
-                        category("Tutti", symbol: "square.grid.2x2", value: .all, members: homeItems)
                         ForEach(recentTags) { tag in
                             category(tag.name, symbol: "tag.fill", value: .collection(tag.id), members: homeItems.filter { $0.tagIDs.contains(tag.id) })
                         }
@@ -90,6 +86,16 @@ struct LibraryView: View {
         case .unfiled: return "Da specificare"
         case .collection(let id): return tags.first { $0.id == id }?.name ?? "Note"
         }
+    }
+    private func categoryRow(_ name: String, symbol: String, value: CollectionFilter, count: Int) -> some View {
+        Button { filter = value; allNotes = true; revealed = nil } label: {
+            HStack {
+                Label(name, systemImage: symbol)
+                Spacer()
+                Text("\(count)").foregroundStyle(.secondary)
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
+            }.frame(minHeight: 44).contentShape(Rectangle())
+        }.buttonStyle(.plain).accessibilityIdentifier("category-\(name)")
     }
     private func category(_ name: String, symbol: String, value: CollectionFilter, members: [CapturedLink]) -> some View {
         let cover = members.first { $0.kind == .image || ($0.previewImageData != nil && $0.previewSourceURL == $0.allLinks.first?.absoluteString) } ?? members.first

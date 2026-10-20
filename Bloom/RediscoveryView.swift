@@ -60,7 +60,7 @@ struct RediscoveryView: View {
                                 else { Button("Vai alla libreria", action: openLibrary) }
                             }
                         }
-                        LazyVStack(spacing: 24) {
+                        LazyVStack(spacing: 16) {
                             ForEach(contents) { item in
                                 ArchiveTile(item: item, revealed: $revealed, openNote: { opened = item }, openContent: { contentRoute = $0 }, editTags: { tagNote = item }, select: { opened = item }, archive: {
                                     do { try LinkStore.setArchived(true, for: item, in: context) }

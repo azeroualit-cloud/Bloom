@@ -50,9 +50,10 @@ struct ArchiveTile: View {
 
     private var feedTile: some View {
         VStack(spacing: 0) {
-            NoteCarousel(item: item)
             footer
+            NoteCarousel(item: item)
         }
+        .accessibilityElement(children: .contain).accessibilityIdentifier("rediscovery-post")
         .task(id: item.allLinks.first) { LinkPreviewController.shared.prepare(for: item, in: context) }
     }
     private var tile: some View {
@@ -83,7 +84,7 @@ struct ArchiveTile: View {
     private var footer: some View {
         HStack(alignment: .bottom, spacing: 0) {
                 Button { if selecting { select() } else { openNote() } } label: {
-                    Text(item.displayTitle).font(.subheadline.weight(.semibold)).lineLimit(2)
+                    Text(item.displayTitle).font(.subheadline.weight(.semibold)).lineLimit(1)
                         .foregroundStyle(Color.primary)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 }.buttonStyle(.plain).accessibilityIdentifier("note-title-\(item.id)")
@@ -97,9 +98,8 @@ struct ArchiveTile: View {
                     } label: { Image(systemName: "ellipsis").frame(width: 44, height: 44).foregroundStyle(Color.primary) }
                         .accessibilityLabel("Azioni nota").accessibilityIdentifier("note-actions-\(item.id)")
                 }
-            }.padding(.horizontal, 8)
-                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
-                .padding(6)
+            }.padding(.horizontal, 12)
+                .background(Color(uiColor: .systemGroupedBackground))
     }
 
     private var actions: some View {

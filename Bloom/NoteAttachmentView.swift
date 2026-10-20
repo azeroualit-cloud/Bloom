@@ -18,7 +18,7 @@ struct NoteAttachmentView: View {
         Group {
             if let file {
                 if UTType(file.type)?.conforms(to: .image) == true {
-                    FramedImage(data: file.data, framing: file.framing ?? ImageFraming(), zoomable: true)
+                    FramedImage(data: file.data, framing: ImageFraming(), zoomable: true)
                         .background(.black).ignoresSafeArea(edges: .bottom)
                         .toolbar { Button("Inquadratura") { framing = true } }
                 } else if let text = DocumentText.decode(file.data, name: file.name, type: file.type) {

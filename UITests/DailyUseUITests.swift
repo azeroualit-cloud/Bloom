@@ -12,9 +12,23 @@ final class DailyUseUITests: XCTestCase {
         openGridNote(app)
         let carousel = app.otherElements["note-carousel"].firstMatch
         XCTAssertTrue(carousel.waitForExistence(timeout: 5), diagnostics(app))
-        XCTAssertEqual(carousel.frame.width, carousel.frame.height, accuracy: 2)
+        XCTAssertEqual(carousel.frame.width / carousel.frame.height, 4.0 / 3.0, accuracy: 0.02)
         let position = app.staticTexts["carousel-position"]
         XCTAssertEqual(position.label, "1/3")
+        XCTAssertFalse(app.buttons["note-file-second.png"].exists)
+        let photo = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'carousel-file-'")).firstMatch
+        XCTAssertTrue(photo.exists)
+        photo.tap()
+        let original = app.scrollViews["image-original"]
+        XCTAssertTrue(original.waitForExistence(timeout: 5), diagnostics(app))
+        original.pinch(withScale: 2, velocity: 1)
+        let zoomed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let value = original.value as? String ?? "0%"
+            return (Int(value.replacingOccurrences(of: "%", with: "")) ?? 0) > 100
+        }, object: original)
+        XCTAssertEqual(XCTWaiter.wait(for: [zoomed], timeout: 5), .completed, diagnostics(app))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(position.waitForExistence(timeout: 5))
         carousel.swipeLeft()
         XCTAssertEqual(position.label, "2/3")
         carousel.swipeLeft()
@@ -49,7 +63,7 @@ final class DailyUseUITests: XCTestCase {
         let carousel = app.otherElements["note-carousel"].firstMatch
         XCTAssertTrue(carousel.waitForExistence(timeout: 5))
         XCTAssertEqual(carousel.frame.width, app.frame.width, accuracy: 2)
-        XCTAssertEqual(carousel.frame.width, carousel.frame.height, accuracy: 2)
+        XCTAssertEqual(carousel.frame.width / carousel.frame.height, 4.0 / 3.0, accuracy: 0.02)
         let image = XCTAttachment(screenshot: app.screenshot())
         image.name = "Full width rediscovery feed"; image.lifetime = .keepAlways; add(image)
     }
@@ -63,7 +77,10 @@ final class DailyUseUITests: XCTestCase {
         let all = app.buttons["category-Tutti"]
         XCTAssertTrue(all.waitForExistence(timeout: 15))
         XCTAssertTrue(all.label.contains("Tutti"))
-        XCTAssertGreaterThan(all.frame.height, all.frame.width + 35)
+        XCTAssertLessThan(all.frame.height, 80)
+        let category = app.buttons["category-Casa"]
+        XCTAssertTrue(category.exists)
+        XCTAssertGreaterThan(category.frame.height, category.frame.width + 35)
         let home = XCTAttachment(screenshot: app.screenshot()); home.name = "Category covers with captions"; home.lifetime = .keepAlways; add(home)
         all.tap()
         let notes = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'"))
@@ -162,10 +179,10 @@ final class DailyUseUITests: XCTestCase {
         let unspecified = app.buttons["category-Da specificare"]
         XCTAssertTrue(all.waitForExistence(timeout: 5))
         XCTAssertTrue(unspecified.exists)
-        XCTAssertLessThanOrEqual(unspecified.frame.maxY, all.frame.minY)
+        XCTAssertLessThanOrEqual(all.frame.maxY, unspecified.frame.minY)
         XCTAssertLessThan(unspecified.frame.height, 80)
-        XCTAssertGreaterThan(unspecified.frame.width, all.frame.width)
-        XCTAssertGreaterThan(all.frame.height, all.frame.width + 35)
+        XCTAssertLessThan(all.frame.height, 80)
+        XCTAssertEqual(unspecified.frame.width, all.frame.width, accuracy: 2)
         XCTAssertFalse(app.segmentedControls.buttons["Archivio"].exists)
         unspecified.tap()
         let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
@@ -197,7 +214,7 @@ final class DailyUseUITests: XCTestCase {
         let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'")).firstMatch
         XCTAssertTrue(note.waitForExistence(timeout: 15))
         note.tap()
-        let attachment = app.buttons["note-file-secondary.md"]
+        let attachment = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'carousel-file-'")).firstMatch
         XCTAssertTrue(attachment.waitForExistence(timeout: 5), diagnostics(app))
         attachment.tap()
         XCTAssertTrue(app.buttons["Modifica"].waitForExistence(timeout: 5))

@@ -119,7 +119,7 @@ struct ImageContentView: View {
         GeometryReader { proxy in
             ZStack {
                 Color.black.ignoresSafeArea()
-                FramedImage(data: item.attachmentData, framing: item.imageFraming, zoomable: true)
+                FramedImage(data: item.attachmentData, framing: ImageFraming(), zoomable: true)
                     .padding(cleanEdges ? 12 : 0)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)

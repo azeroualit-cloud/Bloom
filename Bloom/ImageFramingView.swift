@@ -7,6 +7,7 @@ struct FramedImage: View {
     let framing: ImageFraming
     var zoomable = false
     var maximumPixel = 4096
+    var contentMode: ContentMode = .fit
     @State private var image: UIImage?
     @State private var original: UIImage?
     @State private var finished = false
@@ -14,7 +15,7 @@ struct FramedImage: View {
         Group {
             if let image {
                 if zoomable { ZoomImage(image: image).accessibilityLabel("Immagine; pizzica per ingrandire") }
-                else { Image(uiImage: image).resizable().scaledToFit() }
+                else { Image(uiImage: image).resizable().aspectRatio(contentMode: contentMode) }
             } else if finished { Label("Immagine non leggibile", systemImage: "photo.badge.exclamationmark") }
             else { ProgressView("Preparazione immagine…") }
         }.task(id: data) {
@@ -48,6 +49,8 @@ private final class ImageScrollView: UIScrollView, UIScrollViewDelegate {
     override init(frame: CGRect) {
         super.init(frame: frame)
         delegate = self
+        accessibilityIdentifier = "image-original"
+        accessibilityLabel = "Immagine completa, pizzica per ingrandire"
         addSubview(imageView)
         showsVerticalScrollIndicator = false; showsHorizontalScrollIndicator = false
         let tap = UITapGestureRecognizer(target: self, action: #selector(doubleTap(_:)))
@@ -72,7 +75,10 @@ private final class ImageScrollView: UIScrollView, UIScrollViewDelegate {
         contentInset = UIEdgeInsets(top: max(0, (bounds.height - contentSize.height) / 2), left: max(0, (bounds.width - contentSize.width) / 2), bottom: 0, right: 0)
     }
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
-    func scrollViewDidZoom(_ scrollView: UIScrollView) { setNeedsLayout() }
+    func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        accessibilityValue = "\(Int((zoomScale / max(minimumZoomScale, 0.001) * 100).rounded()))%"
+        setNeedsLayout()
+    }
     @objc private func doubleTap(_ sender: UITapGestureRecognizer) {
         if zoomScale > minimumZoomScale * 1.1 { setZoomScale(minimumZoomScale, animated: true) }
         else {

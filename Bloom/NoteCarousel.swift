@@ -2,7 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 import AVKit
 
-/// A square, native pager. Only the selected local movie owns a player.
+/// A 4:3 native pager; previews never change the saved originals. Only the selected local movie owns a player.
 @MainActor
 struct NoteCarousel: View {
     let item: CapturedLink
@@ -36,7 +36,7 @@ struct NoteCarousel: View {
             .overlay(alignment: .topTrailing) {
                 if count > 1 { Text("\(page + 1)/\(count)").font(.caption.monospacedDigit()).padding(8).background(.black.opacity(0.65), in: Capsule()).foregroundStyle(.white).padding(10).accessibilityIdentifier("carousel-position") }
             }
-        }.aspectRatio(1, contentMode: .fit).clipped().accessibilityElement(children: .contain).accessibilityIdentifier("note-carousel")
+        }.aspectRatio(4.0 / 3.0, contentMode: .fit).clipped().accessibilityElement(children: .contain).accessibilityIdentifier("note-carousel")
             .onChange(of: count) { _, value in page = min(page, max(0, value - 1)) }
     }
     @ViewBuilder private func filePage(_ file: NoteFile, primary: Bool, index: Int) -> some View {
@@ -50,7 +50,7 @@ struct NoteCarousel: View {
                 GeometryReader { proxy in
                     Color(uiColor: .secondarySystemGroupedBackground).overlay {
                         if UTType(file.type)?.conforms(to: .image) == true {
-                            FramedImage(data: file.data, framing: file.framing ?? ImageFraming(), maximumPixel: 1200)
+                            FramedImage(data: file.data, framing: file.framing ?? ImageFraming(), maximumPixel: 1200, contentMode: .fill)
                                 .frame(width: proxy.size.width, height: proxy.size.height).clipped()
                         } else if let text = DocumentText.decode(file.data, name: file.name, type: file.type) {
                             VStack(alignment: .leading, spacing: 12) { Text(file.name).font(.headline); MarkdownExcerpt(text: text); Spacer(minLength: 0) }.padding(20)
