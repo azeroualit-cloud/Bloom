@@ -2,10 +2,10 @@ import AppIntents
 import Foundation
 import SwiftData
 
-struct SaveLinkIntent: AppIntent {
+struct SaveLinkIntent: AppIntent, ForegroundContinuableIntent {
     static var title: LocalizedStringResource = "Salva link in Bloom"
     static var description = IntentDescription("Salva un URL nella raccolta locale di Bloom.")
-    static var openAppWhenRun = true
+    static var openAppWhenRun = false
 
     @Parameter(title: "URL") var url: URL
 
@@ -15,10 +15,17 @@ struct SaveLinkIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let container = try LocalLibrary.open()
-        let inserted = try LinkStore.capture(url, into: container.mainContext)
-        let message: IntentDialog = inserted ? "Link salvato in Bloom" : "Link già presente in Bloom, anche nell’archivio"
-        return .result(dialog: message)
+        do {
+            let container = try LocalLibrary.open()
+            let inserted = try LinkStore.capture(url, into: container.mainContext)
+            let message: IntentDialog = inserted ? "Link salvato in Bloom" : "Link già presente in Bloom"
+            return .result(dialog: message)
+        } catch {
+            CaptureFailureInbox.record(url: url, message: error.localizedDescription)
+            throw needsToContinueInForegroundError("Link non salvato. Apri Bloom per riprovare.") {
+                NotificationCenter.default.post(name: CaptureFailureInbox.ready, object: nil)
+            }
+        }
     }
 }
 

@@ -11,6 +11,7 @@ struct BloomApp: App {
 
 @MainActor
 private struct StorageRootView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var attempt: StorageAttempt?
     @State private var pendingURL: URL?
     @State private var notice: String?
@@ -35,7 +36,13 @@ private struct StorageRootView: View {
             if attempt == nil {
                 attempt = StorageAttempt.load()
             }
-            savePendingURL()
+            if !restoreIntentFailure() { savePendingURL() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { _ = restoreIntentFailure() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: CaptureFailureInbox.ready)) { _ in
+            _ = restoreIntentFailure()
         }
         .onOpenURL { route in
             do {
@@ -61,13 +68,21 @@ private struct StorageRootView: View {
         } message: { Text(captureError ?? "") }
     }
 
+    @discardableResult
+    private func restoreIntentFailure() -> Bool {
+        guard captureError == nil, let failure = CaptureFailureInbox.take() else { return false }
+        pendingURL = failure.url
+        captureError = failure.message
+        return true
+    }
+
     private func savePendingURL() {
         guard let url = pendingURL, let attempt else { return }
         guard case .success(let container) = attempt.result else { return }
         do {
             let inserted = try LinkStore.capture(url, into: container.mainContext)
             pendingURL = nil
-            notice = inserted ? "Link salvato in Bloom" : "Link già presente. Controlla anche Archivio."
+            notice = inserted ? "Link salvato in Bloom" : "Link già presente in Bloom."
         } catch { captureError = error.localizedDescription }
     }
 }

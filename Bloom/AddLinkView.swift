@@ -14,6 +14,9 @@ struct CaptureGuideView: View {
                 Section("Instagram, TikTok e Pinterest") {
                     Text("Condividi → Altro → Salva in Bloom. Collega sempre l’azione Bloom agli URL estratti, non all’intero testo condiviso.")
                 }
+                Section("Dopo il salvataggio") {
+                    Text("L’azione Salva link in Bloom lavora in background: resti nell’app di partenza. Solo in caso di errore iOS propone di aprire Bloom per riprovare. Il comando rapido non deve contenere un’ulteriore azione Apri app o Apri URL di Bloom.")
+                }
                 Section("YouTube") {
                     Text("Usa Copia link, poi Bloom → + → Incolla → Salva. È il percorso verificato per YouTube.")
                 }
