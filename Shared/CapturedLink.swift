@@ -55,6 +55,9 @@ final class CapturedLink {
         var seen = Set<String>()
         return (first + noteLinks).filter { seen.insert($0.absoluteString).inserted }
     }
+    var carouselPageCount: Int {
+        allLinks.count + (noteFileCount ?? noteFiles.count) + ((kind == .image || kind == .file) ? 1 : 0) + (noteBody.isEmpty ? 0 : 1)
+    }
     var noteBody: String { kind == .text ? textContent ?? "" : notes ?? "" }
 
     var kind: ContentKind { ContentKind(rawValue: contentKind ?? "") ?? .link }

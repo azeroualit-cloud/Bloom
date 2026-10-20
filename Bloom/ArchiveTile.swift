@@ -138,7 +138,7 @@ struct ArchiveTile: View {
                     .padding(compact ? 8 : 0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: compact ? .topTrailing : .center).allowsHitTesting(false)
             }
-            if item.allLinks.count + item.noteFiles.count + ((item.kind == .image || item.kind == .file) ? 1 : 0) + (item.noteBody.isEmpty ? 0 : 1) > 1 {
+            if item.carouselPageCount > 1 {
                 Image(systemName: "square.on.square.fill").font(.caption).padding(8).foregroundStyle(.white).background(.black.opacity(0.5), in: Circle()).padding(6).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).allowsHitTesting(false)
             }
             if selecting {
@@ -171,7 +171,7 @@ struct ArchiveTile: View {
         guard Date() > suppressTapUntil else { return }
         guard !selecting else { select(); return }
         guard !isRevealed else { revealed = nil; return }
-        let count = item.allLinks.count + item.noteFiles.count + ((item.kind == .image || item.kind == .file) ? 1 : 0) + (item.noteBody.isEmpty ? 0 : 1)
+        let count = item.carouselPageCount
         if count > 1 { openNote(); return }
         if let url = item.allLinks.first, SocialLink.opensInApp(url) {
             opening = true

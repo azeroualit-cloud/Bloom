@@ -8,7 +8,7 @@ struct NoteCarousel: View {
     let item: CapturedLink
     @State private var page = 0
     private var hasPrimary: Bool { item.kind == .image || item.kind == .file }
-    private var count: Int { item.allLinks.count + item.noteFiles.count + (hasPrimary ? 1 : 0) + (item.noteBody.isEmpty ? 0 : 1) }
+    private var count: Int { item.carouselPageCount }
     var body: some View {
         GeometryReader { geometry in
             TabView(selection: $page) {
@@ -50,7 +50,7 @@ struct NoteCarousel: View {
                 GeometryReader { proxy in
                     Color(uiColor: .secondarySystemGroupedBackground).overlay {
                         if UTType(file.type)?.conforms(to: .image) == true {
-                            FramedImage(data: file.data, framing: file.framing ?? ImageFraming())
+                            FramedImage(data: file.data, framing: file.framing ?? ImageFraming(), maximumPixel: 1200)
                                 .frame(width: proxy.size.width, height: proxy.size.height).clipped()
                         } else if let text = DocumentText.decode(file.data, name: file.name, type: file.type) {
                             VStack(alignment: .leading, spacing: 12) { Text(file.name).font(.headline); MarkdownExcerpt(text: text); Spacer(minLength: 0) }.padding(20)

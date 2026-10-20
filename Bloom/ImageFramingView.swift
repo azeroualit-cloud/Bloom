@@ -6,6 +6,7 @@ struct FramedImage: View {
     let data: Data?
     let framing: ImageFraming
     var zoomable = false
+    var maximumPixel = 4096
     @State private var image: UIImage?
     @State private var original: UIImage?
     @State private var finished = false
@@ -18,7 +19,7 @@ struct FramedImage: View {
             else { ProgressView("Preparazione immagine…") }
         }.task(id: data) {
             finished = false
-            let decoded = await CachedPreviewImage.decode(data, maximumPixel: 4096)
+            let decoded = await CachedPreviewImage.decode(data, maximumPixel: maximumPixel)
             guard !Task.isCancelled else { return }
             original = decoded
             applyFraming()
