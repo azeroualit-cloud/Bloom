@@ -2,6 +2,35 @@ import XCTest
 
 final class DailyUseUITests: XCTestCase {
     @MainActor
+    func testRenameFromPreviewMenuAndFullWidthRediscoveryFeed() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-browser"]
+        app.launch()
+        XCTAssertTrue(app.buttons["category-Tutti"].waitForExistence(timeout: 15))
+        app.buttons["category-Tutti"].tap()
+        let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'" )).firstMatch
+        XCTAssertTrue(note.waitForExistence(timeout: 5))
+        note.press(forDuration: 1.1)
+        XCTAssertTrue(app.buttons["note-rename"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Archivia"].exists)
+        app.buttons["note-rename"].tap()
+        let field = app.alerts.textFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        let previous = field.value as? String ?? ""
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: previous.count) + "Updated title")
+        app.alerts.buttons["Salva"].tap()
+        XCTAssertEqual(note.label, "Updated title")
+        app.tabBars.buttons["Riscopri"].tap()
+        XCTAssertTrue(note.waitForExistence(timeout: 5))
+        XCTAssertEqual(note.frame.width, app.frame.width, accuracy: 2)
+        XCTAssertEqual(note.frame.width, note.frame.height, accuracy: 2)
+        let image = XCTAttachment(screenshot: app.screenshot())
+        image.name = "Full width rediscovery feed"; image.lifetime = .keepAlways; add(image)
+    }
+
+    @MainActor
     func testCategoryCaptionsAndEdgeToEdgeThreeColumnGrid() {
         continueAfterFailure = false
         let app = XCUIApplication()

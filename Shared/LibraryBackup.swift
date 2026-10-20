@@ -74,6 +74,7 @@ struct LibraryBackup: Codable, Sendable {
                   item.collectionID.map({ ids.contains($0) }) ?? true else { throw BackupError.invalid }
             guard (item.tagIDs ?? []).allSatisfy({ ids.contains($0) }),
                   (item.noteLinks?.count ?? 0) + (item.noteFiles?.count ?? 0) <= 10 else { throw BackupError.invalid }
+            guard item.trashedAt?.timeIntervalSince1970.isFinite ?? true else { throw BackupError.invalid }
             guard item.imageFraming?.isValid ?? true else { throw BackupError.invalid }
             guard item.noteVersion == nil || item.noteVersion == 1 else { throw BackupError.unsupportedVersion }
             let primaryBytes = item.data?.count ?? 0
