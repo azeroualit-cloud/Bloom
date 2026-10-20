@@ -34,6 +34,8 @@ final class NotePlaceTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(NoteDraft.self, from: JSONEncoder().encode(draft)).place, place)
         _ = try LinkStore.saveNote(existing: note, title: "Visit later", body: "Body", urls: [], files: [], tags: [], location: .set(nil), in: context)
         XCTAssertNil(note.place)
+        _ = try LinkStore.saveNote(existing: note, title: "Keep removed", body: "Body", urls: [URL(string: "https://maps.apple.com/?ll=41.8902,12.4922&q=Colosseo")!], files: [], tags: [], in: context)
+        XCTAssertNil(note.place)
     }
     func testDirectMapCaptureAndTrashRetainCoordinates() throws {
         let source = try container(), context = source.mainContext

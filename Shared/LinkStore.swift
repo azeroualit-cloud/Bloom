@@ -72,7 +72,7 @@ enum LinkStore {
                          files: [NoteFile], tags: Set<UUID>, location: PlaceChange = .keep, in context: ModelContext) throws -> CaptureReceipt {
         let chosenPlace: NotePlace?
         switch location {
-        case .keep: chosenPlace = existing?.place ?? urls.compactMap(NotePlace.from).first
+        case .keep: chosenPlace = existing != nil ? existing?.place : urls.compactMap(NotePlace.from).first
         case .set(let place): chosenPlace = place
         }
         guard chosenPlace?.isValid ?? true else { throw ImportError.invalidFile }

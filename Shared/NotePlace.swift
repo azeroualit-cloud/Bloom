@@ -25,7 +25,7 @@ struct NotePlace: Codable, Equatable, Sendable {
             let parts = value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
             guard parts.count == 2, let lat = Double(parts[0]), let lon = Double(parts[1]) else { continue }
             let label = apple ? (query["name"] ?? query["q"]) : query["label"]
-            let place = NotePlace(name: label?.isEmpty == false ? label! : "Luogo salvato", latitude: lat, longitude: lon)
+            let place = NotePlace(name: label.flatMap { $0.isEmpty ? nil : $0 } ?? "Luogo salvato", latitude: lat, longitude: lon)
             if place.isValid { return place }
         }
         return nil
