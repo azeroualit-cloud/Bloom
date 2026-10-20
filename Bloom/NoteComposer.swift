@@ -6,9 +6,10 @@ import UIKit
 struct TagSelection: View {
     @Query(sort: \LinkCollection.name) private var tags: [LinkCollection]
     @Binding var selected: Set<UUID>
+    var categoryMode = false
     @State private var creating = false
     var body: some View {
-        Section("Tag") {
+        Section(categoryMode ? "Categorie" : "Tag") {
             if selected.isEmpty { Text("Da specificare").foregroundStyle(.secondary) }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 108))], alignment: .leading, spacing: 8) {
                 ForEach(tags) { tag in
@@ -22,8 +23,8 @@ struct TagSelection: View {
                         .accessibilityIdentifier("tag-\(tag.name)")
                 }
             }
-            Button("Nuovo tag", systemImage: "plus") { creating = true }
-                .sheet(isPresented: $creating) { CollectionNameEditor(collection: nil) { selected.insert($0.id) } }
+            Button(categoryMode ? "Nuova categoria" : "Nuovo tag", systemImage: "plus") { creating = true }
+                .sheet(isPresented: $creating) { CollectionNameEditor(collection: nil, categoryMode: categoryMode) { selected.insert($0.id) } }
         }
     }
 }
@@ -128,7 +129,7 @@ struct NoteComposer: View {
                 }
             }
             .safeAreaInset(edge: .bottom) { if item == nil && focused == nil { captureActions } }
-            .sheet(isPresented: $choosingPlace) { PlacePicker { place = $0; placeEdited = true } }
+            .sheet(isPresented: $choosingPlace) { PlacePicker(currentPlace: place) { place = $0; placeEdited = true } }
             .sheet(isPresented: $showingFile) {
                 DocumentImportPicker { result in
                     showingFile = false

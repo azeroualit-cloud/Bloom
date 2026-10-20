@@ -2,6 +2,46 @@ import XCTest
 
 final class DailyUseUITests: XCTestCase {
     @MainActor
+    func testNoteOrganizesCategoriesInlineAndRemovesPlace() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-map"]
+        app.launch()
+        XCTAssertTrue(app.buttons["category-Tutti"].waitForExistence(timeout: 15))
+        app.buttons["category-Tutti"].tap()
+        let note = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-' ")).firstMatch
+        XCTAssertTrue(note.waitForExistence(timeout: 5))
+        note.tap()
+        let categories = app.buttons["note-edit-categories"]
+        XCTAssertTrue(categories.waitForExistence(timeout: 5))
+        categories.tap()
+        let salute = app.buttons["tag-Salute"]
+        XCTAssertTrue(salute.waitForExistence(timeout: 5))
+        salute.tap()
+        let saved = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in categories.label.contains("Salute") }, object: categories)
+        XCTAssertEqual(XCTWaiter.wait(for: [saved], timeout: 5), .completed, diagnostics(app))
+        XCTAssertFalse(app.navigationBars["Modifica nota"].exists)
+        let place = app.buttons["note-edit-place"]
+        place.tap()
+        XCTAssertTrue(app.buttons["place-remove"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.textFields["place-search"].value as? String, "Colosseo")
+        app.buttons["place-remove"].tap()
+        let removed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in place.label.contains("Aggiungi luogo") }, object: place)
+        XCTAssertEqual(XCTWaiter.wait(for: [removed], timeout: 5), .completed, diagnostics(app))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(note.waitForExistence(timeout: 5))
+        note.tap()
+        XCTAssertTrue(categories.waitForExistence(timeout: 5))
+        XCTAssertTrue(categories.label.contains("Salute"))
+        XCTAssertTrue(place.label.contains("Aggiungi luogo"))
+        categories.tap()
+        XCTAssertTrue(app.buttons["tag-Salute"].waitForExistence(timeout: 5))
+        app.buttons["tag-Salute"].tap()
+        let cleared = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in categories.label.contains("Da specificare") }, object: categories)
+        XCTAssertEqual(XCTWaiter.wait(for: [cleared], timeout: 5), .completed, diagnostics(app))
+    }
+
+    @MainActor
     func testMapListsSavedPlaceAndOpensItsNote() {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -53,7 +93,7 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertEqual(carousel.frame.width / carousel.frame.height, 4.0 / 3.0, accuracy: 0.02)
         let body = app.staticTexts["Carousel text"]
         XCTAssertTrue(body.exists)
-        XCTAssertLessThanOrEqual(body.frame.maxY, carousel.frame.minY)
+        XCTAssertLessThanOrEqual(carousel.frame.maxY, body.frame.minY)
         XCTAssertTrue(app.staticTexts["note-detail-title"].exists)
         let position = app.staticTexts["carousel-position"]
         XCTAssertEqual(position.label, "1/2")
@@ -192,7 +232,7 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["category-Tutti"].tap()
         openGridNote(app)
         XCTAssertTrue(app.navigationBars["Tag fixture"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Casa"].exists, diagnostics(app))
+        XCTAssertTrue(app.buttons["note-edit-categories"].label.contains("Casa"), diagnostics(app))
     }
 
     @MainActor

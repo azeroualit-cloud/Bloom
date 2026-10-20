@@ -68,22 +68,24 @@ struct CollectionNameEditor: View {
     @Environment(\.modelContext) private var context
     let collection: LinkCollection?
     let onSaved: (LinkCollection) -> Void
+    let categoryMode: Bool
     @State private var name: String
     @State private var error: String?
 
-    init(collection: LinkCollection?, onSaved: @escaping (LinkCollection) -> Void = { _ in }) {
+    init(collection: LinkCollection?, categoryMode: Bool = false, onSaved: @escaping (LinkCollection) -> Void = { _ in }) {
         self.collection = collection
         self.onSaved = onSaved
+        self.categoryMode = categoryMode
         _name = State(initialValue: collection?.name ?? "")
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Tag · una parola", text: $name).autocorrectionDisabled().accessibilityIdentifier("collection-name")
+                TextField(categoryMode ? "Categoria · una parola" : "Tag · una parola", text: $name).autocorrectionDisabled().accessibilityIdentifier("collection-name")
                 if let error { Text(error).foregroundStyle(.red) }
             }
-            .bloomCanvas().navigationTitle(collection == nil ? "Nuovo tag" : "Rinomina tag")
+            .bloomCanvas().navigationTitle(categoryMode ? "Nuova categoria" : collection == nil ? "Nuovo tag" : "Rinomina tag")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } }
