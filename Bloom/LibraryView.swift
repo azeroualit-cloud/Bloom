@@ -53,7 +53,7 @@ struct LibraryView: View {
         return visible.filter { !$0.pinnedCategoryIDs.contains(id) }
     }
     private var showingTags: Bool { !allNotes && search.isEmpty && kind == nil && !selecting }
-    private let categoryColumns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
+    private let categoryColumns = Array(repeating: GridItem(.flexible(), spacing: BloomLayout.gap), count: 2)
     private let contentColumns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 3)
 
     var body: some View { NavigationStack { presentedLibrary } }
@@ -62,11 +62,10 @@ struct LibraryView: View {
             VStack(alignment: .leading, spacing: 16) {
                 if showingTags {
                     let homeItems = visible
-                    VStack(spacing: 0) {
-                        categoryRow("Tutti", symbol: "square.grid.2x2", value: .all, count: homeItems.count)
-                        Divider()
-                        categoryRow("Da specificare", symbol: "tag", value: .unfiled, count: homeItems.filter { $0.tagIDs.isEmpty }.count)
-                    }.padding(.horizontal, 16)
+                    HStack(spacing: BloomLayout.gap) {
+                        categoryRow("Tutte le note", symbol: "square.grid.2x2", value: .all, count: homeItems.count)
+                        categoryRow("Da organizzare", symbol: "tray", value: .unfiled, count: homeItems.filter { $0.tagIDs.isEmpty }.count)
+                    }.padding(.horizontal, BloomLayout.margin)
                     LazyVGrid(columns: categoryColumns, spacing: 12) {
                         ForEach(recentTags) { tag in
                             category(tag.name, symbol: "tag.fill", value: .collection(tag.id), members: homeItems.filter { $0.tagIDs.contains(tag.id) })
@@ -102,12 +101,13 @@ struct LibraryView: View {
                     LazyVGrid(columns: contentColumns, spacing: 0) { ForEach(gridNotes) { item in card(item) } }
                         .accessibilityIdentifier("content-grid")
                 }
-            }.padding(.vertical, 16).padding(.bottom, 24).frame(maxWidth: .infinity)
+            }.padding(.vertical, BloomLayout.margin).padding(.bottom, BloomLayout.section).frame(maxWidth: .infinity)
         }
+        .clipped()
         .background(Color.bloomBackground)
         .bloomCanvas().navigationTitle(archived ? "Cestino" : showingTags ? "Bloom" : categoryTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Cerca note, testi e tag")
+        .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Cerca note, testi e tag")
         .navigationDestination(item: $opened) { ContentViewer(item: $0) }
         .toolbar { toolbar }
         .onChange(of: filter) { _, _ in revealed = nil }
@@ -116,30 +116,31 @@ struct LibraryView: View {
     private var categoryTitle: String {
         switch filter {
         case .all: return "Tutte le note"
-        case .unfiled: return "Da specificare"
+        case .unfiled: return "Da organizzare"
         case .collection(let id): return tags.first { $0.id == id }?.name ?? "Note"
         }
     }
     private func categoryRow(_ name: String, symbol: String, value: CollectionFilter, count: Int) -> some View {
         Button { filter = value; allNotes = true; revealed = nil } label: {
-            HStack {
-                Label { Text(name) } icon: { Image(systemName: symbol).foregroundStyle(BloomBrand.gradient) }
-                Spacer()
-                Text("\(count)").foregroundStyle(.secondary)
-                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
-            }.frame(minHeight: 44).contentShape(Rectangle())
-        }.buttonStyle(.plain).accessibilityIdentifier("category-\(name)")
+            HStack(spacing: BloomLayout.small) {
+                Image(systemName: symbol).font(.body).foregroundStyle(Color.accentColor)
+                VStack(alignment: .leading, spacing: BloomLayout.compact) {
+                    Text(name).font(.caption.weight(.semibold)).lineLimit(2)
+                    Text(ContentLabels.noteCount(count)).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }.frame(maxWidth: .infinity, minHeight: BloomLayout.touch, alignment: .leading)
+                .padding(BloomLayout.gap)
+                .background(Color.bloomSurface, in: RoundedRectangle(cornerRadius: BloomLayout.radius))
+                .contentShape(Rectangle())
+        }.buttonStyle(.plain).accessibilityIdentifier(value == .all ? "category-Tutti" : "category-Da organizzare")
     }
     private func category(_ name: String, symbol: String, value: CollectionFilter, members: [CapturedLink]) -> some View {
-        let cover = members.first { $0.kind == .image || ($0.previewImageData != nil && $0.previewSourceURL == $0.allLinks.first?.absoluteString) } ?? members.first
-        return categoryButton(name, symbol: symbol, value: value, count: members.count, cover: cover)
-    }
-    private func categoryButton(_ name: String, symbol: String, value: CollectionFilter, count: Int, cover: CapturedLink?) -> some View {
         Button { filter = value; allNotes = true; revealed = nil } label: {
-            CategoryCover(name: name, symbol: symbol, count: count, item: cover)
+            CategoryCover(name: name, symbol: symbol, count: members.count)
                 .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
         }.buttonStyle(.plain)
-            .accessibilityElement(children: .ignore).accessibilityLabel("Apri categoria \(name), \(ContentLabels.noteCount(count))")
+            .accessibilityElement(children: .ignore).accessibilityLabel("Apri categoria \(name), \(ContentLabels.noteCount(members.count))")
             .accessibilityAddTraits(.isButton).accessibilityIdentifier("category-\(name)")
     }
     private var presentedLibrary: some View {
@@ -254,6 +255,9 @@ struct LibraryView: View {
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
+                if !selecting {
+                    Button("Seleziona note", systemImage: "checklist") { toggleSelection() }.accessibilityIdentifier("library-select")
+                }
                 Button(archived ? "Torna alla libreria" : "Cestino", systemImage: "trash") { archived.toggle(); filter = .all; allNotes = true; search = ""; kind = nil }.accessibilityIdentifier("settings-archive")
                 Button("Gestisci tag", systemImage: "tag") { managingTags = true }.accessibilityIdentifier("library-manage-tags")
                 Picker("Formato", selection: $kind) {
@@ -267,12 +271,18 @@ struct LibraryView: View {
             } label: { Label("Impostazioni", systemImage: "gearshape") }.accessibilityIdentifier("library-settings")
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Button(selecting ? "Fine" : "Seleziona", systemImage: selecting ? "checkmark" : "checklist") { if showingTags { allNotes = true }; selecting.toggle(); selection.removeAll(); revealed = nil }.labelStyle(.titleOnly).accessibilityLabel(selecting ? "Fine selezione" : "Seleziona note").accessibilityIdentifier("library-select")
+            if selecting {
+                Button("Fine") { toggleSelection() }.accessibilityLabel("Fine selezione").accessibilityIdentifier("library-select")
+            }
         }
         ToolbarItem(placement: .primaryAction) {
             Button { adding = true } label: { Label("Aggiungi nota", systemImage: "plus").foregroundStyle(selecting ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(BloomBrand.gradient)) }.accessibilityIdentifier("capture-add").disabled(selecting)
         }
 
+    }
+    private func toggleSelection() {
+        if showingTags { allNotes = true }
+        selecting.toggle(); selection.removeAll(); revealed = nil
     }
     private func captured(_ receipt: CaptureReceipt) {
         archiveUndo = nil

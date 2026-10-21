@@ -48,6 +48,8 @@ struct PKMSEditorView: View {
             .background(Color.bloomBackground)
             .navigationTitle(entry.title).navigationBarTitleDisplayMode(.inline)
             .toolbar { editorToolbar }
+            .toolbarBackground(Color.bloomBackground, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar(focused ? .hidden : .visible, for: .tabBar)
             .task { await store.open(entry); attemptedOpening = true }
             .onDisappear { store.scheduleSync() }
@@ -82,11 +84,9 @@ struct PKMSEditorView: View {
             statusRow(error, symbol: "icloud.slash") { Task { await store.sync() } }
         }
         if editing {
-            Label("Modifica Markdown · salvataggio automatico", systemImage: "pencil")
-                .font(.caption.weight(.medium)).frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16).padding(.vertical, 6).background(Color.bloomSurface)
             LiveMarkdownEditor(text: Binding(get: { store.documents[entry.identity]?.text ?? "" },
                                             set: { store.update(id: entry.identity, text: $0) }), query: query, focused: $focused)
+                .frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
         } else {
             ScrollViewReader { proxy in
                 ScrollView {
@@ -98,15 +98,19 @@ struct PKMSEditorView: View {
                     }
             }
         }
-        HStack(spacing: 6) {
-            Image(systemName: store.storageError != nil ? "exclamationmark.triangle" : document.dirty ? "icloud.and.arrow.up" : "checkmark")
-            Text(saveStatus(document)).font(.caption)
-            Spacer()
-        }.foregroundStyle(Color.bloomText.opacity(0.85)).padding(.horizontal, 16).padding(.vertical, 8).background(Color.bloomSurface)
-            .accessibilityIdentifier("pkms-save-status")
     }
     @ToolbarContentBuilder
     private var editorToolbar: some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            VStack(spacing: 2) {
+                Text(entry.title).font(.headline).lineLimit(1)
+                if let document {
+                    Text((editing ? "Markdown · " : "") + compactSaveStatus(document))
+                        .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        .accessibilityLabel(saveStatus(document)).accessibilityIdentifier("pkms-save-status")
+                }
+            }
+        }
         ToolbarItem(placement: .topBarTrailing) {
             Button(editing ? "Leggi" : "Scrivi", systemImage: editing ? "doc.richtext" : "square.and.pencil") {
                 editing.toggle(); if !editing { focused = false }
@@ -114,16 +118,23 @@ struct PKMSEditorView: View {
                 .accessibilityHint(editing ? "Mostra il documento formattato" : "Modifica il sorgente Markdown; le modifiche sono salvate automaticamente")
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Button { searching.toggle(); if !searching { query = "" } } label: { Image(systemName: "magnifyingglass") }.accessibilityLabel("Cerca nel documento")
-        }
-        ToolbarItem(placement: .topBarTrailing) {
             Menu {
+                Button("Cerca nel documento", systemImage: "magnifyingglass") { searching.toggle(); if !searching { query = "" } }
                 Button("Sincronizza ora", systemImage: "arrow.triangle.2.circlepath") { Task { await store.sync() } }.disabled(store.syncing || !store.connected)
                 Button("Versioni locali", systemImage: "clock.arrow.circlepath") { history = true }.disabled(document == nil)
                 Button("Esporta Markdown", systemImage: "square.and.arrow.up") { exporting = true }.disabled(document == nil)
                 if document?.hasConflict == true { Button("Confronta versioni") { conflict = true } }
             } label: { Image(systemName: "ellipsis") }.accessibilityLabel("Azioni documento")
         }
+    }
+    private func compactSaveStatus(_ document: PKMSDocument) -> String {
+        if store.storageError != nil { return "Salvataggio da riprovare" }
+        if document.remoteDeleted { return "Copia locale" }
+        if document.hasConflict { return "Confronta versioni" }
+        if document.dirty { return store.syncing ? "Sincronizzazione…" : "Salvato sul dispositivo" }
+        if store.error != nil { return "Sincronizzazione da riprovare" }
+        if !store.connected { return "Salvato · offline" }
+        return store.syncing ? "Verifica Dropbox…" : "Salvato su Dropbox"
     }
     private func saveStatus(_ document: PKMSDocument) -> String {
         if store.storageError != nil { return "Modifiche in memoria · salvataggio locale da riprovare" }

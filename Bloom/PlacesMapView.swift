@@ -28,10 +28,13 @@ struct PlacesMapView: View {
     private var selected: PlaceGroup? { groups.first { $0.id == selectedID } }
     var body: some View {
         NavigationStack {
-            mapContent
+            VStack(spacing: 0) {
+                mapHeader
+                mapContent.frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
+            }
                 .bloomCanvas().navigationTitle("Mappa").navigationBarTitleDisplayMode(.inline)
-                .navigationDestination(item: $opened) { ContentViewer(item: $0) }
-                .toolbar { toolbar }
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationDestination(item: $opened) { ContentViewer(item: $0).toolbar(.visible, for: .navigationBar) }
                 .sheet(isPresented: $showingList) { placesList }
                 .onChange(of: groups.map(\.id)) { _, ids in
                     if let selectedID, !ids.contains(selectedID) { self.selectedID = nil }
@@ -50,11 +53,21 @@ struct PlacesMapView: View {
     }
     private var mapCanvas: some View {
         ClusteredPlacesMap(places: groups.map { group in
-            let note = group.notes[0]
-            let image = note.previewSourceURL == note.allLinks.first?.absoluteString ? note.previewImageData : nil
-            let attachment = note.kind == .image ? note.attachmentData : note.noteFiles.first { UTType($0.type)?.conforms(to: .image) == true }?.data
-            return PlaceMapAnnotation(id: group.id, place: group.place, count: group.notes.count, imageData: image ?? attachment)
+            PlaceMapAnnotation(id: group.id, place: group.place, count: group.notes.count)
         }, selectedID: selectedID, fitRequest: fitRequest) { selectedID = $0 }
+    }
+    private var mapHeader: some View {
+        BloomPageHeader(title: "Mappa", subtitle: "\(groups.count) luoghi", leading: {
+            Button { selectedID = nil; fitRequest += 1 } label: {
+                Text("Mostra tutti").frame(maxWidth: .infinity, minHeight: BloomLayout.touch)
+                    .background(Color.bloomSurface, in: RoundedRectangle(cornerRadius: BloomLayout.gap))
+            }.disabled(groups.isEmpty).accessibilityLabel("Mostra tutti").accessibilityIdentifier("map-show-all")
+        }, trailing: {
+            Button { showingList = true } label: {
+                Text("Luoghi").frame(maxWidth: .infinity, minHeight: BloomLayout.touch)
+                    .background(Color.bloomSurface, in: RoundedRectangle(cornerRadius: BloomLayout.gap))
+            }.disabled(groups.isEmpty).accessibilityLabel("Elenco luoghi salvati").accessibilityIdentifier("map-places-list")
+        }).accessibilityIdentifier("map-header")
     }
     @ViewBuilder private var selectionPanel: some View {
         if let selected {
@@ -65,6 +78,9 @@ struct PlacesMapView: View {
                         Text(ContentLabels.noteCount(selected.notes.count)).font(.caption).foregroundStyle(Color.bloomText.opacity(0.85))
                     }
                     Spacer()
+                    Button { openMaps(selected.place) } label: {
+                        Image(systemName: "arrow.up.right.square").frame(width: BloomLayout.touch, height: BloomLayout.touch)
+                    }.accessibilityLabel("Apri in Mappe")
                     Button { selectedID = nil } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }.accessibilityLabel("Chiudi luogo")
                 }
                 ScrollView(.horizontal) {
@@ -81,17 +97,8 @@ struct PlacesMapView: View {
                             }.buttonStyle(.plain).frame(minHeight: 44).accessibilityIdentifier("map-open-note-\(note.id)")
                         }
                     }
-                }
-                Button("Apri in Mappe", systemImage: "arrow.triangle.turn.up.right.diamond") { openMaps(selected.place) }.frame(minHeight: 44)
-            }.padding(.horizontal, 16).background(.regularMaterial)
-        }
-    }
-    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            Button("Luoghi") { showingList = true }.disabled(groups.isEmpty).labelStyle(.titleAndIcon).accessibilityLabel("Elenco luoghi salvati").accessibilityIdentifier("map-places-list")
-        }
-        ToolbarItem(placement: .topBarLeading) {
-            Button("Mostra tutti") { selectedID = nil; fitRequest += 1 }.disabled(groups.isEmpty).labelStyle(.titleAndIcon).accessibilityLabel("Mostra tutti").accessibilityIdentifier("map-show-all")
+                }.scrollIndicators(.hidden)
+            }.padding(BloomLayout.margin).background(Color.bloomSurface)
         }
     }
     private var placesList: some View {

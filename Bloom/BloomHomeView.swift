@@ -11,19 +11,20 @@ struct BloomHomeView: View {
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = UIColor(Color.bloomBackground)
         appearance.backgroundEffect = nil
+        UITabBar.appearance().isTranslucent = false
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
     }
 
     var body: some View {
         TabView(selection: $selection) {
-            LibraryView()
+            LibraryView().bloomTabFoundation()
                 .tabItem { Label("Libreria", systemImage: "tray.full") }.tag(Tab.library)
             PKMSView(store: pkms)
-                .tabItem { Label("PKMS", systemImage: "folder") }.tag(Tab.pkms)
-            PlacesMapView()
+                .tabItem { Label("Appunti", systemImage: "doc.text") }.tag(Tab.pkms)
+            PlacesMapView().bloomTabFoundation()
                 .tabItem { Label("Mappa", systemImage: "map") }.tag(Tab.map)
-            RediscoveryView { selection = .library }
+            RediscoveryView { selection = .library }.bloomTabFoundation()
                 .tabItem { Label("Riscopri", systemImage: "sparkles") }.tag(Tab.rediscover)
         }.background(Color.bloomBackground.ignoresSafeArea())
             .toolbarBackground(Color.bloomBackground, for: .tabBar)

@@ -55,6 +55,6 @@ struct LinkDetailView: View {
     }
     private var tagNames: String {
         let names = tags.filter { link.tagIDs.contains($0.id) }.map(\.name)
-        return names.isEmpty ? "Da specificare" : names.joined(separator: " · ")
+        return names.isEmpty ? "Da organizzare" : names.joined(separator: " · ")
     }
 }

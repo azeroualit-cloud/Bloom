@@ -10,7 +10,7 @@ struct TagSelection: View {
     @State private var creating = false
     var body: some View {
         Section(categoryMode ? "Categorie" : "Tag") {
-            if selected.isEmpty { Text("Da specificare").foregroundStyle(.secondary) }
+            if selected.isEmpty { Text("Da organizzare").foregroundStyle(.secondary) }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 108))], alignment: .leading, spacing: 8) {
                 ForEach(tags) { tag in
                     Button {

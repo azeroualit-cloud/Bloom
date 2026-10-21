@@ -41,7 +41,7 @@ struct PKMSView: View {
                 }
                 if store.index.root == nil {
                     Section {
-                        ContentUnavailableView("Il tuo PKMS", systemImage: "folder", description: Text("Collega Dropbox e scegli la cartella delle tue note Markdown. I file rimangono su Dropbox."))
+                        ContentUnavailableView("I tuoi appunti", systemImage: "folder", description: Text("Collega Dropbox e scegli la cartella delle tue note Markdown. I file rimangono su Dropbox."))
                         Button(store.connected ? "Scegli cartella Dropbox" : "Collega Dropbox") {
                             if store.connected { choosingRoot = true } else { settings = true }
                         }.accessibilityIdentifier("pkms-connect")
@@ -77,7 +77,7 @@ struct PKMSView: View {
             .listStyle(.plain).environment(\.defaultMinListRowHeight, 44).bloomCanvas()
             .sensoryFeedback(.success, trigger: syncSuccess)
             .sensoryFeedback(.error, trigger: syncFailure)
-            .navigationTitle("PKMS").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Appunti").navigationBarTitleDisplayMode(.inline)
             .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Cerca documenti")
             .refreshable { await store.sync() }
             .toolbar {
@@ -91,10 +91,10 @@ struct PKMSView: View {
                         }
                     } label: {
                         if store.syncing || manualSync { ProgressView().accessibilityLabel("Sincronizzazione in corso") } else { Image(systemName: "arrow.triangle.2.circlepath") }
-                    }.disabled(!store.connected || store.index.root == nil || store.syncing || manualSync).accessibilityLabel("Sincronizza PKMS")
+                    }.disabled(!store.connected || store.index.root == nil || store.syncing || manualSync).accessibilityLabel("Sincronizza appunti")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { settings = true } label: { Image(systemName: "gearshape") }.accessibilityLabel("Impostazioni PKMS")
+                    Button { settings = true } label: { Image(systemName: "gearshape") }.accessibilityLabel("Impostazioni Appunti")
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -183,7 +183,7 @@ struct PKMSSettingsView: View {
                     if !store.connected {
                         Button(connecting ? "Collegamento…" : "Collega Dropbox") { connect() }.disabled(connecting || appKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     } else {
-                        Button("Scegli cartella PKMS") { choosingRoot = true }.disabled(store.syncing || store.pendingCount > 0)
+                        Button("Scegli cartella appunti") { choosingRoot = true }.disabled(store.syncing || store.pendingCount > 0)
                         Button("Scollega Dropbox", role: .destructive) { Task { await store.disconnect() } }.disabled(store.syncing)
                     }
                     if let path = store.index.root { Text(path.isEmpty ? "/" : path).font(.caption).foregroundStyle(.secondary) }
@@ -203,7 +203,7 @@ struct PKMSSettingsView: View {
                     Text("I documenti aperti vengono conservati offline sul dispositivo. I conflitti richiedono una scelta esplicita e mantengono una copia di recupero.")
                 }
                 if let error { Section { Text(error).foregroundStyle(.red) } }
-            }.bloomCanvas().navigationTitle("PKMS e Dropbox").navigationBarTitleDisplayMode(.inline)
+            }.bloomCanvas().navigationTitle("Appunti e Dropbox").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Chiudi") { dismiss() } } }
                 .sheet(isPresented: $choosingRoot) {
                     DropboxFolderPicker { path in Task { await store.selectRoot(path) } }
@@ -244,7 +244,7 @@ struct DropboxFolderPicker: View {
                 ForEach(folders, id: \.identity) { folder in
                     Button { path = folder.pathLower } label: { Label(folder.name, systemImage: "folder") }
                 }
-            }.bloomCanvas().navigationTitle("Cartella PKMS").navigationBarTitleDisplayMode(.inline)
+            }.bloomCanvas().navigationTitle("Cartella appunti").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Annulla") { dismiss() } } }
                 .task(id: path) { await load() }
         }

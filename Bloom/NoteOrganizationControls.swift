@@ -34,7 +34,7 @@ struct NoteOrganizationControls: View {
     }
     private var categoryNames: String {
         let names = categories.filter { item.tagIDs.contains($0.id) }.map(\.name)
-        return names.isEmpty ? "Da specificare" : names.joined(separator: " · ")
+        return names.isEmpty ? "Da organizzare" : names.joined(separator: " · ")
     }
     private var selected: Binding<Set<UUID>> {
         Binding(get: { item.tagIDs }, set: { value in

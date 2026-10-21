@@ -29,7 +29,7 @@ final class DailyUseUITests: XCTestCase {
         let token = UUID().uuidString
         app.launchArguments = ["--ui-test-in-memory", "--ui-test-pkms=" + token]
         app.launch()
-        tapWhenReady(app.tabBars.buttons["PKMS"], in: app)
+        tapWhenReady(app.tabBars.buttons["Appunti"], in: app)
         let folder = app.buttons["Lavoro"]
         tapWhenReady(folder, in: app)
         let note = app.buttons["pkms-note-Contatti"]
@@ -50,7 +50,7 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [saved], timeout: 5), .completed, diagnostics(app))
         app.terminate()
         app.launch()
-        tapWhenReady(app.tabBars.buttons["PKMS"], in: app)
+        tapWhenReady(app.tabBars.buttons["Appunti"], in: app)
         tapWhenReady(app.buttons["Lavoro"], in: app)
         tapWhenReady(app.buttons["pkms-note-Contatti"], in: app)
         XCTAssertTrue(app.descendants(matching: .any)["pkms-reader"].firstMatch.waitForExistence(timeout: 10), diagnostics(app))
@@ -65,7 +65,7 @@ final class DailyUseUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-in-memory", "--ui-test-pkms=" + UUID().uuidString, "--ui-test-dark"]
         app.launch()
-        tapWhenReady(app.tabBars.buttons["PKMS"], in: app)
+        tapWhenReady(app.tabBars.buttons["Appunti"], in: app)
         XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 5), diagnostics(app))
         tapWhenReady(app.buttons["Lavoro"], in: app)
         tapWhenReady(app.buttons["pkms-note-Contatti"], in: app)
@@ -82,13 +82,26 @@ final class DailyUseUITests: XCTestCase {
         let source = editor.value as? String ?? ""
         XCTAssertTrue(source.contains("| Chi | Recapito |"))
         XCTAssertTrue(source.contains("**Perché**"))
-        captureScreen(app, name: "PKMS keyboard with complete formatting controls")
+        let keyboardActions = ["Grassetto", "Elenco", "Checklist", "Collegamento", "Formato Markdown", "pkms-keyboard-done"].map { app.buttons[$0] }
+        for action in keyboardActions { XCTAssertTrue(action.waitForExistence(timeout: 5), diagnostics(app)) }
+        let actionFrames = keyboardActions.map(\.frame)
+        for frame in actionFrames {
+            XCTAssertGreaterThanOrEqual(frame.height, 44)
+            XCTAssertGreaterThanOrEqual(frame.width, 44)
+            XCTAssertEqual(frame.width, actionFrames[0].width, accuracy: 1)
+            XCTAssertEqual(frame.midY, actionFrames[0].midY, accuracy: 1)
+        }
+        for index in 1..<actionFrames.count {
+            XCTAssertEqual(actionFrames[index].minX - actionFrames[index - 1].maxX, 4, accuracy: 1)
+        }
+        XCTAssertGreaterThanOrEqual(editor.frame.minY, app.navigationBars["Contatti"].frame.maxY - 1)
+        captureScreen(app, name: "PKMS keyboard with evenly spaced direct formatting controls")
         tapWhenReady(app.buttons["Formato Markdown"], in: app)
-        XCTAssertTrue(app.buttons["Checklist"].waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertTrue(app.buttons["Titolo"].waitForExistence(timeout: 5), diagnostics(app))
         app.navigationBars["Contatti"].tap() // Dismiss outside the menu without mutating the document.
         tapWhenReady(app.buttons["pkms-keyboard-done"], in: app)
         XCTAssertFalse(app.keyboards.firstMatch.exists, diagnostics(app))
-        let restoredTab = app.tabBars.buttons["PKMS"]
+        let restoredTab = app.tabBars.buttons["Appunti"]
         let toolbarRestored = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in restoredTab.exists && restoredTab.isHittable }, object: restoredTab)
         XCTAssertEqual(XCTWaiter.wait(for: [toolbarRestored], timeout: 5), .completed, diagnostics(app))
         XCTAssertEqual(editor.value as? String, source)
@@ -202,7 +215,7 @@ final class DailyUseUITests: XCTestCase {
         categories.tap()
         XCTAssertTrue(app.buttons["tag-Salute"].waitForExistence(timeout: 5))
         app.buttons["tag-Salute"].tap()
-        let cleared = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in categories.label.contains("Da specificare") }, object: categories)
+        let cleared = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in categories.label.contains("Da organizzare") }, object: categories)
         XCTAssertEqual(XCTWaiter.wait(for: [cleared], timeout: 5), .completed, diagnostics(app))
     }
 
@@ -213,6 +226,11 @@ final class DailyUseUITests: XCTestCase {
         app.launchArguments = ["--ui-test-in-memory", "--ui-test-map"]
         app.launch()
         tapWhenReady(app.tabBars.buttons["Mappa"], in: app)
+        let showAll = app.buttons["map-show-all"], places = app.buttons["map-places-list"]
+        XCTAssertTrue(showAll.waitForExistence(timeout: 5))
+        XCTAssertEqual(showAll.frame.width, places.frame.width, accuracy: 1)
+        XCTAssertEqual(showAll.frame.midY, places.frame.midY, accuracy: 1)
+        XCTAssertEqual(showAll.frame.minX - app.frame.minX, app.frame.maxX - places.frame.maxX, accuracy: 1)
         let marker = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-marker-' ")).firstMatch
         XCTAssertTrue(marker.waitForExistence(timeout: 10), diagnostics(app))
         tapWhenReady(marker, in: app)
@@ -331,11 +349,12 @@ final class DailyUseUITests: XCTestCase {
         app.launch()
         let all = app.buttons["category-Tutti"]
         XCTAssertTrue(all.waitForExistence(timeout: 15))
-        XCTAssertTrue(all.label.contains("Tutti"))
+        XCTAssertTrue(all.label.contains("Tutte le note"))
         XCTAssertLessThan(all.frame.height, 80)
         let category = app.buttons["category-Casa"]
         XCTAssertTrue(category.exists)
-        XCTAssertGreaterThan(category.frame.height, category.frame.width + 35)
+        XCTAssertGreaterThanOrEqual(category.frame.height, 100)
+        XCTAssertLessThan(category.frame.height, category.frame.width, "Category cards must be compact destinations")
         let home = XCTAttachment(screenshot: app.screenshot()); home.name = "Category covers with captions"; home.lifetime = .keepAlways; add(home)
         all.tap()
         let notes = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'"))
@@ -442,10 +461,12 @@ final class DailyUseUITests: XCTestCase {
         let (app, _) = captureNote(withCollection: false)
         returnToLibrary(app)
         let all = app.buttons["category-Tutti"]
-        let unspecified = app.buttons["category-Da specificare"]
+        let unspecified = app.buttons["category-Da organizzare"]
         XCTAssertTrue(all.waitForExistence(timeout: 5))
         XCTAssertTrue(unspecified.exists)
-        XCTAssertLessThanOrEqual(all.frame.maxY, unspecified.frame.minY)
+        XCTAssertEqual(all.frame.minY, unspecified.frame.minY, accuracy: 2)
+        XCTAssertLessThanOrEqual(all.frame.maxX, unspecified.frame.minX)
+        XCTAssertEqual(unspecified.frame.minX - all.frame.maxX, 12, accuracy: 2)
         XCTAssertLessThan(unspecified.frame.height, 80)
         XCTAssertLessThan(all.frame.height, 80)
         XCTAssertEqual(unspecified.frame.width, all.frame.width, accuracy: 2)
@@ -571,7 +592,7 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["archive-undo"].tap()
         XCTAssertEqual(app.staticTexts["library-count"].label, "1 nota")
         app.buttons["library-back-tags"].tap()
-        app.buttons["category-Da specificare"].tap()
+        app.buttons["category-Da organizzare"].tap()
         note.press(forDuration: 1.1)
         let editTags = app.buttons["note-context-tags"]
         tapWhenReady(editTags, in: app)
@@ -579,7 +600,7 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(salute.waitForExistence(timeout: 5), diagnostics(app))
         salute.tap()
         app.buttons["quick-tags-save"].tap()
-        XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["library-settings"].waitForExistence(timeout: 5))
         app.buttons["library-back-tags"].tap()
         app.buttons["category-Salute"].tap()
         note.press(forDuration: 1.1)
@@ -607,7 +628,7 @@ final class DailyUseUITests: XCTestCase {
         text.tap(); text.typeText("987654321")
         app.buttons["capture-close"].tap()
         app.buttons["Scarta modifiche"].tap()
-        XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["library-settings"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["library-count"].label, "1 nota")
     }
     @MainActor
@@ -623,7 +644,8 @@ final class DailyUseUITests: XCTestCase {
     func testBulkArchiveAndRestore() {
         let (app, _) = captureNote(withCollection: false)
         returnToLibrary(app)
-        app.buttons["library-select"].tap()
+        tapWhenReady(app.buttons["library-settings"], in: app)
+        tapWhenReady(app.buttons["library-select"], in: app)
         app.buttons["bulk-select-all"].tap()
         app.buttons["bulk-archive-action"].tap()
         assertLibraryCount(app, count: 0)
@@ -704,7 +726,7 @@ final class DailyUseUITests: XCTestCase {
     @MainActor
     private func returnToLibrary(_ app: XCUIApplication) {
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertTrue(app.buttons["library-settings"].waitForExistence(timeout: 5), diagnostics(app))
         let back = app.buttons["library-back-tags"]
         XCTAssertTrue(back.waitForExistence(timeout: 5), diagnostics(app))
         back.tap()

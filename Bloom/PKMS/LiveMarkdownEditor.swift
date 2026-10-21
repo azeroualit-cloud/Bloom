@@ -17,7 +17,10 @@ struct LiveMarkdownEditor: UIViewRepresentable {
         view.adjustsFontForContentSizeCategory = true
         view.alwaysBounceVertical = true
         view.keyboardDismissMode = .interactive
-        view.textContainerInset = UIEdgeInsets(top: 20, left: 16, bottom: 40, right: 16)
+        view.contentInsetAdjustmentBehavior = .never
+        view.clipsToBounds = true
+        view.textContainer.lineFragmentPadding = 0
+        view.textContainerInset = UIEdgeInsets(top: BloomLayout.margin, left: BloomLayout.margin, bottom: BloomLayout.section, right: BloomLayout.margin)
         view.autocorrectionType = .yes
         view.smartQuotesType = .no; view.smartDashesType = .no
         view.accessibilityLabel = "Documento Markdown"
@@ -61,7 +64,10 @@ struct LiveMarkdownEditor: UIViewRepresentable {
             style(view, range: paragraph)
         }
         func installToolbar(_ view: UITextView) {
-            let bar = UIToolbar()
+            let bar = UIView(frame: CGRect(x: 0, y: 0, width: 320, height: 52))
+            bar.autoresizingMask = [.flexibleWidth]
+            bar.backgroundColor = UIColor(Color.bloomSurface)
+            bar.accessibilityIdentifier = "pkms-formatting-bar"
             let formatting = UIMenu(title: "Formato Markdown", children: [
                 UIAction(title: "Titolo", image: UIImage(systemName: "textformat.size")) { [weak self] _ in self?.heading() },
                 UIAction(title: "Grassetto", image: UIImage(systemName: "bold")) { [weak self] _ in self?.bold() },
@@ -70,13 +76,47 @@ struct LiveMarkdownEditor: UIViewRepresentable {
                 UIAction(title: "Collegamento", image: UIImage(systemName: "link")) { [weak self] _ in self?.link() },
                 UIAction(title: "Codice", image: UIImage(systemName: "chevron.left.forwardslash.chevron.right")) { [weak self] _ in self?.code() }
             ])
-            let format = UIBarButtonItem(title: "Formato", image: nil, primaryAction: nil, menu: formatting)
+            let stack = UIStackView()
+            stack.axis = .horizontal; stack.spacing = BloomLayout.compact
+            stack.distribution = .fillEqually
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            func action(_ symbol: String, _ label: String, _ perform: @escaping () -> Void) -> UIButton {
+                let button = UIButton(type: .system)
+                button.setImage(UIImage(systemName: symbol), for: .normal)
+                button.accessibilityLabel = label
+                button.addAction(UIAction { _ in perform() }, for: .touchUpInside)
+                button.tintColor = UIColor(Color.bloomText)
+                return button
+            }
+            let format = UIButton(type: .system)
+            format.setImage(UIImage(systemName: "ellipsis"), for: .normal)
             format.accessibilityLabel = "Formato Markdown"
-            let done = UIBarButtonItem(title: "Fine", style: .done, target: self, action: #selector(hideKeyboard))
+            format.menu = formatting; format.showsMenuAsPrimaryAction = true
+            format.tintColor = UIColor(Color.bloomText)
+            let done = UIButton(type: .system)
+            done.setTitle("Fine", for: .normal)
+            done.titleLabel?.font = .preferredFont(forTextStyle: .body)
+            done.titleLabel?.adjustsFontForContentSizeCategory = true
+            done.titleLabel?.adjustsFontSizeToFitWidth = true
+            done.titleLabel?.minimumScaleFactor = 0.7
+            done.setTitleColor(UIColor(Color.bloomBackground), for: .normal)
+            done.backgroundColor = UIColor(Color.accentColor)
+            done.layer.cornerRadius = BloomLayout.gap
             done.accessibilityLabel = "Chiudi tastiera"
             done.accessibilityIdentifier = "pkms-keyboard-done"
-            bar.items = [format, UIBarButtonItem(systemItem: .flexibleSpace), done]
-            bar.sizeToFit(); view.inputAccessoryView = bar
+            done.addAction(UIAction { [weak self] _ in self?.hideKeyboard() }, for: .touchUpInside)
+            [action("bold", "Grassetto", { [weak self] in self?.bold() }),
+             action("list.bullet", "Elenco", { [weak self] in self?.bullet() }),
+             action("checklist", "Checklist", { [weak self] in self?.checklist() }),
+             action("link", "Collegamento", { [weak self] in self?.link() }), format, done].forEach(stack.addArrangedSubview)
+            bar.addSubview(stack)
+            NSLayoutConstraint.activate([
+                stack.leadingAnchor.constraint(equalTo: bar.leadingAnchor, constant: BloomLayout.margin),
+                stack.trailingAnchor.constraint(equalTo: bar.trailingAnchor, constant: -BloomLayout.margin),
+                stack.topAnchor.constraint(equalTo: bar.topAnchor, constant: BloomLayout.compact),
+                stack.bottomAnchor.constraint(equalTo: bar.bottomAnchor, constant: -BloomLayout.compact)
+            ])
+            view.inputAccessoryView = bar
         }
         @objc private func heading() { prefix("## ") }
         @objc private func bullet() { prefix("- ") }

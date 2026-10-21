@@ -133,7 +133,7 @@ struct RediscoveryView: View {
     private var collectionName: String {
         switch collectionFilter {
         case .all: return "Tutti i tag"
-        case .unfiled: return "Da specificare"
+        case .unfiled: return "Da organizzare"
         case .collection(let id): return collections.first { $0.id == id }?.name ?? "Tag"
         }
     }

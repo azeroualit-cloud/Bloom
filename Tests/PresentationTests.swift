@@ -1,5 +1,6 @@
 import XCTest
 import MapKit
+import SwiftUI
 @testable import Bloom
 
 final class PresentationTests: XCTestCase {
@@ -45,8 +46,8 @@ final class PresentationTests: XCTestCase {
     }
     @MainActor
     func testClusterHasAFullTouchTargetAndCountsNotesAcrossPlaces() {
-        let first = PlaceMapAnnotation(id: "a", place: NotePlace(name: "A", latitude: 41.89, longitude: 12.49), count: 3, imageData: nil)
-        let second = PlaceMapAnnotation(id: "b", place: NotePlace(name: "B", latitude: 41.90, longitude: 12.50), count: 1, imageData: nil)
+        let first = PlaceMapAnnotation(id: "a", place: NotePlace(name: "A", latitude: 41.89, longitude: 12.49), count: 3)
+        let second = PlaceMapAnnotation(id: "b", place: NotePlace(name: "B", latitude: 41.90, longitude: 12.50), count: 1)
         let cluster = MKClusterAnnotation(memberAnnotations: [first, second])
         let view = PlaceClusterView(annotation: cluster, reuseIdentifier: "test")
         view.configure(cluster)
@@ -54,6 +55,33 @@ final class PresentationTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(view.bounds.height, 44)
         XCTAssertEqual(view.accessibilityLabel, "2 luoghi, 4 note")
         XCTAssertEqual(view.accessibilityIdentifier, "map-cluster")
+        XCTAssertEqual(view.subviews.compactMap { $0 as? UILabel }.first?.text, "2", "Visible cluster counts places, while accessibility also reports notes")
+    }
+    @MainActor
+    func testMarkdownKeyboardActionsStayEvenAtNarrowWidthsAndEditTheSelection() throws {
+        let editor = LiveMarkdownEditor(text: .constant("abc"), focused: .constant(false))
+        let coordinator = editor.makeCoordinator()
+        let textView = UITextView()
+        coordinator.editor = textView
+        coordinator.installToolbar(textView)
+        let bar = try XCTUnwrap(textView.inputAccessoryView)
+        let stack = try XCTUnwrap(bar.subviews.compactMap { $0 as? UIStackView }.first)
+        let buttons = stack.arrangedSubviews.compactMap { $0 as? UIButton }
+        XCTAssertEqual(buttons.count, 6)
+        for width in [CGFloat(320), CGFloat(390)] {
+            bar.frame.size.width = width
+            bar.setNeedsLayout(); bar.layoutIfNeeded()
+            for button in buttons {
+                XCTAssertGreaterThanOrEqual(button.bounds.width, 44)
+                XCTAssertGreaterThanOrEqual(button.bounds.height, 44)
+                XCTAssertEqual(button.bounds.width, buttons[0].bounds.width, accuracy: 0.5)
+            }
+        }
+        textView.text = "abc"
+        textView.selectedRange = NSRange(location: 0, length: 3)
+        buttons[0].sendActions(for: .touchUpInside)
+        XCTAssertEqual(textView.text, "**abc**")
+        XCTAssertEqual(textView.selectedRange, NSRange(location: 2, length: 3))
     }
     @MainActor
     func testMapAnnotationAccessibilityUsesVisibleViewGeometry() {
@@ -81,26 +109,25 @@ final class PresentationTests: XCTestCase {
     @MainActor
     func testMapMetadataRefreshKeepsTheCameraAndUpdatesThePin() {
         let place = NotePlace(name: "Roma", latitude: 41.89, longitude: 12.49)
-        let original = PlaceMapAnnotation(id: "rome", place: place, count: 1, imageData: nil)
+        let original = PlaceMapAnnotation(id: "rome", place: place, count: 1)
         let parent = ClusteredPlacesMap(places: [original], selectedID: nil, fitRequest: 0) { _ in }
         let coordinator = parent.makeCoordinator()
         let map = MKMapView(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
         XCTAssertTrue(coordinator.updateAnnotations(map, places: [original]))
         coordinator.fit(map, annotations: [original], animated: false)
         let camera = map.visibleMapRect
-        let updated = PlaceMapAnnotation(id: "rome", place: place, count: 2, imageData: Data([0, 1, 2]))
+        let updated = PlaceMapAnnotation(id: "rome", place: place, count: 2)
         XCTAssertFalse(coordinator.updateAnnotations(map, places: [updated]))
         XCTAssertEqual(map.visibleMapRect.origin.x, camera.origin.x)
         XCTAssertEqual(map.visibleMapRect.origin.y, camera.origin.y)
         XCTAssertEqual(map.visibleMapRect.size.width, camera.size.width)
         XCTAssertEqual(map.visibleMapRect.size.height, camera.size.height)
         XCTAssertEqual(original.count, 2)
-        XCTAssertEqual(original.imageData, updated.imageData)
     }
     @MainActor
     func testMapPinsKeepExactCoordinatesAndAllowNativeClustering() {
         let place = NotePlace(name: "Colosseo", latitude: 41.8902, longitude: 12.4922)
-        let annotation = PlaceMapAnnotation(id: "rome", place: place, count: 3, imageData: nil)
+        let annotation = PlaceMapAnnotation(id: "rome", place: place, count: 3)
         XCTAssertEqual(annotation.coordinate.latitude, place.latitude)
         XCTAssertEqual(annotation.coordinate.longitude, place.longitude)
         let parent = ClusteredPlacesMap(places: [annotation], selectedID: nil, fitRequest: 0) { _ in }
@@ -109,6 +136,8 @@ final class PresentationTests: XCTestCase {
         let pin = PlacePinView(annotation: annotation, reuseIdentifier: "test")
         pin.configure(annotation)
         XCTAssertEqual(pin.clusteringIdentifier, "bloom-places")
+        XCTAssertEqual(pin.centerOffset, .zero)
+        XCTAssertGreaterThanOrEqual(pin.bounds.width, 44)
         XCTAssertEqual(pin.accessibilityIdentifier, "map-marker-rome")
         // Fitting is independent of downloaded map tiles.
         coordinator.fit(map, annotations: [annotation], animated: false)

@@ -10,7 +10,7 @@ struct ContentFilterOptions: View {
     var body: some View {
         Picker("Tag", selection: $collection) {
             Text("Tutti i tag").tag(CollectionFilter.all)
-            Text("Da specificare").tag(CollectionFilter.unfiled)
+            Text("Da organizzare").tag(CollectionFilter.unfiled)
             ForEach(collections) { Text($0.name).tag(CollectionFilter.collection($0.id)) }
         }
         Picker("Formato", selection: $kind) {
