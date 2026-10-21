@@ -110,18 +110,35 @@ final class DailyUseUITests: XCTestCase {
         captureScreen(app, name: "Dense map uses count clusters")
         tapWhenReady(cluster, in: app)
         let pins = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-marker-' "))
-        var visiblePin: XCUIElement?
-        for _ in 0..<4 {
-            if let pin = pins.allElementsBoundByIndex.first(where: { $0.isHittable }) { visiblePin = pin; break }
+        var visiblePinID: String?
+        for _ in 0..<5 {
+            var candidateID: String?
+            var candidateFrame = CGRect.null
+            var stableSince = Date()
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                guard let visible = pins.allElementsBoundByIndex.first(where: { $0.isHittable }) else {
+                    candidateID = nil; stableSince = Date(); return false
+                }
+                let id = visible.identifier
+                let target = app.buttons[id]
+                let frame = target.frame
+                if id != candidateID || abs(frame.minX - candidateFrame.minX) >= 0.5 || abs(frame.minY - candidateFrame.minY) >= 0.5 {
+                    candidateID = id; candidateFrame = frame; stableSince = Date(); return false
+                }
+                guard target.isHittable else { stableSince = Date(); return false }
+                guard Date().timeIntervalSince(stableSince) >= 1 else { return false }
+                visiblePinID = id
+                return true
+            }, object: app)
+            if XCTWaiter.wait(for: [ready], timeout: 15) == .completed { break }
             let clusters = app.buttons.matching(identifier: "map-cluster")
             guard let next = clusters.allElementsBoundByIndex.first(where: { $0.isHittable }) else {
-                XCTFail("No visible pin or cluster after zoom: " + diagnostics(app)); return
+                XCTFail("No stable visible pin or cluster after zoom: " + diagnostics(app)); return
             }
             tapWhenReady(next, in: app)
         }
-        guard let pin = visiblePin ?? pins.allElementsBoundByIndex.first(where: { $0.isHittable }) else {
-            XCTFail("Cluster zoom did not reveal a tappable pin: " + diagnostics(app)); return
-        }
+        guard let id = visiblePinID else { XCTFail("Cluster zoom did not reveal a stable tappable pin: " + diagnostics(app)); return }
+        let pin = app.buttons[id]
         tapWhenReady(pin, in: app)
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-open-note-' ")).firstMatch.waitForExistence(timeout: 5), diagnostics(app))
         captureScreen(app, name: "Cluster zoom reveals anchored place markers and note panel")
