@@ -31,6 +31,9 @@ final class PresentationTests: XCTestCase {
         XCTAssertEqual(PlaceKind.from(item), .restaurant)
         item.pointOfInterestCategory = .store
         XCTAssertEqual(PlaceKind.from(item), .shop)
+        XCTAssertEqual(PlaceKind.matching(NotePlace(name: "Montagna Restaurant", latitude: 41.89, longitude: 12.49), in: [item]), .shop)
+        XCTAssertNil(PlaceKind.matching(NotePlace(name: "Neighbour", latitude: 41.89, longitude: 12.49), in: [item]))
+        XCTAssertNil(PlaceKind.matching(NotePlace(name: "Montagna Restaurant", latitude: 42.89, longitude: 13.49), in: [item]))
     }
 
     func testMarkdownTableKeepsColumnsEscapesAndRaggedRows() throws {

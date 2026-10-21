@@ -12,6 +12,7 @@ struct PlacesMapView: View {
     @State private var showingList = false
     @State private var opened: CapturedLink?
     @State private var placeError: String?
+    @State private var attemptedKinds = Set<String>()
     private struct PlaceGroup: Identifiable {
         let id: String
         let place: NotePlace
@@ -38,7 +39,7 @@ struct PlacesMapView: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationDestination(item: $opened) { ContentViewer(item: $0).toolbar(.visible, for: .navigationBar) }
                 .sheet(isPresented: $showingList) { placesList }
-                .task(id: selectedID) { await resolveSelectedKind() }
+                .task(id: groups.map(\.id)) { await resolveUnclassifiedKinds() }
                 .alert("Tipologia non salvata", isPresented: Binding(get: { placeError != nil }, set: { if !$0 { placeError = nil } })) {
                     Button("OK", role: .cancel) { }
                 } message: { Text(placeError ?? "") }
@@ -144,26 +145,28 @@ struct PlacesMapView: View {
             try context.save()
         } catch { context.rollback(); placeError = error.localizedDescription }
     }
-    /// Resolve old saved places only when opened; never assign a nearby business's type.
-    private func resolveSelectedKind() async {
-        guard let selected, selected.place.kind == nil,
-              !ProcessInfo.processInfo.arguments.contains("--ui-test-in-memory") else { return }
-        let coordinate = CLLocationCoordinate2D(latitude: selected.place.latitude, longitude: selected.place.longitude)
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = selected.place.name
-        request.region = MKCoordinateRegion(center: coordinate, latitudinalMeters: 500, longitudinalMeters: 500)
-        let operation = MKLocalSearch(request: request)
-        let response = await withTaskCancellationHandler {
-            try? await operation.start()
-        } onCancel: { operation.cancel() }
-        guard !Task.isCancelled, selectedID == selected.id,
-              let current = groups.first(where: { $0.id == selected.id }), current.place.kind == nil,
-              let result = response?.mapItems.first(where: {
-                  PlaceKind.normalized($0.name ?? "") == PlaceKind.normalized(selected.place.name) &&
-                  CLLocation(latitude: $0.placemark.coordinate.latitude, longitude: $0.placemark.coordinate.longitude)
-                      .distance(from: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)) <= 150
-              }), let kind = PlaceKind.from(result) else { return }
-        saveKind(kind, for: current)
+    /// Sequential lookups are bounded to 30 places per visit; saved/user-chosen kinds are never overwritten.
+    private func resolveUnclassifiedKinds() async {
+        guard !ProcessInfo.processInfo.arguments.contains("--ui-test-in-memory") else { return }
+        let candidates = groups.filter { $0.place.kind == nil && !attemptedKinds.contains($0.id) }.prefix(30)
+        for group in candidates {
+            guard !Task.isCancelled else { return }
+            attemptedKinds.insert(group.id)
+            let coordinate = CLLocationCoordinate2D(latitude: group.place.latitude, longitude: group.place.longitude)
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = group.place.name
+            request.region = MKCoordinateRegion(center: coordinate, latitudinalMeters: 500, longitudinalMeters: 500)
+            let operation = MKLocalSearch(request: request)
+            let response = await withTaskCancellationHandler {
+                try? await operation.start()
+            } onCancel: { operation.cancel() }
+            guard !Task.isCancelled else { attemptedKinds.remove(group.id); return }
+            if let current = groups.first(where: { $0.id == group.id }), current.place.kind == nil,
+               let kind = PlaceKind.matching(group.place, in: response?.mapItems ?? []) {
+                saveKind(kind, for: current)
+            }
+            do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+        }
     }
     private func openMaps(_ place: NotePlace) {
         let item = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude)))
