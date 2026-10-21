@@ -52,8 +52,8 @@ struct PlacesMapView: View {
         ClusteredPlacesMap(places: groups.map { group in
             let note = group.notes[0]
             let image = note.previewSourceURL == note.allLinks.first?.absoluteString ? note.previewImageData : nil
-            return PlaceMapAnnotation(id: group.id, place: group.place, count: group.notes.count,
-                                      imageData: image ?? (note.kind == .image ? note.attachmentData : nil))
+            let attachment = note.kind == .image ? note.attachmentData : note.noteFiles.first { UTType($0.type)?.conforms(to: .image) == true }?.data
+            return PlaceMapAnnotation(id: group.id, place: group.place, count: group.notes.count, imageData: image ?? attachment)
         }, selectedID: selectedID, fitRequest: fitRequest) { selectedID = $0 }
     }
     @ViewBuilder private var selectionPanel: some View {
@@ -134,7 +134,7 @@ private struct MapPostMarker: View {
                     .padding(4).background(BloomBrand.gradient, in: Capsule()).offset(x: 6, y: -6)
             }
         }.padding(6).shadow(color: .black.opacity(0.25), radius: 3, y: 2)
-            .accessibilityElement(children: .ignore).accessibilityLabel("\(item.displayTitle), \(count) note in questo luogo")
+            .accessibilityElement(children: .ignore).accessibilityLabel("\(item.displayTitle), \(ContentLabels.noteCount(count)) in questo luogo")
             .accessibilityIdentifier("map-post-preview-\(item.id)")
             .task(id: item.id) {
                 guard item.modelContext != nil, !item.isDeleted else { return }

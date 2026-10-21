@@ -16,6 +16,7 @@ struct ClusteredPlacesMap: UIViewRepresentable {
         map.preferredConfiguration = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .muted)
         map.pointOfInterestFilter = .excludingAll
         map.showsCompass = true
+        map.showsScale = true
         map.register(PlacePinView.self, forAnnotationViewWithReuseIdentifier: "place")
         map.register(MKMarkerAnnotationView.self, forAnnotationViewWithReuseIdentifier: "cluster")
         return map
