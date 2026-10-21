@@ -5,11 +5,13 @@ import UniformTypeIdentifiers
 
 @MainActor
 struct PlacesMapView: View {
+    @Environment(\.modelContext) private var context
     @Query(sort: \CapturedLink.capturedAt, order: .reverse) private var notes: [CapturedLink]
     @State private var fitRequest = 0
     @State private var selectedID: String?
     @State private var showingList = false
     @State private var opened: CapturedLink?
+    @State private var placeError: String?
     private struct PlaceGroup: Identifiable {
         let id: String
         let place: NotePlace
@@ -36,6 +38,10 @@ struct PlacesMapView: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationDestination(item: $opened) { ContentViewer(item: $0).toolbar(.visible, for: .navigationBar) }
                 .sheet(isPresented: $showingList) { placesList }
+                .task(id: selectedID) { await resolveSelectedKind() }
+                .alert("Tipologia non salvata", isPresented: Binding(get: { placeError != nil }, set: { if !$0 { placeError = nil } })) {
+                    Button("OK", role: .cancel) { }
+                } message: { Text(placeError ?? "") }
                 .onChange(of: groups.map(\.id)) { _, ids in
                     if let selectedID, !ids.contains(selectedID) { self.selectedID = nil }
                 }
@@ -75,6 +81,7 @@ struct PlacesMapView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(selected.place.name).font(.headline).lineLimit(2)
+                        kindMenu(selected)
                         Text(ContentLabels.noteCount(selected.notes.count)).font(.caption).foregroundStyle(Color.bloomText.opacity(0.85))
                     }
                     Spacer()
@@ -105,15 +112,58 @@ struct PlacesMapView: View {
         NavigationStack {
             List {
                 ForEach(groups) { group in
-                    Section(group.place.name) {
+                    Section {
+                        kindMenu(group)
                         ForEach(group.notes) { note in
                             NavigationLink { ContentViewer(item: note) } label: { Text(note.displayTitle) }
                         }
-                    }
+                    } header: { Label(group.place.name, systemImage: group.place.resolvedKind.symbol) }
                 }
             }.bloomCanvas().navigationTitle("Luoghi salvati").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Fine") { showingList = false } } }
         }
+    }
+    private func kindMenu(_ group: PlaceGroup) -> some View {
+        Menu {
+            ForEach(PlaceKind.allCases) { kind in
+                Button { saveKind(kind, for: group) } label: { Label(kind.label, systemImage: kind.symbol) }
+                    .accessibilityIdentifier("place-kind-\(kind.rawValue)")
+            }
+        } label: {
+            Label(group.place.kind == nil ? "Scegli tipologia" : group.place.resolvedKind.label, systemImage: group.place.resolvedKind.symbol)
+                .font(.subheadline).frame(minHeight: 44, alignment: .leading)
+        }.accessibilityIdentifier("map-place-kind-\(group.id)")
+            .accessibilityHint("Modifica la tipologia di questo luogo")
+    }
+    private func saveKind(_ kind: PlaceKind, for group: PlaceGroup) {
+        do {
+            for note in group.notes {
+                guard var place = note.place else { continue }
+                place.kind = kind; note.place = place; note.modifiedAt = .now
+            }
+            try context.save()
+        } catch { context.rollback(); placeError = error.localizedDescription }
+    }
+    /// Resolve old saved places only when opened; never assign a nearby business's type.
+    private func resolveSelectedKind() async {
+        guard let selected, selected.place.kind == nil,
+              !ProcessInfo.processInfo.arguments.contains("--ui-test-in-memory") else { return }
+        let coordinate = CLLocationCoordinate2D(latitude: selected.place.latitude, longitude: selected.place.longitude)
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = selected.place.name
+        request.region = MKCoordinateRegion(center: coordinate, latitudinalMeters: 500, longitudinalMeters: 500)
+        let operation = MKLocalSearch(request: request)
+        let response = await withTaskCancellationHandler {
+            try? await operation.start()
+        } onCancel: { operation.cancel() }
+        guard !Task.isCancelled, selectedID == selected.id,
+              let current = groups.first(where: { $0.id == selected.id }), current.place.kind == nil,
+              let result = response?.mapItems.first(where: {
+                  PlaceKind.normalized($0.name ?? "") == PlaceKind.normalized(selected.place.name) &&
+                  CLLocation(latitude: $0.placemark.coordinate.latitude, longitude: $0.placemark.coordinate.longitude)
+                      .distance(from: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)) <= 150
+              }), let kind = PlaceKind.from(result) else { return }
+        saveKind(kind, for: current)
     }
     private func openMaps(_ place: NotePlace) {
         let item = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude)))

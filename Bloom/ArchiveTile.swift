@@ -50,12 +50,23 @@ struct ArchiveTile: View {
     private var feedTile: some View {
         VStack(spacing: 0) {
             footer
-            NoteCarousel(item: item, aspectRatio: 3.0 / 4.0, onOpenNote: open)
-                .overlay(alignment: .bottomTrailing) {
-                    Label("Apri nota", systemImage: "arrow.up.right").font(.caption.weight(.semibold))
-                        .padding(.horizontal, 12).padding(.vertical, 8).background(Color.bloomSurface, in: Capsule())
-                        .padding(12).allowsHitTesting(false).accessibilityHidden(true)
-                }
+            if item.allLinks.isEmpty && item.noteFiles.isEmpty && item.kind == .text {
+                Button(action: open) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        TextNotePreview(text: item.noteBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? item.displayTitle : item.noteBody)
+                            .frame(minHeight: 112, alignment: .leading)
+                        Label("Apri nota", systemImage: "arrow.up.right").font(.caption.weight(.semibold))
+                            .padding(.horizontal, 24).padding(.bottom, 16)
+                    }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                }.buttonStyle(.plain).accessibilityIdentifier("text-note-preview")
+            } else {
+                NoteCarousel(item: item, aspectRatio: 3.0 / 4.0, onOpenNote: open)
+                    .overlay(alignment: .bottomTrailing) {
+                        Label("Apri nota", systemImage: "arrow.up.right").font(.caption.weight(.semibold))
+                            .padding(.horizontal, 12).padding(.vertical, 8).background(Color.bloomSurface, in: Capsule())
+                            .padding(12).allowsHitTesting(false).accessibilityHidden(true)
+                    }
+            }
             HStack {
                 Text(item.allLinks.first?.host ?? item.kind.label).font(.caption)
                 Spacer()
@@ -158,23 +169,7 @@ struct ArchiveTile: View {
             }
         }
     }
-    @ViewBuilder private var preview: some View {
-        if let data = item.previewImageData, item.previewSourceURL == item.allLinks.first?.absoluteString {
-            CachedPreviewImage(data: data, label: item.displayTitle, maxPixel: compact ? 512 : 768, contentMode: .fill)
-        } else if item.kind == .image {
-            AttachmentThumbnail(item: item, maximumPixelSize: compact ? 512 : 768, contentMode: .fill)
-        } else {
-            VStack(alignment: .leading, spacing: compact ? 6 : 12) {
-                Image(systemName: item.kind.symbol).font(compact ? .caption : .title2).foregroundStyle(BloomBrand.gradient)
-                if compact, let title = item.title, !title.isEmpty {
-                    Text(title).font(.caption.weight(.semibold)).lineLimit(2)
-                }
-                if !item.noteBody.isEmpty { MarkdownExcerpt(text: item.noteBody, font: compact ? .caption : .subheadline).lineLimit(3) }
-                else { Text(item.allLinks.first?.host ?? item.fileName ?? item.displayTitle).font(compact ? .caption : .subheadline).lineLimit(3) }
-                Spacer(minLength: compact ? 0 : 44)
-            }.padding(compact ? 8 : 16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-    }
+    private var preview: some View { NoteVisualPreview(item: item, maximumPixel: compact ? 512 : 768) }
 
     private var hasImage: Bool { item.kind == .image || (item.previewImageData != nil && item.previewSourceURL == item.allLinks.first?.absoluteString) }
     private func open() {

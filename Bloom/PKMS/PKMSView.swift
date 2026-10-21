@@ -12,6 +12,7 @@ struct PKMSView: View {
     @State private var search = ""
     @State private var settings = false
     @State private var choosingRoot = false
+    @State private var openedEntry: DropboxEntry?
     private struct TreeRow: Identifiable {
         let entry: DropboxEntry; let depth: Int
         var id: String { entry.identity }
@@ -106,6 +107,7 @@ struct PKMSView: View {
                     }.font(.caption).foregroundStyle(Color.bloomText.opacity(0.85)).padding(.horizontal, 16).padding(.vertical, 8).background(Color.bloomSurface)
                 }
             }
+            .navigationDestination(item: $openedEntry) { entry in PKMSEditorView(store: store, entry: entry) }
             .sheet(isPresented: $settings) { PKMSSettingsView(store: store) }
             .sheet(isPresented: $choosingRoot) { DropboxFolderPicker { path in Task { await store.selectRoot(path) } } }
             .task {
@@ -138,9 +140,7 @@ struct PKMSView: View {
             }.buttonStyle(.plain).sensoryFeedback(.selection, trigger: expanded.contains(row.entry.pathLower))
                 .accessibilityLabel(row.entry.title).accessibilityValue(expanded.contains(row.entry.pathLower) ? "Espansa" : "Chiusa")
         } else {
-            NavigationLink {
-                PKMSEditorView(store: store, entry: row.entry)
-            } label: {
+            Button { openedEntry = row.entry } label: {
                 HStack(spacing: 8) {
                     Color.clear.frame(width: 16, height: 1).accessibilityHidden(true)
                     Image(systemName: "doc.text").frame(width: 18).foregroundStyle(Color.bloomText.opacity(0.8))
@@ -149,8 +149,10 @@ struct PKMSView: View {
                     Spacer(minLength: 0)
                     if store.documents[row.id]?.hasConflict == true { Image(systemName: "exclamationmark.triangle").accessibilityLabel("Conflitto") }
                     else if store.documents[row.id]?.dirty == true { Image(systemName: "icloud.and.arrow.up").accessibilityLabel("Modifiche in attesa") }
-                }.padding(.leading, CGFloat(min(row.depth, 12)) * 16).frame(minHeight: 44)
-            }.accessibilityIdentifier("pkms-note-\(row.entry.title)")
+                }.padding(.leading, CGFloat(min(row.depth, 12)) * 16).frame(minHeight: 44).contentShape(Rectangle())
+            }.buttonStyle(.plain).foregroundStyle(Color.bloomText)
+                .accessibilityHint("Apri documento")
+                .accessibilityIdentifier("pkms-note-\(row.entry.title)")
         }
     }
 

@@ -140,7 +140,7 @@ struct LibraryView: View {
     }
     private func category(_ name: String, symbol: String, value: CollectionFilter, members: [CapturedLink]) -> some View {
         Button { filter = value; allNotes = true; revealed = nil } label: {
-            CategoryCover(name: name, symbol: symbol, count: members.count)
+            CategoryCover(name: name, members: members)
                 .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
         }.buttonStyle(.plain)
             .accessibilityElement(children: .ignore).accessibilityLabel("Apri categoria \(name), \(ContentLabels.noteCount(members.count))")

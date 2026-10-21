@@ -8,6 +8,7 @@ struct PlacePicker: View {
     let currentPlace: NotePlace?
     let onRemove: (() -> Void)?
     @State private var query = ""
+    @State private var chosenKind: PlaceKind?
     @State private var results: [MKMapItem] = []
     @State private var search: MKLocalSearch?
     @State private var loading = false
@@ -21,6 +22,7 @@ struct PlacePicker: View {
         self.onRemove = onRemove
         self.onSelect = onSelect
         _query = State(initialValue: currentPlace?.name ?? "")
+        _chosenKind = State(initialValue: currentPlace?.kind)
     }
     var body: some View {
         NavigationStack {
@@ -31,9 +33,19 @@ struct PlacePicker: View {
                         .accessibilityIdentifier("place-search")
                     Button("Cerca", action: runSearch).disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).count < 2 || loading)
                 }
+                Section {
+                    Picker("Tipologia", selection: $chosenKind) {
+                        Text("Da Apple Maps").tag(Optional<PlaceKind>.none)
+                        ForEach(PlaceKind.allCases) { kind in Label(kind.label, systemImage: kind.symbol).tag(Optional(kind)) }
+                    }.accessibilityIdentifier("place-kind-picker")
+                }
                 if let currentPlace {
                     Section("Luogo attuale") {
                         Text(currentPlace.name)
+                        Button("Salva tipologia") {
+                            var value = currentPlace; value.kind = chosenKind
+                            onSelect(value); dismiss()
+                        }.accessibilityIdentifier("place-kind-save")
                         if let onRemove {
                             Button("Rimuovi luogo", role: .destructive) { onRemove(); dismiss() }
                                 .accessibilityIdentifier("place-remove")
@@ -46,12 +58,13 @@ struct PlacePicker: View {
                 ForEach(Array(results.enumerated()), id: \.offset) { _, result in
                     Button {
                         let coordinate = result.placemark.coordinate
-                        let value = NotePlace(name: result.name ?? result.placemark.title ?? query, latitude: coordinate.latitude, longitude: coordinate.longitude)
+                        let value = NotePlace(name: result.name ?? result.placemark.title ?? query, latitude: coordinate.latitude, longitude: coordinate.longitude, kind: chosenKind ?? PlaceKind.from(result))
                         guard value.isValid else { return }
                         onSelect(value); dismiss()
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(result.name ?? "Luogo").foregroundStyle(.primary)
+                            if let kind = chosenKind ?? PlaceKind.from(result) { Label(kind.label, systemImage: kind.symbol).font(.caption).foregroundStyle(.secondary) }
                             if let address = result.placemark.title { Text(address).font(.caption).foregroundStyle(.secondary) }
                         }.frame(minHeight: 44)
                     }

@@ -18,7 +18,7 @@ struct NoteOrganizationControls: View {
             }.buttonStyle(.plain).accessibilityIdentifier("note-edit-categories")
                 .accessibilityValue(expanded ? "Aperto" : "Chiuso")
             Button { choosingPlace = true } label: {
-                row("Luogo", value: item.place?.name ?? "Aggiungi luogo", symbol: "mappin.and.ellipse", expanded: false)
+                row("Luogo", value: item.place.map { "\($0.name) · \($0.kind?.label ?? "Scegli tipologia")" } ?? "Aggiungi luogo", symbol: item.place?.resolvedKind.symbol ?? "mappin.and.ellipse", expanded: false)
             }.buttonStyle(.plain).accessibilityIdentifier("note-edit-place")
             if expanded {
                 TagSelection(selected: selected, categoryMode: true)

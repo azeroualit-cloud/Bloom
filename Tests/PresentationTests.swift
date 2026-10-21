@@ -4,6 +4,35 @@ import SwiftUI
 @testable import Bloom
 
 final class PresentationTests: XCTestCase {
+    func testTextPresentationPreservesStructuredDocumentsAndRecognisesShortQuotes() {
+        XCTAssertEqual(TextNoteStyle.classify("San Giuliano Terme"), .statement)
+        XCTAssertEqual(TextNoteStyle.classify("> Le cose belle crescono un giorno alla volta."), .quote)
+        XCTAssertEqual(TextNoteStyle.classify("# Un titolo breve"), .statement)
+        XCTAssertEqual(TextNoteStyle.displayText("> **Una citazione**"), "**Una citazione**")
+        for source in ["1. Gel\n2. Curl", "- Primo\n- Secondo", "| A | B |\n| --- | --- |\n| 1 | 2 |", "```swift\nlet x = 1\n```", String(repeating: "Una nota lunga. ", count: 40)] {
+            XCTAssertEqual(TextNoteStyle.classify(source), .document, source)
+        }
+    }
+    func testPlaceKindsDecodeOldAndFutureBackupsWithoutLosingCoordinates() throws {
+        let old = Data(#"{"name":"Roma","latitude":41.89,"longitude":12.49}"#.utf8)
+        let legacy = try JSONDecoder().decode(NotePlace.self, from: old)
+        XCTAssertNil(legacy.kind)
+        XCTAssertEqual(legacy.resolvedKind, .other)
+        var updated = legacy; updated.kind = .culture
+        XCTAssertEqual(try JSONDecoder().decode(NotePlace.self, from: JSONEncoder().encode(updated)), updated)
+        let future = Data(#"{"name":"Roma","latitude":41.89,"longitude":12.49,"kind":"future-category"}"#.utf8)
+        XCTAssertEqual(try JSONDecoder().decode(NotePlace.self, from: future), legacy)
+    }
+    func testPlaceKindUsesMapMetadataRatherThanGuessingFromAName() {
+        let item = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: 41.89, longitude: 12.49)))
+        item.name = "Montagna Restaurant"
+        XCTAssertNil(PlaceKind.from(item))
+        item.pointOfInterestCategory = .restaurant
+        XCTAssertEqual(PlaceKind.from(item), .restaurant)
+        item.pointOfInterestCategory = .store
+        XCTAssertEqual(PlaceKind.from(item), .shop)
+    }
+
     func testMarkdownTableKeepsColumnsEscapesAndRaggedRows() throws {
         let source = "## Contatti\n\n| Chi | Recapito |\n| :--- | ---: |\n| Helpdesk | 0100000000 |\n| A\\|B | `x|y` |\n| Solo |\n\n###### Because\nSpiega il **Perché**"
         let blocks = MarkdownBlock.parse(source)
@@ -116,13 +145,15 @@ final class PresentationTests: XCTestCase {
         XCTAssertTrue(coordinator.updateAnnotations(map, places: [original]))
         coordinator.fit(map, annotations: [original], animated: false)
         let camera = map.visibleMapRect
-        let updated = PlaceMapAnnotation(id: "rome", place: place, count: 2)
+        var classified = place; classified.kind = .culture
+        let updated = PlaceMapAnnotation(id: "rome", place: classified, count: 2)
         XCTAssertFalse(coordinator.updateAnnotations(map, places: [updated]))
         XCTAssertEqual(map.visibleMapRect.origin.x, camera.origin.x)
         XCTAssertEqual(map.visibleMapRect.origin.y, camera.origin.y)
         XCTAssertEqual(map.visibleMapRect.size.width, camera.size.width)
         XCTAssertEqual(map.visibleMapRect.size.height, camera.size.height)
         XCTAssertEqual(original.count, 2)
+        XCTAssertEqual(original.kind, .culture)
     }
     @MainActor
     func testMapPinsKeepExactCoordinatesAndAllowNativeClustering() {

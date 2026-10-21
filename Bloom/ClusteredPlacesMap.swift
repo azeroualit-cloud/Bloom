@@ -54,8 +54,8 @@ struct ClusteredPlacesMap: UIViewRepresentable {
             }
             let byID = Dictionary(uniqueKeysWithValues: places.map { ($0.id, $0) })
             for case let current as PlaceMapAnnotation in map.annotations {
-                guard let updated = byID[current.id], current.title != updated.title || current.count != updated.count else { continue }
-                current.title = updated.title; current.count = updated.count
+                guard let updated = byID[current.id], current.title != updated.title || current.count != updated.count || current.kind != updated.kind else { continue }
+                current.title = updated.title; current.count = updated.count; current.kind = updated.kind
                 (map.view(for: current) as? PlacePinView)?.configure(current)
             }
             for case let cluster as MKClusterAnnotation in map.annotations {
@@ -122,9 +122,10 @@ final class PlaceMapAnnotation: NSObject, MKAnnotation {
     let coordinate: CLLocationCoordinate2D
     var title: String?
     var count: Int
+    var kind: PlaceKind
     init(id: String, place: NotePlace, count: Int) {
         self.id = id; coordinate = CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude)
-        title = place.name; self.count = count
+        title = place.name; self.count = count; kind = place.resolvedKind
     }
 }
 
@@ -194,7 +195,7 @@ final class PlaceClusterView: PlaceAnnotationView {
 @MainActor
 final class PlacePinView: PlaceAnnotationView {
     private let ring = UIView()
-    private let dot = UIView()
+    private let glyph = UIImageView()
     override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
         frame = CGRect(x: 0, y: 0, width: 44, height: 44)
@@ -206,10 +207,10 @@ final class PlacePinView: PlaceAnnotationView {
         ring.layer.cornerRadius = 16
         ring.layer.borderWidth = 2
         ring.layer.borderColor = BloomBrand.uiAccent.cgColor
-        dot.frame = CGRect(x: 13, y: 13, width: 18, height: 18)
-        dot.layer.cornerRadius = 9
-        dot.backgroundColor = BloomBrand.uiAccent
-        addSubview(ring); addSubview(dot)
+        glyph.frame = CGRect(x: 12, y: 12, width: 20, height: 20)
+        glyph.contentMode = .scaleAspectFit
+        glyph.tintColor = BloomBrand.uiAccent
+        addSubview(ring); addSubview(glyph)
         isAccessibilityElement = true; accessibilityTraits = .button
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -218,8 +219,9 @@ final class PlacePinView: PlaceAnnotationView {
         ring.layer.borderWidth = selected ? 4 : 2
     }
     func configure(_ place: PlaceMapAnnotation) {
+        glyph.image = UIImage(systemName: place.kind.symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .semibold))
         accessibilityIdentifier = "map-marker-\(place.id)"
-        accessibilityLabel = "\(place.title ?? "Luogo"), \(ContentLabels.noteCount(place.count))"
+        accessibilityLabel = "\(place.title ?? "Luogo"), \(place.kind.label), \(ContentLabels.noteCount(place.count))"
         accessibilityHint = "Mostra le note salvate in questo luogo"
     }
 }

@@ -81,7 +81,13 @@ struct NoteDetailView: View {
                 NoteOrganizationControls(item: item)
                 Text(item.displayTitle).font(.title2.bold()).foregroundStyle(Color.bloomText).textSelection(.enabled).accessibilityIdentifier("note-detail-title")
                 if !item.noteBody.isEmpty {
-                    MarkdownDocumentView(text: item.noteBody).accessibilityIdentifier("note-detail-body")
+                    if TextNoteStyle.classify(item.noteBody) == .document {
+                        MarkdownDocumentView(text: item.noteBody).accessibilityIdentifier("note-detail-body")
+                    } else {
+                        TextNotePreview(text: item.noteBody).textSelection(.enabled)
+                            .clipShape(RoundedRectangle(cornerRadius: BloomLayout.radius))
+                            .accessibilityIdentifier("note-detail-body")
+                    }
                 }
             }.padding(20).frame(maxWidth: 740, alignment: .leading).frame(maxWidth: .infinity)
         }

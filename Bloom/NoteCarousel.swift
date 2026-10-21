@@ -11,7 +11,7 @@ struct NoteCarousel: View {
     var showsBody = true
     @State private var page = 0
     private var hasPrimary: Bool { item.kind == .image || item.kind == .file }
-    private var count: Int { item.carouselPageCount - (!showsBody && !item.noteBody.isEmpty ? 1 : 0) }
+    private var count: Int { max(1, item.carouselPageCount - (!showsBody && !item.noteBody.isEmpty ? 1 : 0)) }
     var body: some View {
         GeometryReader { geometry in
             TabView(selection: $page) {
@@ -27,6 +27,9 @@ struct NoteCarousel: View {
                 ForEach(Array(item.noteFiles.enumerated()), id: \.element.id) { offset, file in
                     let index = links.count + (hasPrimary ? 1 : 0) + offset
                     filePage(file, primary: false, index: index).tag(index)
+                }
+                if item.carouselPageCount == 0 {
+                    TextNotePreview(text: item.displayTitle).tag(0)
                 }
                 if showsBody && !item.noteBody.isEmpty {
                     ScrollView { MarkdownDocumentView(text: item.noteBody).padding(20).padding(.bottom, 30) }

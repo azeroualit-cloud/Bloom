@@ -396,6 +396,11 @@ enum LocalLibrary {
             let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
             let container = try ModelContainer(for: schema, configurations: [config])
             try LinkStore.initializeTags(in: container.mainContext)
+            if let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--ui-test-text=") }) {
+                let mode = argument.replacingOccurrences(of: "--ui-test-text=", with: "")
+                let body = mode == "quote" ? "> Le cose belle crescono un giorno alla volta." : mode == "long" ? "## Idee da coltivare\n\n" + String(repeating: "Una nota raccoglie pensieri, dettagli e nuove possibilità.\n\n", count: 12) : ""
+                _ = try LinkStore.saveNote(title: mode == "title" ? "San Giuliano Terme" : "Idee da coltivare", body: body, urls: [], files: [], tags: [], in: container.mainContext)
+            }
             if ProcessInfo.processInfo.arguments.contains("--ui-test-attachments") {
                 let note = CapturedLink(kind: .text)
                 note.title = "Attachment fixture"; note.textContent = "Documents"; note.noteVersion = 1

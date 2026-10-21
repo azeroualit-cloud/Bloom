@@ -1,34 +1,38 @@
 import SwiftUI
 
-/// A category is a destination, with identity and count in one compact card.
+/// A stable, live collage of up to three recent members, refreshed with their cached previews.
+@MainActor
 struct CategoryCover: View {
+    @Environment(\.modelContext) private var context
     let name: String
-    let symbol: String
-    let count: Int
-
+    let members: [CapturedLink]
+    private var samples: [CapturedLink] { Array(members.prefix(3)) }
     var body: some View {
-        VStack(alignment: .leading, spacing: BloomLayout.small) {
-            Image(systemName: Self.symbol(for: name, fallback: symbol))
-                .font(.title2.weight(.medium)).foregroundStyle(BloomBrand.gradient)
-                .frame(width: BloomLayout.touch, height: BloomLayout.touch)
-                .background(Color.bloomRaised, in: RoundedRectangle(cornerRadius: BloomLayout.gap))
-                .accessibilityHidden(true)
-            Text(name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.bloomText)
-            Text(ContentLabels.noteCount(count)).font(.caption).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
-        .padding(BloomLayout.margin)
-        .background(Color.bloomSurface, in: RoundedRectangle(cornerRadius: BloomLayout.radius))
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 3) {
+                if let first = samples.first {
+                    thumbnail(first)
+                    if samples.count > 1 {
+                        VStack(spacing: 3) {
+                            thumbnail(samples[1])
+                            if samples.count > 2 { thumbnail(samples[2]) }
+                        }.frame(maxWidth: .infinity)
+                    }
+                } else {
+                    Text("Le tue prossime idee").font(.caption).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }.frame(height: 80).clipShape(RoundedRectangle(cornerRadius: 10))
+            Text(name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.bloomText).lineLimit(2)
+            Text(ContentLabels.noteCount(members.count)).font(.caption).foregroundStyle(.secondary)
+        }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.bloomSurface, in: RoundedRectangle(cornerRadius: BloomLayout.radius))
     }
-
-    static func symbol(for name: String, fallback: String) -> String {
-        symbols[name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)] ?? fallback
+    private func thumbnail(_ note: CapturedLink) -> some View {
+        NoteVisualPreview(item: note).frame(maxWidth: .infinity, maxHeight: .infinity)
+            .task(id: note.allLinks.first) {
+                guard note.modelContext != nil, !note.isDeleted else { return }
+                LinkPreviewController.shared.prepare(for: note, in: context)
+            }
     }
-    private static let symbols = [
-        "looks": "tshirt", "luoghi": "mappin.and.ellipse", "foto/video": "photo.on.rectangle.angled",
-        "salute": "heart", "alimentazione": "carrot", "studio": "book",
-        "lavoro": "briefcase", "progetti": "hammer", "casa": "house",
-        "tecnologia": "desktopcomputer", "comunicazione": "bubble.left.and.bubble.right",
-        "dating": "heart", "psicologia": "brain.head.profile", "viaggi": "airplane"
-    ]
 }

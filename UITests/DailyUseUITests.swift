@@ -241,6 +241,12 @@ final class DailyUseUITests: XCTestCase {
         tapWhenReady(marker, in: app)
         let openNote = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-open-note-' ")).firstMatch
         XCTAssertTrue(openNote.waitForExistence(timeout: 5), diagnostics(app))
+        let kind = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-place-kind-' ")).firstMatch
+        tapWhenReady(kind, in: app)
+        tapWhenReady(app.buttons["place-kind-culture"], in: app)
+        XCTAssertTrue(kind.label.contains("Arte e cultura"), diagnostics(app))
+        XCTAssertTrue(marker.label.contains("Arte e cultura"), diagnostics(app))
+        captureScreen(app, name: "Saved place with semantic category and editable type")
         tapWhenReady(app.buttons["Chiudi luogo"], in: app)
         let closed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in !openNote.exists }, object: openNote)
         XCTAssertEqual(XCTWaiter.wait(for: [closed], timeout: 5), .completed, diagnostics(app))
@@ -314,6 +320,31 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Carousel text"].exists)
         carousel.swipeRight()
         XCTAssertEqual(position.label, "1/2")
+    }
+
+    @MainActor
+    func testTextOnlyRediscoveryUsesCompactReadablePosts() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        for mode in ["title", "quote", "long"] {
+            app.launchArguments = ["--ui-test-in-memory", "--ui-test-text=" + mode]
+            app.launch()
+            tapWhenReady(app.tabBars.buttons["Riscopri"], in: app)
+            let preview = app.buttons["text-note-preview"].firstMatch
+            XCTAssertTrue(preview.waitForExistence(timeout: 5), diagnostics(app))
+            XCTAssertLessThan(preview.frame.height, mode == "long" ? 380 : 270)
+            XCTAssertFalse(app.otherElements["note-carousel"].exists)
+            if mode == "title" { XCTAssertTrue(preview.label.contains("San Giuliano Terme"), diagnostics(app)) }
+            if mode == "quote" { XCTAssertTrue(preview.label.contains("Le cose belle"), diagnostics(app)) }
+            captureScreen(app, name: "Expressive text post - " + mode)
+            tapWhenReady(preview, in: app)
+            XCTAssertTrue(app.staticTexts["note-detail-title"].waitForExistence(timeout: 5), diagnostics(app))
+            if mode == "long" {
+                app.swipeUp()
+                XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'Una nota raccoglie' ")).firstMatch.exists, diagnostics(app))
+            }
+            app.terminate()
+        }
     }
 
     @MainActor
