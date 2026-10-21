@@ -116,7 +116,11 @@ final class DailyUseUITests: XCTestCase {
             var candidateFrame = CGRect.null
             var stableSince = Date()
             let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-                guard let visible = pins.allElementsBoundByIndex.first(where: { $0.isHittable }) else {
+                guard let visible = pins.allElementsBoundByIndex.first(where: {
+                    let frame = $0.frame
+                    return !frame.isEmpty && frame.minX.isFinite && frame.minY.isFinite
+                        && app.frame.insetBy(dx: 30, dy: 100).contains(frame) && $0.isHittable
+                }) else {
                     candidateID = nil; stableSince = Date(); return false
                 }
                 let id = visible.identifier

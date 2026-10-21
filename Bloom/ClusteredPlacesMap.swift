@@ -129,9 +129,38 @@ final class PlaceMapAnnotation: NSObject, MKAnnotation {
     }
 }
 
+/// MapKit can retain hidden/offscreen annotation views while reclustering. Expose
+/// only a visible UIKit target and derive its screen geometry from the actual view.
+@MainActor
+class PlaceAnnotationView: MKAnnotationView {
+    override var isAccessibilityElement: Bool {
+        get {
+            guard super.isAccessibilityElement, cluster == nil, window != nil, !bounds.isEmpty else { return false }
+            var ancestor: UIView? = self
+            while let view = ancestor {
+                guard !view.isHidden, view.alpha > 0.01 else { return false }
+                if let map = view as? MKMapView {
+                    return map.bounds.contains(convert(CGPoint(x: bounds.midX, y: bounds.midY), to: map))
+                }
+                ancestor = view.superview
+            }
+            return false
+        }
+        set { super.isAccessibilityElement = newValue }
+    }
+    override var accessibilityFrame: CGRect {
+        get { UIAccessibility.convertToScreenCoordinates(bounds, in: self) }
+        set { super.accessibilityFrame = newValue }
+    }
+    override var accessibilityActivationPoint: CGPoint {
+        get { CGPoint(x: accessibilityFrame.midX, y: accessibilityFrame.midY) }
+        set { super.accessibilityActivationPoint = newValue }
+    }
+}
+
 /// A full-size UIKit target avoids MKMarkerAnnotationView's tiny internal accessibility hit region.
 @MainActor
-final class PlaceClusterView: MKAnnotationView {
+final class PlaceClusterView: PlaceAnnotationView {
     private let countLabel = UILabel()
     override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
@@ -169,7 +198,7 @@ final class PlaceClusterView: MKAnnotationView {
 }
 
 @MainActor
-final class PlacePinView: MKAnnotationView {
+final class PlacePinView: PlaceAnnotationView {
     private let thumbnail = UIImageView()
     private let badge = UILabel()
     private let anchor = UIImageView(image: UIImage(systemName: "triangle.fill"))

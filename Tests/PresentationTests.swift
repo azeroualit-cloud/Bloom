@@ -56,6 +56,29 @@ final class PresentationTests: XCTestCase {
         XCTAssertEqual(view.accessibilityIdentifier, "map-cluster")
     }
     @MainActor
+    func testMapAnnotationAccessibilityUsesVisibleViewGeometry() {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let root = UIViewController()
+        window.rootViewController = root
+        window.isHidden = false
+        let map = MKMapView(frame: CGRect(x: 0, y: 100, width: 390, height: 600))
+        root.view.addSubview(map)
+        let pin = PlacePinView(annotation: nil, reuseIdentifier: "accessibility")
+        pin.frame.origin = CGPoint(x: 100, y: 150)
+        map.addSubview(pin)
+        XCTAssertTrue(pin.isAccessibilityElement)
+        XCTAssertEqual(pin.accessibilityFrame, UIAccessibility.convertToScreenCoordinates(pin.bounds, in: pin))
+        XCTAssertEqual(pin.accessibilityActivationPoint, CGPoint(x: pin.accessibilityFrame.midX, y: pin.accessibilityFrame.midY))
+        pin.isHidden = true
+        XCTAssertFalse(pin.isAccessibilityElement)
+        pin.isHidden = false
+        pin.frame.origin.x = -100
+        XCTAssertFalse(pin.isAccessibilityElement)
+        pin.removeFromSuperview()
+        XCTAssertFalse(pin.isAccessibilityElement)
+        window.isHidden = true
+    }
+    @MainActor
     func testMapMetadataRefreshKeepsTheCameraAndUpdatesThePin() {
         let place = NotePlace(name: "Roma", latitude: 41.89, longitude: 12.49)
         let original = PlaceMapAnnotation(id: "rome", place: place, count: 1, imageData: nil)
