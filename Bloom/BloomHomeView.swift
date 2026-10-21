@@ -28,5 +28,6 @@ struct BloomHomeView: View {
         }.background(Color.bloomBackground.ignoresSafeArea())
             .toolbarBackground(Color.bloomBackground, for: .tabBar)
             .toolbarBackground(.visible, for: .tabBar)
+            .preferredColorScheme(ProcessInfo.processInfo.arguments.contains("--ui-test-in-memory") && ProcessInfo.processInfo.arguments.contains("--ui-test-dark") ? .dark : nil)
     }
 }

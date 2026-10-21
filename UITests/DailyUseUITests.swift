@@ -63,7 +63,7 @@ final class DailyUseUITests: XCTestCase {
     func testPKMSRendersMarkdownTablesAndKeyboardActionsWithoutChangingSource() {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-in-memory", "--ui-test-pkms=" + UUID().uuidString]
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-pkms=" + UUID().uuidString, "--ui-test-dark"]
         app.launch()
         tapWhenReady(app.tabBars.buttons["PKMS"], in: app)
         XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 5), diagnostics(app))
@@ -82,11 +82,15 @@ final class DailyUseUITests: XCTestCase {
         let source = editor.value as? String ?? ""
         XCTAssertTrue(source.contains("| Chi | Recapito |"))
         XCTAssertTrue(source.contains("**Perché**"))
+        captureScreen(app, name: "PKMS keyboard with complete formatting controls")
         tapWhenReady(app.buttons["Formato Markdown"], in: app)
         XCTAssertTrue(app.buttons["Checklist"].waitForExistence(timeout: 5), diagnostics(app))
         app.navigationBars["Contatti"].tap() // Dismiss outside the menu without mutating the document.
         tapWhenReady(app.buttons["pkms-keyboard-done"], in: app)
         XCTAssertFalse(app.keyboards.firstMatch.exists, diagnostics(app))
+        let restoredTab = app.tabBars.buttons["PKMS"]
+        let toolbarRestored = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in restoredTab.exists && restoredTab.isHittable }, object: restoredTab)
+        XCTAssertEqual(XCTWaiter.wait(for: [toolbarRestored], timeout: 5), .completed, diagnostics(app))
         XCTAssertEqual(editor.value as? String, source)
         captureScreen(app, name: "PKMS explicit source editing and save status")
         tapWhenReady(app.buttons["pkms-toggle-edit"], in: app)
@@ -98,7 +102,7 @@ final class DailyUseUITests: XCTestCase {
     func testDenseMapClustersZoomAndRetainsAccessiblePlacesList() {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-in-memory", "--ui-test-map-dense", "-AppleInterfaceStyle", "Dark"]
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-map-dense", "--ui-test-dark"]
         app.launch()
         tapWhenReady(app.tabBars.buttons["Mappa"], in: app)
         let cluster = app.buttons.matching(identifier: "map-cluster").firstMatch
@@ -179,7 +183,7 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Rome fixture"].waitForExistence(timeout: 5), diagnostics(app))
         XCTAssertTrue(app.buttons["note-edit-place"].exists)
         tapWhenReady(app.navigationBars.buttons.element(boundBy: 0), in: app)
-        tapWhenReady(app.buttons["Mostra tutti"], in: app)
+        tapWhenReady(app.buttons["map-show-all"], in: app)
         XCTAssertFalse(openNote.exists, diagnostics(app))
         tapWhenReady(app.buttons["map-places-list"], in: app)
         XCTAssertTrue(app.staticTexts["Colosseo"].waitForExistence(timeout: 5), diagnostics(app))

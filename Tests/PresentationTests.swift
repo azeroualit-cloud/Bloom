@@ -44,6 +44,18 @@ final class PresentationTests: XCTestCase {
         XCTAssertEqual(ContentLabels.linkTitle(URL(string: "https://tiktok.com.evil.example/test")!), "Link da tiktok.com.evil.example")
     }
     @MainActor
+    func testClusterHasAFullTouchTargetAndCountsNotesAcrossPlaces() {
+        let first = PlaceMapAnnotation(id: "a", place: NotePlace(name: "A", latitude: 41.89, longitude: 12.49), count: 3, imageData: nil)
+        let second = PlaceMapAnnotation(id: "b", place: NotePlace(name: "B", latitude: 41.90, longitude: 12.50), count: 1, imageData: nil)
+        let cluster = MKClusterAnnotation(memberAnnotations: [first, second])
+        let view = PlaceClusterView(annotation: cluster, reuseIdentifier: "test")
+        view.configure(cluster)
+        XCTAssertGreaterThanOrEqual(view.bounds.width, 44)
+        XCTAssertGreaterThanOrEqual(view.bounds.height, 44)
+        XCTAssertEqual(view.accessibilityLabel, "2 luoghi, 4 note")
+        XCTAssertEqual(view.accessibilityIdentifier, "map-cluster")
+    }
+    @MainActor
     func testMapMetadataRefreshKeepsTheCameraAndUpdatesThePin() {
         let place = NotePlace(name: "Roma", latitude: 41.89, longitude: 12.49)
         let original = PlaceMapAnnotation(id: "rome", place: place, count: 1, imageData: nil)

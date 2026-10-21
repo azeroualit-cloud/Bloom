@@ -88,10 +88,10 @@ struct PlacesMapView: View {
     }
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
-            Button("Luoghi", systemImage: "list.bullet") { showingList = true }.disabled(groups.isEmpty).labelStyle(.titleAndIcon).accessibilityLabel("Elenco luoghi salvati").accessibilityIdentifier("map-places-list")
+            Button("Luoghi") { showingList = true }.disabled(groups.isEmpty).labelStyle(.titleAndIcon).accessibilityLabel("Elenco luoghi salvati").accessibilityIdentifier("map-places-list")
         }
         ToolbarItem(placement: .topBarLeading) {
-            Button("Tutti", systemImage: "arrow.up.left.and.arrow.down.right") { selectedID = nil; fitRequest += 1 }.disabled(groups.isEmpty).labelStyle(.titleAndIcon).accessibilityLabel("Mostra tutti")
+            Button("Mostra tutti") { selectedID = nil; fitRequest += 1 }.disabled(groups.isEmpty).labelStyle(.titleAndIcon).accessibilityLabel("Mostra tutti").accessibilityIdentifier("map-show-all")
         }
     }
     private var placesList: some View {

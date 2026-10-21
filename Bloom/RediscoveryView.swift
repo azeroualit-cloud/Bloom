@@ -101,10 +101,10 @@ struct RediscoveryView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
                         ContentFilterOptions(collection: $collectionFilter, kind: $kindFilter)
-                    } label: { Label("Filtri", systemImage: "line.3.horizontal.decrease") }
+                    } label: { Text("Filtri") }
                         .labelStyle(.titleAndIcon).accessibilityLabel("Filtra note da riscoprire")
                 }
-                ToolbarItem(placement: .primaryAction) { Button("Mescola", systemImage: "shuffle", action: newRound).labelStyle(.titleAndIcon).accessibilityLabel("Nuovo giro").accessibilityHint("Mostra un nuovo gruppo di note").accessibilityIdentifier("rediscovery-next").disabled(contents.isEmpty) }
+                ToolbarItem(placement: .primaryAction) { Button("Mescola", action: newRound).labelStyle(.titleAndIcon).accessibilityLabel("Nuovo giro").accessibilityHint("Mostra un nuovo gruppo di note").accessibilityIdentifier("rediscovery-next").disabled(contents.isEmpty) }
             }
             .refreshable { if feed.isEmpty { resetRounds() } else { newRound() } }
             .onAppear(perform: loadPreferences)
