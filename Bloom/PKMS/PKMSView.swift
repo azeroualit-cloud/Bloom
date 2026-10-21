@@ -136,7 +136,7 @@ struct PKMSView: View {
                     Spacer(minLength: 0)
                 }.padding(.leading, CGFloat(min(row.depth, 12)) * 16).frame(minHeight: 44).contentShape(Rectangle())
             }.buttonStyle(.plain).sensoryFeedback(.selection, trigger: expanded.contains(row.entry.pathLower))
-                .accessibilityValue(expanded.contains(row.entry.pathLower) ? "Espansa" : "Chiusa")
+                .accessibilityLabel(row.entry.title).accessibilityValue(expanded.contains(row.entry.pathLower) ? "Espansa" : "Chiusa")
         } else {
             NavigationLink {
                 PKMSEditorView(store: store, entry: row.entry)

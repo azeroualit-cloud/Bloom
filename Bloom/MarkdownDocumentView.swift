@@ -6,20 +6,12 @@ struct MarkdownDocumentView: View {
     var query = ""
     var body: some View {
         let blocks = MarkdownBlock.parse(text)
-        ScrollViewReader { proxy in
-            LazyVStack(alignment: .leading, spacing: 12) {
-                ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
-                    blockView(block)
-                        .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
-                        .background(!query.isEmpty && block.text.localizedStandardContains(query) ? Color.yellow.opacity(0.15) : Color.clear)
-                        .id(index)
-                }
-            }
-            .onChange(of: query) { _, value in
-                if !value.isEmpty, let index = blocks.firstIndex(where: { block in
-                    if case .table(let headers, let rows) = block.kind { return (headers + rows.flatMap { $0 }).contains { $0.localizedStandardContains(value) } }
-                    return block.text.localizedStandardContains(value)
-                }) { proxy.scrollTo(index, anchor: .top) }
+        LazyVStack(alignment: .leading, spacing: 12) {
+            ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                blockView(block)
+                    .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(!query.isEmpty && block.text.localizedStandardContains(query) ? Color.yellow.opacity(0.15) : Color.clear)
+                    .id(index)
             }
         }.foregroundStyle(Color.bloomText).accessibilityIdentifier("detail-content-text")
     }

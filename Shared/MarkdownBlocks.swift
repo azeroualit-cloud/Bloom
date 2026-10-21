@@ -51,6 +51,16 @@ struct MarkdownBlock {
         return result
     }
 
+    static func firstMatch(in text: String, query: String) -> Int? {
+        guard !query.isEmpty else { return nil }
+        return parse(text).firstIndex { block in
+            if case .table(let headers, let rows) = block.kind {
+                return (headers + rows.flatMap { $0 }).contains { $0.localizedStandardContains(query) }
+            }
+            return block.text.localizedStandardContains(query)
+        }
+    }
+
     private static func isTableSeparator(_ line: String) -> Bool {
         let cells = tableCells(line)
         return !cells.isEmpty && cells.allSatisfy {

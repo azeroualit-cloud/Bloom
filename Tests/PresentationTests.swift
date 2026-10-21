@@ -28,6 +28,13 @@ final class PresentationTests: XCTestCase {
         XCTAssertEqual(headers, ["A", "B", ""])
         XCTAssertEqual(rows, [["1", "2", "3"]])
     }
+    func testDocumentSearchFindsTableCellsAndIsCaseInsensitive() {
+        let text = "# Intro\n\n| Chi | Recapito |\n| --- | --- |\n| Helpdesk | 0100000000 |\n\nFine"
+        XCTAssertEqual(MarkdownBlock.firstMatch(in: text, query: "HELPDESK"), 1)
+        XCTAssertEqual(MarkdownBlock.firstMatch(in: text, query: "Fine"), 2)
+        XCTAssertNil(MarkdownBlock.firstMatch(in: text, query: ""))
+        XCTAssertNil(MarkdownBlock.firstMatch(in: text, query: "Missing"))
+    }
     func testLabelsDistinguishCountsAndSafeSocialHostFallbacks() {
         XCTAssertEqual(ContentLabels.noteCount(0), "0 note")
         XCTAssertEqual(ContentLabels.noteCount(1), "1 nota")
@@ -35,6 +42,25 @@ final class PresentationTests: XCTestCase {
         XCTAssertEqual(ContentLabels.linkTitle(URL(string: "https://vm.tiktok.com/test/")!), "Video TikTok")
         XCTAssertEqual(ContentLabels.linkTitle(URL(string: "https://www.instagram.com/p/test/")!), "Post Instagram")
         XCTAssertEqual(ContentLabels.linkTitle(URL(string: "https://tiktok.com.evil.example/test")!), "Link da tiktok.com.evil.example")
+    }
+    @MainActor
+    func testMapMetadataRefreshKeepsTheCameraAndUpdatesThePin() {
+        let place = NotePlace(name: "Roma", latitude: 41.89, longitude: 12.49)
+        let original = PlaceMapAnnotation(id: "rome", place: place, count: 1, imageData: nil)
+        let parent = ClusteredPlacesMap(places: [original], selectedID: nil, fitRequest: 0) { _ in }
+        let coordinator = parent.makeCoordinator()
+        let map = MKMapView(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
+        XCTAssertTrue(coordinator.updateAnnotations(map, places: [original]))
+        coordinator.fit(map, annotations: [original], animated: false)
+        let camera = map.visibleMapRect
+        let updated = PlaceMapAnnotation(id: "rome", place: place, count: 2, imageData: Data([0, 1, 2]))
+        XCTAssertFalse(coordinator.updateAnnotations(map, places: [updated]))
+        XCTAssertEqual(map.visibleMapRect.origin.x, camera.origin.x)
+        XCTAssertEqual(map.visibleMapRect.origin.y, camera.origin.y)
+        XCTAssertEqual(map.visibleMapRect.size.width, camera.size.width)
+        XCTAssertEqual(map.visibleMapRect.size.height, camera.size.height)
+        XCTAssertEqual(original.count, 2)
+        XCTAssertEqual(original.imageData, updated.imageData)
     }
     @MainActor
     func testMapPinsKeepExactCoordinatesAndAllowNativeClustering() {

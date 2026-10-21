@@ -84,7 +84,7 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(source.contains("**Perché**"))
         tapWhenReady(app.buttons["Formato Markdown"], in: app)
         XCTAssertTrue(app.buttons["Checklist"].waitForExistence(timeout: 5), diagnostics(app))
-        app.tap() // Dismiss the formatting menu without mutating the document.
+        app.navigationBars["Contatti"].tap() // Dismiss outside the menu without mutating the document.
         tapWhenReady(app.buttons["pkms-keyboard-done"], in: app)
         XCTAssertFalse(app.keyboards.firstMatch.exists, diagnostics(app))
         XCTAssertEqual(editor.value as? String, source)

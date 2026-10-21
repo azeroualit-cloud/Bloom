@@ -23,11 +23,7 @@ struct ClusteredPlacesMap: UIViewRepresentable {
     func updateUIView(_ map: MKMapView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
-        let signature = places.map { "\($0.id):\($0.title ?? ""):\($0.count):\($0.imageData?.count ?? 0)" }
-        if signature != coordinator.signature {
-            coordinator.signature = signature
-            map.removeAnnotations(map.annotations)
-            map.addAnnotations(places)
+        if coordinator.updateAnnotations(map, places: places) {
             coordinator.fit(map, annotations: places, animated: false)
         }
         if fitRequest != coordinator.lastFitRequest {
@@ -46,6 +42,38 @@ struct ClusteredPlacesMap: UIViewRepresentable {
         var signature: [String] = []
         var lastFitRequest = 0
         init(_ parent: ClusteredPlacesMap) { self.parent = parent }
+        /// Thumbnail/title refreshes must not reset a camera the user has moved.
+        func updateAnnotations(_ map: MKMapView, places: [PlaceMapAnnotation]) -> Bool {
+            let geometry = places.map { "\($0.id):\($0.coordinate.latitude):\($0.coordinate.longitude)" }
+            if geometry != signature {
+                signature = geometry
+                map.removeAnnotations(map.annotations)
+                map.addAnnotations(places)
+                return true
+            }
+            let byID = Dictionary(uniqueKeysWithValues: places.map { ($0.id, $0) })
+            for case let current as PlaceMapAnnotation in map.annotations {
+                guard let updated = byID[current.id], current.title != updated.title || current.count != updated.count || current.imageData != updated.imageData else { continue }
+                current.title = updated.title; current.count = updated.count; current.imageData = updated.imageData
+                (map.view(for: current) as? PlacePinView)?.configure(current)
+            }
+            for case let cluster as MKClusterAnnotation in map.annotations {
+                if let view = map.view(for: cluster) as? MKMarkerAnnotationView { configureCluster(view, cluster: cluster) }
+            }
+            return false
+        }
+        private func configureCluster(_ view: MKMarkerAnnotationView, cluster: MKClusterAnnotation) {
+            let notes = cluster.memberAnnotations.compactMap { $0 as? PlaceMapAnnotation }.reduce(0) { $0 + $1.count }
+            view.glyphText = "\(notes)"
+            view.markerTintColor = UIColor(Color.accentColor)
+            view.displayPriority = .required
+            view.titleVisibility = .hidden
+            view.isAccessibilityElement = true
+            view.accessibilityTraits = .button
+            view.accessibilityIdentifier = "map-cluster"
+            view.accessibilityLabel = "\(cluster.memberAnnotations.count) luoghi, \(ContentLabels.noteCount(notes))"
+            view.accessibilityHint = "Ingrandisci per separare i luoghi"
+        }
         func fit(_ map: MKMapView, annotations: [MKAnnotation], animated: Bool) {
             guard !annotations.isEmpty else { return }
             if map.bounds.isEmpty {
@@ -65,16 +93,7 @@ struct ClusteredPlacesMap: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             if let cluster = annotation as? MKClusterAnnotation {
                 let view = mapView.dequeueReusableAnnotationView(withIdentifier: "cluster", for: cluster) as! MKMarkerAnnotationView
-                let notes = cluster.memberAnnotations.compactMap { $0 as? PlaceMapAnnotation }.reduce(0) { $0 + $1.count }
-                view.glyphText = "\(notes)"
-                view.markerTintColor = UIColor(Color.accentColor)
-                view.displayPriority = .required
-                view.titleVisibility = .hidden
-                view.isAccessibilityElement = true
-                view.accessibilityTraits = .button
-                view.accessibilityIdentifier = "map-cluster"
-                view.accessibilityLabel = "\(cluster.memberAnnotations.count) luoghi, \(notes) note"
-                view.accessibilityHint = "Ingrandisci per separare i luoghi"
+                configureCluster(view, cluster: cluster)
                 return view
             }
             guard let place = annotation as? PlaceMapAnnotation else { return nil }
@@ -105,9 +124,9 @@ private final class PlaceMapCanvas: MKMapView {
 final class PlaceMapAnnotation: NSObject, MKAnnotation {
     let id: String
     let coordinate: CLLocationCoordinate2D
-    let title: String?
-    let count: Int
-    let imageData: Data?
+    var title: String?
+    var count: Int
+    var imageData: Data?
     init(id: String, place: NotePlace, count: Int, imageData: Data?) {
         self.id = id; coordinate = CLLocationCoordinate2D(latitude: place.latitude, longitude: place.longitude)
         title = place.name; self.count = count; self.imageData = imageData
@@ -148,6 +167,11 @@ final class PlacePinView: MKAnnotationView {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     override func prepareForReuse() { super.prepareForReuse(); decode?.cancel(); thumbnail.image = nil }
+    override func setSelected(_ selected: Bool, animated: Bool) {
+        super.setSelected(selected, animated: animated)
+        thumbnail.layer.borderWidth = selected ? 3 : 2
+        thumbnail.layer.borderColor = (selected ? UIColor(Color.accentColor) : UIColor.label).cgColor
+    }
     func configure(_ place: PlaceMapAnnotation) {
         decode?.cancel()
         accessibilityIdentifier = "map-marker-\(place.id)"

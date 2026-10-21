@@ -36,8 +36,7 @@ final class LinkPreviewController {
                 guard link.modelContext != nil, link.allLinks.first == url else { return }
                 if (link.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                    let title = metadata.title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
-                    link.title = title
-                    try context.save()
+                    _ = try LinkStore.fillMissingTitle(title, for: link, in: context)
                 }
                 guard let imageProvider = metadata.imageProvider else {
                     return

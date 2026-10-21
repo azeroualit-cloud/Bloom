@@ -88,10 +88,15 @@ struct PKMSEditorView: View {
             LiveMarkdownEditor(text: Binding(get: { store.documents[entry.identity]?.text ?? "" },
                                             set: { store.update(id: entry.identity, text: $0) }), query: query, focused: $focused)
         } else {
-            ScrollView {
-                MarkdownDocumentView(text: document.text, query: query)
-                    .padding(16).padding(.bottom, 24).frame(maxWidth: 760, alignment: .leading).frame(maxWidth: .infinity)
-            }.accessibilityIdentifier("pkms-reader")
+            ScrollViewReader { proxy in
+                ScrollView {
+                    MarkdownDocumentView(text: document.text, query: query)
+                        .padding(16).padding(.bottom, 24).frame(maxWidth: 760, alignment: .leading).frame(maxWidth: .infinity)
+                }.accessibilityIdentifier("pkms-reader")
+                    .onChange(of: query) { _, value in
+                        if let index = MarkdownBlock.firstMatch(in: document.text, query: value) { proxy.scrollTo(index, anchor: .top) }
+                    }
+            }
         }
         HStack(spacing: 6) {
             Image(systemName: store.storageError != nil ? "exclamationmark.triangle" : document.dirty ? "icloud.and.arrow.up" : "checkmark")
