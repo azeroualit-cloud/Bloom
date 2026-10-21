@@ -8,6 +8,8 @@ final class DailyUseUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-in-memory", "--ui-test-grid"]
         app.launch()
+        XCTAssertTrue(app.buttons["category-Casa"].waitForExistence(timeout: 15), diagnostics(app))
+        captureScreen(app, name: "Compact Library categories and smart destinations")
         tapWhenReady(app.buttons["category-Casa"], in: app)
         let cells = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'note-open-'"))
         XCTAssertTrue(cells.element(boundBy: 3).waitForExistence(timeout: 5), diagnostics(app))
@@ -228,6 +230,9 @@ final class DailyUseUITests: XCTestCase {
         tapWhenReady(app.tabBars.buttons["Mappa"], in: app)
         let showAll = app.buttons["map-show-all"], places = app.buttons["map-places-list"]
         XCTAssertTrue(showAll.waitForExistence(timeout: 5))
+        let map = app.maps.firstMatch
+        XCTAssertTrue(map.waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertGreaterThanOrEqual(map.frame.maxY, app.tabBars.firstMatch.frame.minY - 24, "Map must not reserve the tab bar twice")
         XCTAssertEqual(showAll.frame.width, places.frame.width, accuracy: 1)
         XCTAssertEqual(showAll.frame.midY, places.frame.midY, accuracy: 1)
         XCTAssertEqual(showAll.frame.minX - app.frame.minX, app.frame.maxX - places.frame.maxX, accuracy: 1)

@@ -13,7 +13,7 @@ struct CategoryCover: View {
                 .frame(width: BloomLayout.touch, height: BloomLayout.touch)
                 .background(Color.bloomRaised, in: RoundedRectangle(cornerRadius: BloomLayout.gap))
                 .accessibilityHidden(true)
-            Text(name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.bloomText).lineLimit(2)
+            Text(name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.bloomText)
             Text(ContentLabels.noteCount(count)).font(.caption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)

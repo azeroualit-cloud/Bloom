@@ -67,7 +67,7 @@ struct PlacesMapView: View {
                 Text("Luoghi").frame(maxWidth: .infinity, minHeight: BloomLayout.touch)
                     .background(Color.bloomSurface, in: RoundedRectangle(cornerRadius: BloomLayout.gap))
             }.disabled(groups.isEmpty).accessibilityLabel("Elenco luoghi salvati").accessibilityIdentifier("map-places-list")
-        }).accessibilityIdentifier("map-header")
+        })
     }
     @ViewBuilder private var selectionPanel: some View {
         if let selected {

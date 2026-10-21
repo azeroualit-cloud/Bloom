@@ -100,7 +100,7 @@ struct LiveMarkdownEditor: UIViewRepresentable {
             done.titleLabel?.adjustsFontSizeToFitWidth = true
             done.titleLabel?.minimumScaleFactor = 0.7
             done.setTitleColor(UIColor(Color.bloomBackground), for: .normal)
-            done.backgroundColor = UIColor(Color.accentColor)
+            done.backgroundColor = BloomBrand.uiAccent
             done.layer.cornerRadius = BloomLayout.gap
             done.accessibilityLabel = "Chiudi tastiera"
             done.accessibilityIdentifier = "pkms-keyboard-done"

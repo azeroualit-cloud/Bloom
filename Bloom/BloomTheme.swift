@@ -1,6 +1,9 @@
 import SwiftUI
+import UIKit
 
 enum BloomBrand {
+    /// Named assets resolve consistently in UIKit's separate keyboard window.
+    static var uiAccent: UIColor { UIColor(named: "AccentColor") ?? .systemPurple }
     static var gradient: LinearGradient {
         LinearGradient(colors: [Color("BrandBlue"), Color("AccentColor"), Color("BrandWine")], startPoint: .topLeading, endPoint: .bottomTrailing)
     }

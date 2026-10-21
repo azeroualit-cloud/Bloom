@@ -5,6 +5,7 @@ import SwiftData
 struct LibraryView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query(sort: \CapturedLink.capturedAt, order: .reverse) private var items: [CapturedLink]
     @Query(sort: \LinkCollection.name) private var tags: [LinkCollection]
     @State private var search = ""
@@ -53,7 +54,9 @@ struct LibraryView: View {
         return visible.filter { !$0.pinnedCategoryIDs.contains(id) }
     }
     private var showingTags: Bool { !allNotes && search.isEmpty && kind == nil && !selecting }
-    private let categoryColumns = Array(repeating: GridItem(.flexible(), spacing: BloomLayout.gap), count: 2)
+    private var categoryColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: BloomLayout.gap), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2)
+    }
     private let contentColumns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 3)
 
     var body: some View { NavigationStack { presentedLibrary } }
@@ -62,7 +65,7 @@ struct LibraryView: View {
             VStack(alignment: .leading, spacing: 16) {
                 if showingTags {
                     let homeItems = visible
-                    HStack(spacing: BloomLayout.gap) {
+                    LazyVGrid(columns: categoryColumns, spacing: BloomLayout.gap) {
                         categoryRow("Tutte le note", symbol: "square.grid.2x2", value: .all, count: homeItems.count)
                         categoryRow("Da organizzare", symbol: "tray", value: .unfiled, count: homeItems.filter { $0.tagIDs.isEmpty }.count)
                     }.padding(.horizontal, BloomLayout.margin)

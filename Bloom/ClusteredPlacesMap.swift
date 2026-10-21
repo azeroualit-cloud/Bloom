@@ -167,7 +167,7 @@ final class PlaceClusterView: PlaceAnnotationView {
         displayPriority = .required
         collisionMode = .rectangle
         countLabel.frame = CGRect(x: 4, y: 4, width: 48, height: 48)
-        countLabel.backgroundColor = UIColor(Color.accentColor)
+        countLabel.backgroundColor = BloomBrand.uiAccent
         countLabel.textColor = UIColor { $0.userInterfaceStyle == .dark ? .black : .white }
         countLabel.font = .preferredFont(forTextStyle: .headline)
         countLabel.adjustsFontSizeToFitWidth = true
@@ -205,10 +205,10 @@ final class PlacePinView: PlaceAnnotationView {
         ring.backgroundColor = UIColor(Color.bloomBackground)
         ring.layer.cornerRadius = 16
         ring.layer.borderWidth = 2
-        ring.layer.borderColor = UIColor(Color.accentColor).cgColor
+        ring.layer.borderColor = BloomBrand.uiAccent.cgColor
         dot.frame = CGRect(x: 13, y: 13, width: 18, height: 18)
         dot.layer.cornerRadius = 9
-        dot.backgroundColor = UIColor(Color.accentColor)
+        dot.backgroundColor = BloomBrand.uiAccent
         addSubview(ring); addSubview(dot)
         isAccessibilityElement = true; accessibilityTraits = .button
     }

@@ -11,7 +11,6 @@ struct BloomHomeView: View {
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = UIColor(Color.bloomBackground)
         appearance.backgroundEffect = nil
-        UITabBar.appearance().isTranslucent = false
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
     }
