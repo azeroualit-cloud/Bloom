@@ -213,11 +213,15 @@ final class PlacePinView: MKAnnotationView {
         accessibilityLabel = "\(place.title ?? "Luogo"), \(ContentLabels.noteCount(place.count))"
         accessibilityHint = "Mostra le note salvate in questo luogo"
         badge.text = "\(place.count)"; badge.isHidden = place.count < 2
+        thumbnail.contentMode = .scaleAspectFit
         thumbnail.image = UIImage(systemName: "mappin")
         decode = Task { [weak self] in
             let image = await CachedPreviewImage.decode(place.imageData, maximumPixel: 144)
             guard !Task.isCancelled else { return }
-            if let image { self?.thumbnail.image = image }
+            if let image {
+                self?.thumbnail.contentMode = .scaleAspectFill
+                self?.thumbnail.image = image
+            }
         }
     }
 }
