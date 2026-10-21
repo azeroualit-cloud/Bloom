@@ -33,7 +33,7 @@ jobs:
     needs: cancel-superseded
     if: always() && !cancelled()
     runs-on: macos-15
-    timeout-minutes: 40
+    timeout-minutes: 50
     concurrency:
       group: ios-${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
@@ -65,7 +65,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          xcodebuild -project Bloom.xcodeproj -scheme Bloom -destination "platform=iOS Simulator,id=$DEVICE_ID" -only-testing:BloomTests/PKMSTests -only-testing:BloomTests/DropboxClientTests -only-testing:BloomUITests/DailyUseUITests/testCategoryPinBecomesTitleOnlyRowAndLeavesTheGrid -only-testing:BloomUITests/DailyUseUITests/testPKMSFolderTreeEditsLiveAndRestoresOfflineDraftAfterRestart -only-testing:BloomUITests/DailyUseUITests/testMapListsSavedPlaceAndOpensItsNote -only-testing:BloomUITests/DailyUseUITests/testBulkArchiveAndRestore -resultBundlePath build/NavigationPreflight.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee build-xcodebuild.log
+          xcodebuild -project Bloom.xcodeproj -scheme Bloom -destination "platform=iOS Simulator,id=$DEVICE_ID" -only-testing:BloomTests/PresentationTests -only-testing:BloomUITests/DailyUseUITests/testPKMSRendersMarkdownTablesAndKeyboardActionsWithoutChangingSource -only-testing:BloomUITests/DailyUseUITests/testDenseMapClustersZoomAndRetainsAccessiblePlacesList -only-testing:BloomTests/PKMSTests -only-testing:BloomTests/DropboxClientTests -only-testing:BloomUITests/DailyUseUITests/testCategoryPinBecomesTitleOnlyRowAndLeavesTheGrid -only-testing:BloomUITests/DailyUseUITests/testPKMSFolderTreeEditsLiveAndRestoresOfflineDraftAfterRestart -only-testing:BloomUITests/DailyUseUITests/testMapListsSavedPlaceAndOpensItsNote -only-testing:BloomUITests/DailyUseUITests/testBulkArchiveAndRestore -resultBundlePath build/NavigationPreflight.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee build-xcodebuild.log
           xcodebuild -project Bloom.xcodeproj -scheme Bloom -destination "platform=iOS Simulator,id=$DEVICE_ID" -resultBundlePath build/Tests.xcresult CODE_SIGNING_ALLOWED=NO test-without-building 2>&1 | tee build-xcodebuild.log
       - name: Build diagnostics summary
         if: always()
@@ -89,6 +89,21 @@ jobs:
           if [ -d build/Tests.xcresult ]; then
             xcrun xcresulttool get test-results summary --path build/Tests.xcresult >> "$GITHUB_STEP_SUMMARY" || true
           fi
+      - name: Export UI screenshots
+        if: always()
+        shell: bash
+        run: |
+          for RESULT in Tests NavigationPreflight; do
+            if [ -d "build/$RESULT.xcresult" ]; then
+              xcrun xcresulttool export attachments --path "build/$RESULT.xcresult" --output-path "build/Screenshots/$RESULT"
+            fi
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: UI-screenshots
+          path: build/Screenshots
+          if-no-files-found: ignore
       - name: Archive and package unsigned IPA
         run: scripts/unsigned-ipa.sh
       - uses: actions/upload-artifact@v4

@@ -38,7 +38,9 @@ struct NoteLinkButton: View {
                                 Text(url.host ?? "Link").font(.subheadline).lineLimit(1)
                             }
                         }
-                        if isVideo { Image(systemName: "play.circle.fill").font(.largeTitle).symbolRenderingMode(.palette).foregroundStyle(.white, .black.opacity(0.6)) }
+                        if isVideo && poster == nil && onOpenNote == nil {
+                            Image(systemName: "play.fill").font(.title2).padding(12).background(.black.opacity(0.65), in: Circle()).foregroundStyle(.white)
+                        }
                         if opening { ProgressView().padding().background(.regularMaterial, in: Capsule()) }
                     }.frame(width: proxy.size.width, height: proxy.size.height).clipped()
                 }.contentShape(Rectangle())
@@ -145,26 +147,5 @@ struct NoteFileView: View {
                 if let directory { try? FileManager.default.removeItem(at: directory) }
                 directory = nil; staged = nil
             }
-    }
-}
-
-struct MarkdownDocumentView: View {
-    let text: String
-    var body: some View {
-        LazyVStack(alignment: .leading, spacing: 12) {
-            ForEach(Array(MarkdownBlock.parse(text).enumerated()), id: \.offset) { _, block in
-                blockView(block).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }.foregroundStyle(Color.bloomText).accessibilityIdentifier("detail-content-text")
-    }
-    @ViewBuilder private func blockView(_ block: MarkdownBlock) -> some View {
-        let rich = (try? AttributedString(markdown: block.text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(block.text)
-        switch block.kind {
-        case .heading(let level): Text(rich).font(level == 1 ? .title : level == 2 ? .title2 : .headline).bold().accessibilityAddTraits(.isHeader)
-        case .bullet: HStack(alignment: .top) { Text("•"); Text(rich) }
-        case .quote: HStack { Rectangle().fill(.secondary).frame(width: 3); Text(rich).foregroundStyle(.secondary) }.fixedSize(horizontal: false, vertical: true)
-        case .code: Text(block.text).font(.body.monospaced()).padding(12).background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
-        case .paragraph: Text(rich)
-        }
     }
 }

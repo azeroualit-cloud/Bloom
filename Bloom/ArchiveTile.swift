@@ -51,7 +51,19 @@ struct ArchiveTile: View {
         VStack(spacing: 0) {
             footer
             NoteCarousel(item: item, aspectRatio: 3.0 / 4.0, onOpenNote: open)
-        }
+                .overlay(alignment: .bottomTrailing) {
+                    Label("Apri nota", systemImage: "arrow.up.right").font(.caption.weight(.semibold))
+                        .padding(.horizontal, 12).padding(.vertical, 8).background(Color.bloomSurface, in: Capsule())
+                        .padding(12).allowsHitTesting(false).accessibilityHidden(true)
+                }
+            HStack {
+                Text(item.allLinks.first?.host ?? item.kind.label).font(.caption)
+                Spacer()
+                if let place = item.place { Label(place.name, systemImage: "mappin").font(.caption).lineLimit(1) }
+            }.foregroundStyle(Color.bloomText.opacity(0.85)).padding(.horizontal, 12).padding(.vertical, 10)
+        }.background(Color.bloomSurface)
+            .overlay(alignment: .bottom) { Rectangle().fill(Color.bloomRaised).frame(height: 1) }
+            .padding(.bottom, 16)
         .accessibilityElement(children: .contain).accessibilityIdentifier("rediscovery-post")
         .task(id: item.allLinks.first) { LinkPreviewController.shared.prepare(for: item, in: context) }
     }
@@ -84,7 +96,7 @@ struct ArchiveTile: View {
     private var footer: some View {
         HStack(alignment: .bottom, spacing: 0) {
                 Button { if selecting { select() } else { openNote() } } label: {
-                    Text(item.displayTitle).font(.subheadline.weight(.semibold)).lineLimit(1)
+                    Text(item.displayTitle).font(.headline).lineLimit(2)
                         .foregroundStyle(Color.bloomText)
                         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 }.buttonStyle(.plain).accessibilityIdentifier("note-title-\(item.id)")

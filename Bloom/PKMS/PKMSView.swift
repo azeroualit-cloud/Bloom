@@ -59,32 +59,7 @@ struct PKMSView: View {
                         ContentUnavailableView(search.isEmpty ? "Nessuna nota Markdown" : "Nessun risultato", systemImage: "doc.text", description: Text("I documenti .md e .markdown compaiono nelle loro cartelle."))
                     }
                     ForEach(rows) { row in
-                        if row.entry.isFolder {
-                            Button {
-                                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) {
-                                    if !expanded.insert(row.entry.pathLower).inserted { expanded.remove(row.entry.pathLower) }
-                                }
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "chevron.right").font(.caption).frame(width: 16).foregroundStyle(.secondary)
-                                        .rotationEffect(.degrees(expanded.contains(row.entry.pathLower) ? 90 : 0))
-                                    Text(row.entry.title).foregroundStyle(Color.bloomText).lineLimit(2)
-                                    Spacer(minLength: 0)
-                                }.padding(.leading, CGFloat(min(row.depth, 12)) * 16).frame(minHeight: 44).contentShape(Rectangle())
-                            }.buttonStyle(.plain).sensoryFeedback(.selection, trigger: expanded.contains(row.entry.pathLower))
-                                .accessibilityValue(expanded.contains(row.entry.pathLower) ? "Espansa" : "Chiusa")
-                        } else {
-                            NavigationLink {
-                                PKMSEditorView(store: store, entry: row.entry)
-                            } label: {
-                                HStack {
-                                    Text(row.entry.title).lineLimit(2)
-                                    Spacer(minLength: 0)
-                                    if store.documents[row.id]?.hasConflict == true { Image(systemName: "exclamationmark.triangle").accessibilityLabel("Conflitto") }
-                                    else if store.documents[row.id]?.dirty == true { Image(systemName: "icloud.and.arrow.up").accessibilityLabel("Modifiche in attesa") }
-                                }.padding(.leading, CGFloat(min(row.depth, 12)) * 16 + 24).frame(minHeight: 44)
-                            }.accessibilityIdentifier("pkms-note-\(row.entry.title)")
-                        }
+                        treeRow(row)
                     }.listRowSeparator(.hidden).listRowBackground(Color.bloomBackground)
                         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                     let recovered = store.documents.values.filter { $0.remoteDeleted }
@@ -103,7 +78,7 @@ struct PKMSView: View {
             .sensoryFeedback(.success, trigger: syncSuccess)
             .sensoryFeedback(.error, trigger: syncFailure)
             .navigationTitle("PKMS").navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $search, prompt: "Cerca documenti")
+            .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Cerca documenti")
             .refreshable { await store.sync() }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -128,7 +103,7 @@ struct PKMSView: View {
                         Image(systemName: store.connected ? "externaldrive.badge.icloud" : "icloud.slash")
                         Text(status).font(.caption)
                         Spacer()
-                    }.foregroundStyle(.secondary).padding(.horizontal, 16).padding(.vertical, 8).background(Color.bloomBackground)
+                    }.font(.caption).foregroundStyle(Color.bloomText.opacity(0.85)).padding(.horizontal, 16).padding(.vertical, 8).background(Color.bloomSurface)
                 }
             }
             .sheet(isPresented: $settings) { PKMSSettingsView(store: store) }
@@ -145,8 +120,44 @@ struct PKMSView: View {
             }
         }
     }
+    @ViewBuilder
+    private func treeRow(_ row: TreeRow) -> some View {
+        if row.entry.isFolder {
+            Button {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.18)) {
+                    if !expanded.insert(row.entry.pathLower).inserted { expanded.remove(row.entry.pathLower) }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).frame(width: 16).foregroundStyle(Color.bloomText.opacity(0.8))
+                        .rotationEffect(.degrees(expanded.contains(row.entry.pathLower) ? 90 : 0))
+                    Image(systemName: expanded.contains(row.entry.pathLower) ? "folder.fill" : "folder").frame(width: 18).foregroundStyle(Color.accentColor)
+                    Text(row.entry.title).fontWeight(.medium).foregroundStyle(Color.bloomText).lineLimit(2)
+                    Spacer(minLength: 0)
+                }.padding(.leading, CGFloat(min(row.depth, 12)) * 16).frame(minHeight: 44).contentShape(Rectangle())
+            }.buttonStyle(.plain).sensoryFeedback(.selection, trigger: expanded.contains(row.entry.pathLower))
+                .accessibilityValue(expanded.contains(row.entry.pathLower) ? "Espansa" : "Chiusa")
+        } else {
+            NavigationLink {
+                PKMSEditorView(store: store, entry: row.entry)
+            } label: {
+                HStack(spacing: 8) {
+                    Color.clear.frame(width: 16, height: 1).accessibilityHidden(true)
+                    Image(systemName: "doc.text").frame(width: 18).foregroundStyle(Color.bloomText.opacity(0.8))
+                    Text(row.entry.title).lineLimit(2)
+                    if !search.isEmpty { Text(row.entry.parent).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                    Spacer(minLength: 0)
+                    if store.documents[row.id]?.hasConflict == true { Image(systemName: "exclamationmark.triangle").accessibilityLabel("Conflitto") }
+                    else if store.documents[row.id]?.dirty == true { Image(systemName: "icloud.and.arrow.up").accessibilityLabel("Modifiche in attesa") }
+                }.padding(.leading, CGFloat(min(row.depth, 12)) * 16).frame(minHeight: 44)
+            }.accessibilityIdentifier("pkms-note-\(row.entry.title)")
+        }
+    }
+
     private var status: String {
         if store.syncing { return "Sincronizzazione…" }
+        if store.storageError != nil { return "Salvataggio locale non riuscito · riprova" }
+        if store.error != nil { return "Sincronizzazione non riuscita · copie locali disponibili" }
         if store.conflictCount > 0 { return "\(store.conflictCount) documenti da verificare" }
         if store.pendingCount > 0 { return "\(store.pendingCount) modifiche salvate sul dispositivo, in attesa" }
         if !store.connected { return "Offline · copie locali disponibili" }

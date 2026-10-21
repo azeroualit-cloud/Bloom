@@ -47,7 +47,7 @@ final class PKMSStore: ObservableObject {
                 let folder = DropboxEntry(tag: "folder", name: "Lavoro", id: "id:folder", pathLower: "/pkms/lavoro", pathDisplay: "/PKMS/Lavoro", rev: nil, size: nil)
                 let note = DropboxEntry(tag: "file", name: "Contatti.md", id: "id:fixture", pathLower: "/pkms/lavoro/contatti.md", pathDisplay: "/PKMS/Lavoro/Contatti.md", rev: "r1", size: 30)
                 try disk.saveIndex(PKMSIndex(root: "/pkms", entries: [folder, note]))
-                try disk.save(PKMSDocument(id: note.identity, path: note.pathLower, text: "# Contatti\nAppunti iniziali", revision: "r1", syncedText: "# Contatti\nAppunti iniziali"))
+                try disk.save(PKMSDocument(id: note.identity, path: note.pathLower, text: "# Contatti\nAppunti iniziali\n\n| Chi | Recapito |\n| --- | --- |\n| Helpdesk | 0100000000 |\n\n###### Because\nSpiega il **Perché**", revision: "r1", syncedText: "# Contatti\nAppunti iniziali\n\n| Chi | Recapito |\n| --- | --- |\n| Helpdesk | 0100000000 |\n\n###### Because\nSpiega il **Perché**"))
             }
             let store = PKMSStore(disk: disk)
             store.allowsConnectionRefresh = false

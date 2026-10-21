@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 @MainActor
 struct PlacesMapView: View {
     @Query(sort: \CapturedLink.capturedAt, order: .reverse) private var notes: [CapturedLink]
-    @State private var camera: MapCameraPosition = .automatic
+    @State private var fitRequest = 0
     @State private var selectedID: String?
     @State private var showingList = false
     @State private var opened: CapturedLink?
@@ -49,26 +49,21 @@ struct PlacesMapView: View {
         }
     }
     private var mapCanvas: some View {
-        // The annotation button owns selection. A Map selection binding can clear
-        // that same state while MapKit handles the annotation tap.
-        Map(position: $camera) {
-            ForEach(groups) { group in
-                Annotation(markerTitle(group), coordinate: CLLocationCoordinate2D(latitude: group.place.latitude, longitude: group.place.longitude)) {
-                    Button { selectedID = group.id } label: {
-                        MapPostMarker(item: group.notes[0], count: group.notes.count, selected: selectedID == group.id)
-                    }.buttonStyle(.plain).accessibilityIdentifier("map-marker-\(group.id)")
-                }.annotationTitles(.hidden)
-            }
-        }.mapControls { MapCompass(); MapScaleView() }
-    }
-    private func markerTitle(_ group: PlaceGroup) -> String {
-        group.notes.count > 1 ? "\(group.place.name) · \(group.notes.count) note" : group.place.name
+        ClusteredPlacesMap(places: groups.map { group in
+            let note = group.notes[0]
+            let image = note.previewSourceURL == note.allLinks.first?.absoluteString ? note.previewImageData : nil
+            return PlaceMapAnnotation(id: group.id, place: group.place, count: group.notes.count,
+                                      imageData: image ?? (note.kind == .image ? note.attachmentData : nil))
+        }, selectedID: selectedID, fitRequest: fitRequest) { selectedID = $0 }
     }
     @ViewBuilder private var selectionPanel: some View {
         if let selected {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(selected.place.name).font(.headline).lineLimit(2)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(selected.place.name).font(.headline).lineLimit(2)
+                        Text(ContentLabels.noteCount(selected.notes.count)).font(.caption).foregroundStyle(Color.bloomText.opacity(0.85))
+                    }
                     Spacer()
                     Button { selectedID = nil } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }.accessibilityLabel("Chiudi luogo")
                 }
@@ -93,10 +88,10 @@ struct PlacesMapView: View {
     }
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
-            Button("Elenco luoghi", systemImage: "list.bullet") { showingList = true }.disabled(groups.isEmpty).accessibilityIdentifier("map-places-list")
+            Button("Luoghi", systemImage: "list.bullet") { showingList = true }.disabled(groups.isEmpty).labelStyle(.titleAndIcon).accessibilityLabel("Elenco luoghi salvati").accessibilityIdentifier("map-places-list")
         }
         ToolbarItem(placement: .topBarLeading) {
-            Button("Mostra tutti", systemImage: "arrow.up.left.and.arrow.down.right") { selectedID = nil; camera = .automatic }.disabled(groups.isEmpty)
+            Button("Tutti", systemImage: "arrow.up.left.and.arrow.down.right") { selectedID = nil; fitRequest += 1 }.disabled(groups.isEmpty).labelStyle(.titleAndIcon).accessibilityLabel("Mostra tutti")
         }
     }
     private var placesList: some View {

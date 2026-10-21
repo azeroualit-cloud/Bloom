@@ -407,6 +407,12 @@ enum LocalLibrary {
             if ProcessInfo.processInfo.arguments.contains("--ui-test-map") {
                 _ = try LinkStore.saveNote(title: "Rome fixture", body: "Place note", urls: [], files: [], tags: [], location: .set(NotePlace(name: "Colosseo", latitude: 41.8902, longitude: 12.4922)), in: container.mainContext)
             }
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-map-dense") {
+                for index in 0..<18 {
+                    _ = try LinkStore.saveNote(title: "Luogo \(index)", body: "Nota geolocalizzata", urls: [], files: [], tags: [],
+                        location: .set(NotePlace(name: "Luogo \(index)", latitude: 41.89 + Double(index) * 0.002, longitude: 12.49 + Double(index) * 0.002)), in: container.mainContext)
+                }
+            }
             if ProcessInfo.processInfo.arguments.contains("--ui-test-instagram") {
                 let note = CapturedLink(kind: .link)
                 note.urlString = "https://www.instagram.com/p/fA9uwTtkSN/"; note.title = "Instagram fixture"; note.noteVersion = 1

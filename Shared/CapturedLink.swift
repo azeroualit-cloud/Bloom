@@ -88,7 +88,8 @@ final class CapturedLink {
             if !plain.isEmpty { return String(plain.prefix(80)) }
         }
         if let place { return place.name }
-        return (kind == .link ? URL(string: urlString)?.host : nil) ?? fileName ?? kind.label
+        if kind == .link, let url = URL(string: urlString) { return ContentLabels.linkTitle(url) }
+        return fileName ?? kind.label
     }
 
     init(url: URL, id: UUID = UUID(), capturedAt: Date = .now) {

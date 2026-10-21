@@ -1,9 +1,19 @@
 import SwiftUI
+import UIKit
 
 struct BloomHomeView: View {
     private enum Tab { case library, rediscover, map, pkms }
     @State private var selection = Tab.library
     @StateObject private var pkms = PKMSStore.applicationStore()
+
+    init() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(Color.bloomBackground)
+        appearance.backgroundEffect = nil
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
 
     var body: some View {
         TabView(selection: $selection) {
@@ -16,5 +26,7 @@ struct BloomHomeView: View {
             RediscoveryView { selection = .library }
                 .tabItem { Label("Riscopri", systemImage: "sparkles") }.tag(Tab.rediscover)
         }.background(Color.bloomBackground.ignoresSafeArea())
+            .toolbarBackground(Color.bloomBackground, for: .tabBar)
+            .toolbarBackground(.visible, for: .tabBar)
     }
 }

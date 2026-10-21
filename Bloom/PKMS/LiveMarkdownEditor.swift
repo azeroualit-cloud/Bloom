@@ -6,6 +6,7 @@ import UIKit
 struct LiveMarkdownEditor: UIViewRepresentable {
     @Binding var text: String
     var query = ""
+    @Binding var focused: Bool
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeUIView(context: Context) -> UITextView {
         let view = UITextView()
@@ -51,6 +52,8 @@ struct LiveMarkdownEditor: UIViewRepresentable {
         var lastFontSize: CGFloat = 0
         var lastStyle: UIUserInterfaceStyle = .unspecified
         init(_ parent: LiveMarkdownEditor) { self.parent = parent }
+        func textViewDidBeginEditing(_ textView: UITextView) { parent.focused = true }
+        func textViewDidEndEditing(_ textView: UITextView) { parent.focused = false }
         func textViewDidChange(_ view: UITextView) {
             guard view.markedTextRange == nil else { return }
             parent.text = view.text
@@ -59,18 +62,20 @@ struct LiveMarkdownEditor: UIViewRepresentable {
         }
         func installToolbar(_ view: UITextView) {
             let bar = UIToolbar()
-            bar.items = [
-                UIBarButtonItem(title: "H", style: .plain, target: self, action: #selector(heading)),
-                UIBarButtonItem(image: UIImage(systemName: "bold"), style: .plain, target: self, action: #selector(bold)),
-                UIBarButtonItem(image: UIImage(systemName: "list.bullet"), style: .plain, target: self, action: #selector(bullet)),
-                UIBarButtonItem(image: UIImage(systemName: "checklist"), style: .plain, target: self, action: #selector(checklist)),
-                UIBarButtonItem(image: UIImage(systemName: "link"), style: .plain, target: self, action: #selector(link)),
-                UIBarButtonItem(image: UIImage(systemName: "chevron.left.forwardslash.chevron.right"), style: .plain, target: self, action: #selector(code)),
-                UIBarButtonItem(systemItem: .flexibleSpace),
-                UIBarButtonItem(image: UIImage(systemName: "keyboard.chevron.compact.down"), style: .plain, target: self, action: #selector(hideKeyboard))
-            ]
-            let labels = ["Titolo", "Grassetto", "Elenco", "Checklist", "Collegamento", "Codice", "", "Chiudi tastiera"]
-            for (item, label) in zip(bar.items ?? [], labels) { item.accessibilityLabel = label }
+            let formatting = UIMenu(title: "Formato Markdown", children: [
+                UIAction(title: "Titolo", image: UIImage(systemName: "textformat.size")) { [weak self] _ in self?.heading() },
+                UIAction(title: "Grassetto", image: UIImage(systemName: "bold")) { [weak self] _ in self?.bold() },
+                UIAction(title: "Elenco", image: UIImage(systemName: "list.bullet")) { [weak self] _ in self?.bullet() },
+                UIAction(title: "Checklist", image: UIImage(systemName: "checklist")) { [weak self] _ in self?.checklist() },
+                UIAction(title: "Collegamento", image: UIImage(systemName: "link")) { [weak self] _ in self?.link() },
+                UIAction(title: "Codice", image: UIImage(systemName: "chevron.left.forwardslash.chevron.right")) { [weak self] _ in self?.code() }
+            ])
+            let format = UIBarButtonItem(title: "Formato", image: nil, primaryAction: nil, menu: formatting)
+            format.accessibilityLabel = "Formato Markdown"
+            let done = UIBarButtonItem(title: "Fine", style: .done, target: self, action: #selector(hideKeyboard))
+            done.accessibilityLabel = "Chiudi tastiera"
+            done.accessibilityIdentifier = "pkms-keyboard-done"
+            bar.items = [format, UIBarButtonItem(systemItem: .flexibleSpace), done]
             bar.sizeToFit(); view.inputAccessoryView = bar
         }
         @objc private func heading() { prefix("## ") }
@@ -98,22 +103,11 @@ struct LiveMarkdownEditor: UIViewRepresentable {
             let storage = view.textStorage, full = range ?? NSRange(location: 0, length: storage.length)
             let body = UIFont.preferredFont(forTextStyle: .body)
             lastFontSize = body.pointSize; lastStyle = view.traitCollection.userInterfaceStyle
-            let paragraph = NSMutableParagraphStyle(); paragraph.lineSpacing = 5; paragraph.paragraphSpacing = 6
+            let paragraph = NSMutableParagraphStyle(); paragraph.lineSpacing = 3; paragraph.paragraphSpacing = 0
             storage.beginEditing()
             storage.setAttributes([.font: body, .foregroundColor: UIColor(Color.bloomText), .paragraphStyle: paragraph], range: full)
             let string = storage.string
-            func apply(_ pattern: String, _ attributes: [NSAttributedString.Key: Any]) {
-                guard let expression = try? NSRegularExpression(pattern: pattern, options: [.anchorsMatchLines]) else { return }
-                for match in expression.matches(in: string, range: full) { storage.addAttributes(attributes, range: match.range) }
-            }
-            apply("^#{1,6} .+$", [.font: UIFont.preferredFont(forTextStyle: .title2), .foregroundColor: UIColor(Color.bloomText)])
-            apply("\\*\\*[^\\n]+?\\*\\*", [.font: UIFont.boldSystemFont(ofSize: body.pointSize)])
-            apply("(?<!\\*)\\*[^*\\n]+\\*(?!\\*)", [.font: UIFont.italicSystemFont(ofSize: body.pointSize)])
-            apply("~~[^~\\n]+~~", [.strikethroughStyle: NSUnderlineStyle.single.rawValue])
-            apply("`[^`\\n]+`", [.font: UIFont.monospacedSystemFont(ofSize: body.pointSize, weight: .regular), .backgroundColor: UIColor(Color.bloomSurface)])
-            apply("^>.*$", [.foregroundColor: UIColor.secondaryLabel])
-            apply("^[ \\t]*[-*+] \\[[ xX]\\]", [.foregroundColor: UIColor(Color.accentColor)])
-            apply("\\[[^\\]\\n]+\\]\\([^\\)\\n]+\\)", [.foregroundColor: UIColor(Color.accentColor)])
+            // Source mode deliberately shows literal Markdown without partial rich rendering.
             if !parent.query.isEmpty, let expression = try? NSRegularExpression(pattern: NSRegularExpression.escapedPattern(for: parent.query), options: [.caseInsensitive]) {
                 for match in expression.matches(in: string, range: full) { storage.addAttribute(.backgroundColor, value: UIColor.systemYellow.withAlphaComponent(0.3), range: match.range) }
             }

@@ -19,5 +19,6 @@ extension View {
         self.scrollContentBackground(.hidden)
             .background(Color.bloomBackground)
             .toolbarBackground(Color.bloomBackground, for: .navigationBar, .tabBar)
+            .toolbarBackground(.visible, for: .tabBar)
     }
 }

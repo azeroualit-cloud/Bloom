@@ -33,6 +33,12 @@ final class LinkPreviewController {
                 provider.timeout = 12
                 provider.shouldFetchSubresources = true
                 let metadata = try await provider.startFetchingMetadata(for: url)
+                guard link.modelContext != nil, link.allLinks.first == url else { return }
+                if (link.title ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                   let title = metadata.title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
+                    link.title = title
+                    try context.save()
+                }
                 guard let imageProvider = metadata.imageProvider else {
                     return
                 }

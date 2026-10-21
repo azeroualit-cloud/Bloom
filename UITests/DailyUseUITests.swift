@@ -38,9 +38,10 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertLessThanOrEqual(note.frame.height, 52, diagnostics(app))
         XCTAssertLessThanOrEqual(note.frame.minY - folder.frame.maxY, 8, diagnostics(app))
         tapWhenReady(note, in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["pkms-reader"].firstMatch.waitForExistence(timeout: 10), diagnostics(app))
+        tapWhenReady(app.buttons["pkms-toggle-edit"], in: app)
         let editor = app.textViews["pkms-editor"]
         XCTAssertTrue(editor.waitForExistence(timeout: 10), diagnostics(app))
-        XCTAssertFalse(app.buttons["Modifica"].exists)
         tapWhenReady(editor, in: app)
         editor.typeText("\nNota aggiunta dal telefono")
         let saved = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
@@ -52,10 +53,72 @@ final class DailyUseUITests: XCTestCase {
         tapWhenReady(app.tabBars.buttons["PKMS"], in: app)
         tapWhenReady(app.buttons["Lavoro"], in: app)
         tapWhenReady(app.buttons["pkms-note-Contatti"], in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["pkms-reader"].firstMatch.waitForExistence(timeout: 10), diagnostics(app))
+        tapWhenReady(app.buttons["pkms-toggle-edit"], in: app)
         let restored = app.textViews["pkms-editor"]
         XCTAssertTrue(restored.waitForExistence(timeout: 10), diagnostics(app))
         XCTAssertTrue((restored.value as? String ?? "").contains("Nota aggiunta dal telefono"), diagnostics(app))
     }
+    @MainActor
+    func testPKMSRendersMarkdownTablesAndKeyboardActionsWithoutChangingSource() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-pkms=" + UUID().uuidString]
+        app.launch()
+        tapWhenReady(app.tabBars.buttons["PKMS"], in: app)
+        XCTAssertTrue(app.searchFields.firstMatch.waitForExistence(timeout: 5), diagnostics(app))
+        tapWhenReady(app.buttons["Lavoro"], in: app)
+        tapWhenReady(app.buttons["pkms-note-Contatti"], in: app)
+        let table = app.descendants(matching: .any)["markdown-table"].firstMatch
+        XCTAssertTrue(table.waitForExistence(timeout: 10), diagnostics(app))
+        XCTAssertLessThanOrEqual(table.frame.width, app.frame.width)
+        XCTAssertGreaterThan(table.frame.height, 60)
+        XCTAssertTrue(app.staticTexts["Because"].exists, diagnostics(app))
+        XCTAssertFalse(app.staticTexts["###### Because"].exists)
+        captureScreen(app, name: "PKMS rendered headings and contact table")
+        tapWhenReady(app.buttons["pkms-toggle-edit"], in: app)
+        let editor = app.textViews["pkms-editor"]
+        tapWhenReady(editor, in: app)
+        let source = editor.value as? String ?? ""
+        XCTAssertTrue(source.contains("| Chi | Recapito |"))
+        XCTAssertTrue(source.contains("**Perché**"))
+        tapWhenReady(app.buttons["Formato Markdown"], in: app)
+        XCTAssertTrue(app.buttons["Checklist"].waitForExistence(timeout: 5), diagnostics(app))
+        app.tap() // Dismiss the formatting menu without mutating the document.
+        tapWhenReady(app.buttons["pkms-keyboard-done"], in: app)
+        XCTAssertFalse(app.keyboards.firstMatch.exists, diagnostics(app))
+        XCTAssertEqual(editor.value as? String, source)
+        captureScreen(app, name: "PKMS explicit source editing and save status")
+        tapWhenReady(app.buttons["pkms-toggle-edit"], in: app)
+        XCTAssertTrue(table.waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertTrue(app.descendants(matching: .any)["pkms-save-status"].firstMatch.exists)
+    }
+
+    @MainActor
+    func testDenseMapClustersZoomAndRetainsAccessiblePlacesList() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-in-memory", "--ui-test-map-dense", "-AppleInterfaceStyle", "Dark"]
+        app.launch()
+        tapWhenReady(app.tabBars.buttons["Mappa"], in: app)
+        let cluster = app.buttons.matching(identifier: "map-cluster").firstMatch
+        XCTAssertTrue(cluster.waitForExistence(timeout: 15), diagnostics(app))
+        captureScreen(app, name: "Dense map uses count clusters")
+        tapWhenReady(cluster, in: app)
+        let pin = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-marker-' ")).firstMatch
+        XCTAssertTrue(pin.waitForExistence(timeout: 10), diagnostics(app))
+        captureScreen(app, name: "Cluster zoom reveals anchored place markers")
+        tapWhenReady(app.buttons["map-places-list"], in: app)
+        tapWhenReady(app.buttons["Luogo 0"], in: app)
+        XCTAssertTrue(app.navigationBars["Luogo 0"].waitForExistence(timeout: 5), diagnostics(app))
+    }
+
+    @MainActor
+    private func captureScreen(_ app: XCUIApplication, name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+
     @MainActor
     func testNoteOrganizesCategoriesInlineAndRemovesPlace() {
         continueAfterFailure = false
@@ -268,7 +331,7 @@ final class DailyUseUITests: XCTestCase {
         app.tabBars.buttons["Libreria"].tap()
         XCTAssertTrue(app.staticTexts["Nessuna nota"].waitForExistence(timeout: 5), diagnostics(app))
         XCTAssertFalse(app.navigationBars["Browser fixture"].exists)
-        XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
+        XCTAssertEqual(app.staticTexts["library-count"].label, "0 note")
     }
 
     @MainActor
@@ -355,7 +418,7 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(app.alerts.buttons["Sposta nel cestino"].waitForExistence(timeout: 5), diagnostics(app))
         app.alerts.buttons["Sposta nel cestino"].tap()
         XCTAssertTrue(app.staticTexts["Nessuna nota"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
+        XCTAssertEqual(app.staticTexts["library-count"].label, "0 note")
     }
 
     @MainActor
@@ -443,7 +506,7 @@ final class DailyUseUITests: XCTestCase {
         paste.tap()
         XCTAssertTrue(app.buttons["category-Tutti"].waitForExistence(timeout: 10), diagnostics(app))
         XCTAssertFalse(app.navigationBars["Nuova nota"].exists)
-        XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
+        XCTAssertEqual(app.staticTexts["library-count"].label, "1 nota")
     }
 
     @MainActor
@@ -457,9 +520,9 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["Elimina"].tap()
         app.alerts.buttons["Sposta nel cestino"].tap()
         XCTAssertTrue(app.staticTexts["library-count"].waitForExistence(timeout: 5), diagnostics(app))
-        XCTAssertEqual(app.staticTexts["library-count"].label, "0 contenuti")
+        XCTAssertEqual(app.staticTexts["library-count"].label, "0 note")
         app.buttons["archive-undo"].tap()
-        XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
+        XCTAssertEqual(app.staticTexts["library-count"].label, "1 nota")
         app.buttons["library-back-tags"].tap()
         app.buttons["category-Da specificare"].tap()
         note.press(forDuration: 1.1)
@@ -498,7 +561,7 @@ final class DailyUseUITests: XCTestCase {
         app.buttons["capture-close"].tap()
         app.buttons["Scarta modifiche"].tap()
         XCTAssertTrue(app.buttons["library-select"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.staticTexts["library-count"].label, "1 contenuti")
+        XCTAssertEqual(app.staticTexts["library-count"].label, "1 nota")
     }
     @MainActor
     func testCaptureCollectionAndOpenPreserveInput() {
@@ -603,7 +666,7 @@ final class DailyUseUITests: XCTestCase {
 
     @MainActor
     private func assertLibraryCount(_ app: XCUIApplication, count: Int) {
-        let expected = "\(count) contenuti"
+        let expected = count == 1 ? "1 nota" : "\(count) note"
         let condition = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", expected), object: app.staticTexts["library-count"])
         XCTAssertEqual(XCTWaiter.wait(for: [condition], timeout: 5), .completed, diagnostics(app))
     }

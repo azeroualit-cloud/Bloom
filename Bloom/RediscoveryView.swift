@@ -76,7 +76,7 @@ struct RediscoveryView: View {
                             }.frame(maxWidth: .infinity).padding(.vertical)
                         }
                     }
-                    .padding(.vertical, 8).frame(maxWidth: 680).frame(maxWidth: .infinity)
+                    .padding(.vertical, 8).padding(.bottom, 24).frame(maxWidth: 680).frame(maxWidth: .infinity)
                 }
                 .onChange(of: round) { _, _ in proxy.scrollTo("feed-start", anchor: .top) }
                 .onChange(of: collectionFilter) { _, _ in proxy.scrollTo("feed-start", anchor: .top) }
@@ -99,10 +99,12 @@ struct RediscoveryView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Menu { ContentFilterOptions(collection: $collectionFilter, kind: $kindFilter) }
-                        label: { Label("Filtri", systemImage: "line.3.horizontal.decrease.circle") }
+                    Menu {
+                        ContentFilterOptions(collection: $collectionFilter, kind: $kindFilter)
+                    } label: { Label("Filtri", systemImage: "line.3.horizontal.decrease") }
+                        .labelStyle(.titleAndIcon).accessibilityLabel("Filtra note da riscoprire")
                 }
-                ToolbarItem(placement: .primaryAction) { Button("Nuovo giro", systemImage: "shuffle", action: newRound).accessibilityIdentifier("rediscovery-next").disabled(contents.isEmpty) }
+                ToolbarItem(placement: .primaryAction) { Button("Mescola", systemImage: "shuffle", action: newRound).labelStyle(.titleAndIcon).accessibilityLabel("Nuovo giro").accessibilityHint("Mostra un nuovo gruppo di note").accessibilityIdentifier("rediscovery-next").disabled(contents.isEmpty) }
             }
             .refreshable { if feed.isEmpty { resetRounds() } else { newRound() } }
             .onAppear(perform: loadPreferences)

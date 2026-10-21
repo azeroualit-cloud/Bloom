@@ -67,7 +67,7 @@ struct LibraryView: View {
                         Divider()
                         categoryRow("Da specificare", symbol: "tag", value: .unfiled, count: homeItems.filter { $0.tagIDs.isEmpty }.count)
                     }.padding(.horizontal, 16)
-                    LazyVGrid(columns: categoryColumns, spacing: 20) {
+                    LazyVGrid(columns: categoryColumns, spacing: 12) {
                         ForEach(recentTags) { tag in
                             category(tag.name, symbol: "tag.fill", value: .collection(tag.id), members: homeItems.filter { $0.tagIDs.contains(tag.id) })
                         }
@@ -102,7 +102,7 @@ struct LibraryView: View {
                     LazyVGrid(columns: contentColumns, spacing: 0) { ForEach(gridNotes) { item in card(item) } }
                         .accessibilityIdentifier("content-grid")
                 }
-            }.padding(.vertical, 16).frame(maxWidth: .infinity)
+            }.padding(.vertical, 16).padding(.bottom, 24).frame(maxWidth: .infinity)
         }
         .background(Color.bloomBackground)
         .bloomCanvas().navigationTitle(archived ? "Cestino" : showingTags ? "Bloom" : categoryTitle)
@@ -139,7 +139,7 @@ struct LibraryView: View {
             CategoryCover(name: name, symbol: symbol, count: count, item: cover)
                 .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
         }.buttonStyle(.plain)
-            .accessibilityElement(children: .ignore).accessibilityLabel("\(name), \(count) note")
+            .accessibilityElement(children: .ignore).accessibilityLabel("Apri categoria \(name), \(ContentLabels.noteCount(count))")
             .accessibilityAddTraits(.isButton).accessibilityIdentifier("category-\(name)")
     }
     private var presentedLibrary: some View {
@@ -244,7 +244,7 @@ struct LibraryView: View {
         ToolbarItem(placement: .principal) {
             VStack(spacing: 1) {
                 Text(archived ? "Cestino" : showingTags ? "Bloom" : categoryTitle).font(.headline)
-                Text("\(visible.count) contenuti").font(.caption2).foregroundStyle(.secondary).accessibilityIdentifier("library-count")
+                Text(ContentLabels.noteCount(visible.count)).font(.caption2).foregroundStyle(.secondary).accessibilityIdentifier("library-count")
             }
         }
         ToolbarItem(placement: .topBarLeading) {
@@ -267,7 +267,7 @@ struct LibraryView: View {
             } label: { Label("Impostazioni", systemImage: "gearshape") }.accessibilityIdentifier("library-settings")
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Button(selecting ? "Fine" : "Seleziona", systemImage: selecting ? "checkmark.circle.fill" : "checkmark.circle") { if showingTags { allNotes = true }; selecting.toggle(); selection.removeAll(); revealed = nil }.labelStyle(.iconOnly).accessibilityIdentifier("library-select")
+            Button(selecting ? "Fine" : "Seleziona", systemImage: selecting ? "checkmark" : "checklist") { if showingTags { allNotes = true }; selecting.toggle(); selection.removeAll(); revealed = nil }.labelStyle(.titleOnly).accessibilityLabel(selecting ? "Fine selezione" : "Seleziona note").accessibilityIdentifier("library-select")
         }
         ToolbarItem(placement: .primaryAction) {
             Button { adding = true } label: { Label("Aggiungi nota", systemImage: "plus").foregroundStyle(selecting ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(BloomBrand.gradient)) }.accessibilityIdentifier("capture-add").disabled(selecting)

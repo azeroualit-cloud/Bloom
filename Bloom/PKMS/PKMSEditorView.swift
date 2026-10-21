@@ -18,6 +18,8 @@ struct PKMSEditorView: View {
     let entry: DropboxEntry
     @Environment(\.scenePhase) private var scenePhase
     @State private var searching = false
+    @State private var editing = false
+    @State private var focused = false
     @State private var query = ""
     @State private var conflict = false
     @State private var exporting = false
@@ -46,6 +48,7 @@ struct PKMSEditorView: View {
             .background(Color.bloomBackground)
             .navigationTitle(entry.title).navigationBarTitleDisplayMode(.inline)
             .toolbar { editorToolbar }
+            .toolbar(focused ? .hidden : .visible, for: .tabBar)
             .task { await store.open(entry); attemptedOpening = true }
             .onDisappear { store.scheduleSync() }
             .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await store.sync() } } }
@@ -78,16 +81,33 @@ struct PKMSEditorView: View {
         } else if let error = store.error {
             statusRow(error, symbol: "icloud.slash") { Task { await store.sync() } }
         }
-        LiveMarkdownEditor(text: Binding(get: { store.documents[entry.identity]?.text ?? "" },
-                                        set: { store.update(id: entry.identity, text: $0) }), query: query)
+        if editing {
+            Label("Modifica Markdown · salvataggio automatico", systemImage: "pencil")
+                .font(.caption.weight(.medium)).frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16).padding(.vertical, 6).background(Color.bloomSurface)
+            LiveMarkdownEditor(text: Binding(get: { store.documents[entry.identity]?.text ?? "" },
+                                            set: { store.update(id: entry.identity, text: $0) }), query: query, focused: $focused)
+        } else {
+            ScrollView {
+                MarkdownDocumentView(text: document.text, query: query)
+                    .padding(16).padding(.bottom, 24).frame(maxWidth: 760, alignment: .leading).frame(maxWidth: .infinity)
+            }.accessibilityIdentifier("pkms-reader")
+        }
         HStack(spacing: 6) {
             Image(systemName: store.storageError != nil ? "exclamationmark.triangle" : document.dirty ? "icloud.and.arrow.up" : "checkmark")
             Text(saveStatus(document)).font(.caption)
             Spacer()
-        }.foregroundStyle(.secondary).padding(.horizontal, 16).padding(.vertical, 6)
+        }.foregroundStyle(Color.bloomText.opacity(0.85)).padding(.horizontal, 16).padding(.vertical, 8).background(Color.bloomSurface)
+            .accessibilityIdentifier("pkms-save-status")
     }
     @ToolbarContentBuilder
     private var editorToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button(editing ? "Leggi" : "Scrivi", systemImage: editing ? "doc.richtext" : "square.and.pencil") {
+                editing.toggle(); if !editing { focused = false }
+            }.labelStyle(.titleOnly).disabled(document == nil).accessibilityIdentifier("pkms-toggle-edit")
+                .accessibilityHint(editing ? "Mostra il documento formattato" : "Modifica il sorgente Markdown; le modifiche sono salvate automaticamente")
+        }
         ToolbarItem(placement: .topBarTrailing) {
             Button { searching.toggle(); if !searching { query = "" } } label: { Image(systemName: "magnifyingglass") }.accessibilityLabel("Cerca nel documento")
         }
@@ -102,9 +122,13 @@ struct PKMSEditorView: View {
     }
     private func saveStatus(_ document: PKMSDocument) -> String {
         if store.storageError != nil { return "Modifiche in memoria · salvataggio locale da riprovare" }
+        if document.remoteDeleted { return "Copia locale · file rimosso da Dropbox" }
         if document.hasConflict { return "Salvato sul dispositivo · sincronizzazione sospesa" }
         if document.dirty { return store.syncing ? "Salvato sul dispositivo · sincronizzazione…" : "Salvato sul dispositivo · in attesa di Dropbox" }
-        return "Salvato su Dropbox"
+        if store.error != nil { return "Copia locale disponibile · sincronizzazione non riuscita" }
+        if !store.connected { return "Offline · salvato sul dispositivo" }
+        if store.syncing { return "Verifica delle modifiche su Dropbox…" }
+        return "Sincronizzato con Dropbox"
     }
     private func statusRow(_ text: String, symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {

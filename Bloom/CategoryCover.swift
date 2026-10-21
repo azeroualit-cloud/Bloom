@@ -20,10 +20,15 @@ struct CategoryCover: View {
             }
             .aspectRatio(1, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: "square.stack").font(.caption.weight(.semibold)).padding(8)
+                    .foregroundStyle(Color.bloomText).background(Color.bloomSurface, in: RoundedRectangle(cornerRadius: 8)).padding(8)
+                    .accessibilityHidden(true)
+            }
             VStack(alignment: .leading, spacing: 3) {
                 Text(name).font(.subheadline.weight(.semibold)).foregroundStyle(Color.bloomText).lineLimit(2)
-                Text("\(count) note").font(.caption).foregroundStyle(.secondary)
-            }.frame(maxWidth: .infinity, minHeight: 42, alignment: .topLeading)
+                Text(ContentLabels.noteCount(count)).font(.caption).foregroundStyle(.secondary)
+            }.frame(maxWidth: .infinity, minHeight: 36, alignment: .topLeading)
         }
         .task(id: item?.id) {
             if let item, item.modelContext != nil, !item.isDeleted {
@@ -34,7 +39,7 @@ struct CategoryCover: View {
 
     @ViewBuilder private var cover: some View {
         if let item, item.modelContext != nil, !item.isDeleted {
-            if let data = item.previewImageData, item.previewSourceURL == item.allLinks.first?.absoluteString {
+            if let data = item.previewImageData, item.previewSourceURL == item.allLinks.first?.absoluteString, item.allLinks.first.map({ SocialLink.isVideo($0) || SocialLink.instagramPostURL($0) != nil }) != true {
                 CachedPreviewImage(data: data, label: name, maxPixel: 512, contentMode: .fill)
             } else if item.kind == .image {
                 AttachmentThumbnail(item: item, maximumPixelSize: 512, contentMode: .fill)
