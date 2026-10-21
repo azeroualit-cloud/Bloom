@@ -111,6 +111,8 @@ final class DailyUseUITests: XCTestCase {
         tapWhenReady(cluster, in: app)
         let pins = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-marker-' "))
         var visiblePinID: String?
+        var openedNotePanel = false
+        let openNote = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-open-note-' ")).firstMatch
         for _ in 0..<5 {
             var candidateID: String?
             var candidateFrame = CGRect.null
@@ -119,7 +121,7 @@ final class DailyUseUITests: XCTestCase {
                 guard let visible = pins.allElementsBoundByIndex.first(where: {
                     let frame = $0.frame
                     return !frame.isEmpty && frame.minX.isFinite && frame.minY.isFinite
-                        && app.frame.insetBy(dx: 30, dy: 100).contains(frame) && $0.isHittable
+                        && app.frame.insetBy(dx: 30, dy: 100).contains(frame)
                 }) else {
                     candidateID = nil; stableSince = Date(); return false
                 }
@@ -129,22 +131,28 @@ final class DailyUseUITests: XCTestCase {
                 if id != candidateID || abs(frame.minX - candidateFrame.minX) >= 0.5 || abs(frame.minY - candidateFrame.minY) >= 0.5 {
                     candidateID = id; candidateFrame = frame; stableSince = Date(); return false
                 }
-                guard target.isHittable else { stableSince = Date(); return false }
+                guard target.exists else { stableSince = Date(); return false }
                 guard Date().timeIntervalSince(stableSince) >= 1 else { return false }
                 visiblePinID = id
                 return true
             }, object: app)
-            if XCTWaiter.wait(for: [ready], timeout: 15) == .completed { break }
+            if XCTWaiter.wait(for: [ready], timeout: 15) == .completed, let id = visiblePinID {
+                // MapKit can reject isHittable on its accessibility proxy. Test
+                // the actual UIKit touch target and require the note panel.
+                let frame = app.buttons[id].frame
+                XCTAssertTrue(app.frame.insetBy(dx: 30, dy: 100).contains(frame), diagnostics(app))
+                app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: frame.midX, dy: frame.midY)).tap()
+                if openNote.waitForExistence(timeout: 5) { openedNotePanel = true; break }
+                // A still-clustered marker zooms further; wait for its new geometry.
+                continue
+            }
             let clusters = app.buttons.matching(identifier: "map-cluster")
             guard let next = clusters.allElementsBoundByIndex.first(where: { $0.isHittable }) else {
                 XCTFail("No stable visible pin or cluster after zoom: " + diagnostics(app)); return
             }
             tapWhenReady(next, in: app)
         }
-        guard let id = visiblePinID else { XCTFail("Cluster zoom did not reveal a stable tappable pin: " + diagnostics(app)); return }
-        let pin = app.buttons[id]
-        tapWhenReady(pin, in: app)
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-open-note-' ")).firstMatch.waitForExistence(timeout: 5), diagnostics(app))
+        XCTAssertTrue(openedNotePanel, "Cluster zoom did not open a note panel: " + diagnostics(app))
         captureScreen(app, name: "Cluster zoom reveals anchored place markers and note panel")
         tapWhenReady(app.buttons["Chiudi luogo"], in: app)
         tapWhenReady(app.buttons["map-places-list"], in: app)
