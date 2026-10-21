@@ -109,9 +109,23 @@ final class DailyUseUITests: XCTestCase {
         XCTAssertTrue(cluster.waitForExistence(timeout: 15), diagnostics(app))
         captureScreen(app, name: "Dense map uses count clusters")
         tapWhenReady(cluster, in: app)
-        let pin = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-marker-' ")).firstMatch
-        XCTAssertTrue(pin.waitForExistence(timeout: 10), diagnostics(app))
-        captureScreen(app, name: "Cluster zoom reveals anchored place markers")
+        let pins = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-marker-' "))
+        var visiblePin: XCUIElement?
+        for _ in 0..<4 {
+            if let pin = pins.allElementsBoundByIndex.first(where: { $0.isHittable }) { visiblePin = pin; break }
+            let clusters = app.buttons.matching(identifier: "map-cluster")
+            guard let next = clusters.allElementsBoundByIndex.first(where: { $0.isHittable }) else {
+                XCTFail("No visible pin or cluster after zoom: " + diagnostics(app)); return
+            }
+            tapWhenReady(next, in: app)
+        }
+        guard let pin = visiblePin ?? pins.allElementsBoundByIndex.first(where: { $0.isHittable }) else {
+            XCTFail("Cluster zoom did not reveal a tappable pin: " + diagnostics(app)); return
+        }
+        tapWhenReady(pin, in: app)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'map-open-note-' ")).firstMatch.waitForExistence(timeout: 5), diagnostics(app))
+        captureScreen(app, name: "Cluster zoom reveals anchored place markers and note panel")
+        tapWhenReady(app.buttons["Chiudi luogo"], in: app)
         tapWhenReady(app.buttons["map-places-list"], in: app)
         tapWhenReady(app.buttons["Luogo 0"], in: app)
         XCTAssertTrue(app.navigationBars["Luogo 0"].waitForExistence(timeout: 5), diagnostics(app))
@@ -678,14 +692,19 @@ final class DailyUseUITests: XCTestCase {
     @MainActor
     private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(element.waitForExistence(timeout: 10), diagnostics(app), file: file, line: line)
-        var lastFrame = CGRect.null
+        var lastFrame = element.frame
+        var stableSince = Date()
         let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            guard element.exists, element.isHittable else { return false }
+            guard element.exists, element.isHittable else { stableSince = Date(); return false }
             let frame = element.frame
-            defer { lastFrame = frame }
-            return !frame.isEmpty && frame == lastFrame
+            // Native list/map frames can differ by a fraction of a point between snapshots.
+            let stable = !frame.isEmpty && abs(frame.minX - lastFrame.minX) < 0.5 && abs(frame.minY - lastFrame.minY) < 0.5
+                && abs(frame.width - lastFrame.width) < 0.5 && abs(frame.height - lastFrame.height) < 0.5
+            lastFrame = frame
+            if !stable { stableSince = Date(); return false }
+            return Date().timeIntervalSince(stableSince) >= 0.3
         }, object: element)
-        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 10), .completed,
+        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 20), .completed,
                        "Target: \(element.debugDescription); last frame: \(lastFrame); \(diagnostics(app))", file: file, line: line)
         element.tap()
     }
